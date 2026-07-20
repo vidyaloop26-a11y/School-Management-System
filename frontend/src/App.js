@@ -9,7 +9,22 @@ import Staff from "@/pages/Staff";
 import StaffProfile from "@/pages/StaffProfile";
 import Timetable from "@/pages/Timetable";
 import Placeholder from "@/pages/Placeholder";
+import TeacherDashboard from "@/pages/TeacherDashboard";
+import ParentDashboard from "@/pages/ParentDashboard";
+import Attendance from "@/pages/Attendance";
+import DigitalDiary from "@/pages/DigitalDiary";
+import Homework from "@/pages/Homework";
+import Fees from "@/pages/Fees";
+import Communication from "@/pages/Communication";
+import { RoleProvider, useRole } from "@/lib/RoleContext";
 import { NAV } from "@/lib/mockData";
+
+function DashboardRouter() {
+  const { role } = useRole();
+  if (role === "Teacher") return <TeacherDashboard />;
+  if (role === "Parent")  return <ParentDashboard />;
+  return <Dashboard />;
+}
 
 function App() {
   // Build placeholder routes for all non-functional entries
@@ -23,21 +38,28 @@ function App() {
 
   return (
     <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/students" element={<Students />} />
-            <Route path="/students/:admNo" element={<StudentProfile />} />
-            <Route path="/staff" element={<Staff />} />
-            <Route path="/staff/:staffId" element={<StaffProfile />} />
-            <Route path="/timetable" element={<Timetable />} />
-            {placeholderRoutes.map((p) => (
-              <Route key={p.key} path={p.path} element={<Placeholder title={p.label} icon={p.icon} />} />
-            ))}
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <RoleProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<DashboardRouter />} />
+              <Route path="/students" element={<Students />} />
+              <Route path="/students/:admNo" element={<StudentProfile />} />
+              <Route path="/staff" element={<Staff />} />
+              <Route path="/staff/:staffId" element={<StaffProfile />} />
+              <Route path="/timetable" element={<Timetable />} />
+              <Route path="/attendance" element={<Attendance />} />
+              <Route path="/diary" element={<DigitalDiary />} />
+              <Route path="/homework" element={<Homework />} />
+              <Route path="/fees" element={<Fees />} />
+              <Route path="/communication" element={<Communication />} />
+              {placeholderRoutes.map((p) => (
+                <Route key={p.key} path={p.path} element={<Placeholder title={p.label} icon={p.icon} />} />
+              ))}
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </RoleProvider>
     </div>
   );
 }
