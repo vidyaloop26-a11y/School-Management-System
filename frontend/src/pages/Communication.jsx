@@ -4,6 +4,7 @@ import { useRole } from "@/lib/RoleContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NOTICES } from "@/lib/stage2Data";
 import { Megaphone, Send } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 function AdminForm() {
   const [title, setTitle] = useState("");
@@ -52,7 +53,7 @@ function AdminForm() {
                 </SelectContent>
               </Select>
             </div>
-            <button data-testid="notice-send" className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-6 py-2.5 text-[13px] font-medium shadow-sm">
+            <button data-testid="notice-send" onClick={() => toast(`Notice sent to ${audience}`)} className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-6 py-2.5 text-[13px] font-medium shadow-sm">
               <Send className="h-4 w-4" /> Send
             </button>
           </div>

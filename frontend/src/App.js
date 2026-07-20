@@ -23,6 +23,7 @@ import Events from "@/pages/Events";
 import { RoleProvider, useRole } from "@/lib/RoleContext";
 import { NAV } from "@/lib/mockData";
 import { PLACEHOLDER_DESCRIPTIONS } from "@/lib/stage3Data";
+import { Toaster } from "@/components/ui/sonner";
 
 function DashboardRouter() {
   const { role } = useRole();
@@ -69,6 +70,16 @@ function App() {
           </Routes>
         </BrowserRouter>
       </RoleProvider>
+      <Toaster
+        position="top-right"
+        offset={16}
+        toastOptions={{
+          classNames: {
+            toast: "!bg-white/85 !backdrop-blur-xl !border !border-white/80 !text-slate-800 !rounded-2xl !shadow-[0_10px_30px_-12px_rgba(20,60,100,0.18)]",
+            description: "!text-slate-500",
+          },
+        }}
+      />
     </div>
   );
 }

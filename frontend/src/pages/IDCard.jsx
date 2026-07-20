@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ID_CARD_TEMPLATES, ID_CARD_SAMPLE } from "@/lib/stage3Data";
 import { STUDENTS } from "@/lib/mockData";
 import { Download, Printer, Droplet, IdCard as IdCardIcon, Phone, GraduationCap } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 function ClassicBlueCard({ s }) {
   const initials = s.name.split(" ").map((x) => x[0]).slice(0, 2).join("");
@@ -199,7 +200,7 @@ export default function IDCard() {
             <button data-testid="idcard-print" className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 hover:border-[#29ABE2] transition text-slate-700 hover:text-[#0c6a99] px-4 py-2 text-[13px] font-medium">
               <Printer className="h-4 w-4" /> Print
             </button>
-            <button data-testid="idcard-download" className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2.5 text-[13px] font-medium shadow-sm">
+            <button data-testid="idcard-download" onClick={() => toast("ID card generated — ready to download")} className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2.5 text-[13px] font-medium shadow-sm">
               <Download className="h-4 w-4" /> Download
             </button>
           </div>

@@ -4,6 +4,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MARK_ENTRY, REPORT_CARD } from "@/lib/stage3Data";
 import { GraduationCap, Save, Award, Sparkles } from "lucide-react";
+import ExportButton from "@/components/common/ExportButton";
+import { toast } from "@/components/ui/sonner";
 
 function MarkEntry() {
   const [rows, setRows] = useState(() => MARK_ENTRY.map((r) => ({ ...r })));
@@ -84,7 +86,7 @@ function MarkEntry() {
         </div>
 
         <div className="flex items-center justify-end mt-4">
-          <button data-testid="mark-save" className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2.5 text-[13px] font-medium shadow-sm">
+          <button data-testid="mark-save" onClick={() => toast(`Marks saved for ${cls} — ${subject}`)} className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2.5 text-[13px] font-medium shadow-sm">
             <Save className="h-4 w-4" /> Save Marks
           </button>
         </div>
@@ -111,7 +113,7 @@ function MarkEntry() {
             />
           </div>
         ))}
-        <button data-testid="mark-save-mobile" className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-3 text-[13px] font-medium shadow-sm">
+        <button data-testid="mark-save-mobile" onClick={() => toast(`Marks saved for ${cls} — ${subject}`)} className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-3 text-[13px] font-medium shadow-sm">
           <Save className="h-4 w-4" /> Save Marks
         </button>
       </div>
@@ -214,6 +216,7 @@ export default function Examination() {
         eyebrow="ACADEMICS"
         title="Examination"
         subtitle="Enter marks and view report cards for term exams."
+        right={<ExportButton testId="exam-export" />}
       />
 
       <Tabs defaultValue="entry">

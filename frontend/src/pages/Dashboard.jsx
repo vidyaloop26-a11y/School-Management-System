@@ -2,6 +2,7 @@ import React from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import PageHeader from "@/components/common/PageHeader";
 import TrendPill from "@/components/common/TrendPill";
+import LastSynced from "@/components/common/LastSynced";
 import { STAT_CARDS, FEE_CHART, UPCOMING_EVENTS } from "@/lib/mockData";
 import { ArrowUpRight } from "lucide-react";
 
@@ -26,9 +27,9 @@ function ChartTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null;
   const v = payload[0].value;
   return (
-    <div className="rounded-xl bg-slate-900/95 text-white px-3 py-2 shadow-lg">
-      <div className="text-[10px] tracking-widest text-slate-300 uppercase">{label}</div>
-      <div className="text-[14px] font-semibold">₹{v}L</div>
+    <div className="rounded-xl bg-white/85 backdrop-blur-xl border border-white/80 shadow-[0_10px_30px_-12px_rgba(20,60,100,0.18)] px-3.5 py-2.5">
+      <div className="text-[10px] tracking-widest text-slate-500 uppercase font-semibold">{label} 2026</div>
+      <div className="text-[15px] font-bold text-slate-900 mt-0.5 tracking-tight">₹{v}L <span className="text-slate-400 text-[11px] font-medium">collected</span></div>
     </div>
   );
 }
@@ -40,6 +41,7 @@ export default function Dashboard() {
         eyebrow="ADMIN · THURSDAY, 16 JULY"
         title={<>Overview</>}
         subtitle={<>A snapshot of today at <span className="font-serif-i text-slate-700">Vidyaloop</span>.</>}
+        right={<LastSynced />}
       />
 
       {/* Stat cards */}

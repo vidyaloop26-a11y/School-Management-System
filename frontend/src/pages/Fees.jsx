@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FEE_ROWS, FEE_STAT_STRIP, PARENT_FEE_TERMS, PARENT_CHILD } from "@/lib/stage2Data";
 import { formatINR } from "@/lib/format";
 import { Wallet, TrendingUp, AlertCircle, Download, CreditCard } from "lucide-react";
+import ExportButton from "@/components/common/ExportButton";
 
 function AdminView() {
   const [cls, setCls] = useState("all");
@@ -24,6 +25,7 @@ function AdminView() {
         eyebrow="ADMIN · OPERATIONS"
         title="Fee Collection"
         subtitle="Track term-wise dues, collections, and overdue accounts."
+        right={<ExportButton testId="fees-export" />}
       />
 
       {/* Stat strip */}
@@ -103,7 +105,7 @@ function AdminView() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">No fee records match your filters.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">No results found — try a different search term.</td></tr>
               )}
             </tbody>
           </table>
