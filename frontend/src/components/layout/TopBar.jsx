@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React from "react";
 import { Bell, Search, ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
+import { useRole } from "@/lib/RoleContext";
 
 export default function TopBar({ onOpenPalette }) {
-  const [role, setRole] = useState("Admin");
+  const { role, setRole } = useRole();
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/50 bg-white/55 backdrop-blur-xl">
@@ -34,7 +35,7 @@ export default function TopBar({ onOpenPalette }) {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-[160px]">
-                {["Admin","Teacher","Parent","Student"].map((r) => (
+                {["Admin","Teacher","Parent"].map((r) => (
                   <DropdownMenuItem key={r} onClick={() => setRole(r)} data-testid={`role-option-${r.toLowerCase()}`}>
                     {r}
                   </DropdownMenuItem>

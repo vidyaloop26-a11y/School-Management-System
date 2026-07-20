@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { NAV } from "@/lib/mockData";
+import { useRole, ROLE_VISIBILITY } from "@/lib/RoleContext";
 
 function BrandMark() {
   return (
@@ -63,6 +64,8 @@ function Group({ label, items, defaultOpen = true }) {
 
 export default function Sidebar() {
   useLocation();
+  const { role } = useRole();
+  const allow = (key) => role === "Admin" || ROLE_VISIBILITY[role]?.has(key);
   return (
     <aside className="w-[260px] shrink-0 border-r border-white/60 bg-white/50 backdrop-blur-xl h-screen sticky top-0 flex flex-col">
       <div className="px-4 pt-5 pb-4 border-b border-slate-100/80">
@@ -71,21 +74,25 @@ export default function Sidebar() {
 
       <div className="flex-1 overflow-y-auto thin-scroll py-3">
         <div className="px-2 mb-1">
-          {NAV.top.map((it) => <NavItem key={it.key} item={it} />)}
+          {NAV.top.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} />)}
         </div>
 
-        {NAV.groups.map((g) => (
-          <Group key={g.label} label={g.label} items={g.items} />
-        ))}
+        {NAV.groups.map((g) => {
+          const items = g.items.filter((i) => allow(i.key));
+          if (items.length === 0) return null;
+          return <Group key={g.label} label={g.label} items={items} />;
+        })}
 
-        <div className="mt-2 pt-2 border-t border-slate-100">
-          <div className="px-3 pt-3 pb-1.5 text-[10px] tracking-[0.16em] font-semibold text-slate-400">
-            SYSTEM
+        {NAV.bottom.some((i) => allow(i.key)) && (
+          <div className="mt-2 pt-2 border-t border-slate-100">
+            <div className="px-3 pt-3 pb-1.5 text-[10px] tracking-[0.16em] font-semibold text-slate-400">
+              SYSTEM
+            </div>
+            <div className="flex flex-col gap-0.5 px-2">
+              {NAV.bottom.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} />)}
+            </div>
           </div>
-          <div className="flex flex-col gap-0.5 px-2">
-            {NAV.bottom.map((it) => <NavItem key={it.key} item={it} />)}
-          </div>
-        </div>
+        )}
       </div>
 
       <div className="px-4 py-3 border-t border-slate-100/80">

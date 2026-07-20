@@ -25,9 +25,9 @@ export const NAV = {
     {
       label: "ENGAGEMENT",
       items: [
-        { key: "diary",         label: "Digital Diary",       path: "/diary",         icon: BookOpen,      functional: false },
-        { key: "homework",      label: "Homework",            path: "/homework",      icon: PencilLine,    functional: false },
-        { key: "communication", label: "Communication",       path: "/communication", icon: MessageSquare, functional: false },
+        { key: "diary",         label: "Digital Diary",       path: "/diary",         icon: BookOpen,      functional: true },
+        { key: "homework",      label: "Homework",            path: "/homework",      icon: PencilLine,    functional: true },
+        { key: "communication", label: "Communication",       path: "/communication", icon: MessageSquare, functional: true },
         { key: "gallery",       label: "Gallery",             path: "/gallery",       icon: Images,        functional: false },
         { key: "events",        label: "Events & Holidays",   path: "/events",        icon: PartyPopper,   functional: false },
       ],
@@ -35,7 +35,7 @@ export const NAV = {
     {
       label: "OPERATIONS",
       items: [
-        { key: "fees",       label: "Fees",              path: "/fees",       icon: Wallet,      functional: false },
+        { key: "fees",       label: "Fees",              path: "/fees",       icon: Wallet,      functional: true },
         { key: "transport",  label: "Transport",         path: "/transport",  icon: Bus,         functional: false },
         { key: "library",    label: "Library",           path: "/library",    icon: Library,     functional: false },
         { key: "inventory",  label: "Inventory",         path: "/inventory",  icon: Boxes,       functional: false },

@@ -30,6 +30,17 @@ Build a School Management Platform web app for Vidyaloop — a premium, non-gene
 - [x] Staff: filterable table, profile with 4 tabs (Overview, Timetable derived from class grid, Leave, Documents).
 - [x] Timetable: grid with Mon-Fri × P1-P5+Break, Class/Teacher view toggle, click-cell popover with teacher + room.
 
+### Stage 2 additions
+- [x] Role switcher supports Admin / Teacher / Parent with a `RoleContext`.
+- [x] Per-role sidebar visibility: Teacher and Parent get focused sets; Admin keeps the full grouped sidebar with placeholders.
+- [x] Teacher Dashboard: 4 stat cards (My Classes, Today's Periods, Pending HW Reviews with -3 pill, Attendance Marked) + Mark Attendance / Post to Diary quick-action tiles.
+- [x] Parent Dashboard: 4 stat cards + latest 3 diary entries + latest 2 notices with `View All` links.
+- [x] Attendance (role-aware): Teacher mark screen with Present/Absent per row, Mark All Present, Submit; Parent monthly calendar (July 2026) with Present/Absent/Holiday legend + summary card.
+- [x] Digital Diary (role-aware): Teacher post form with live preview; Parent/Student reverse-chronological feed.
+- [x] Homework Tracker (role-aware): Teacher/Admin list with submissions counter; Parent checklist with toggleable status pills.
+- [x] Fee Management (role-aware): Admin stat strip (₹68.4L collected, ₹87L due, 1 overdue) + filterable table; Parent term-wise cards with Pay Now (non-functional) + downloadable Receipt link for paid terms + summary panel.
+- [x] Communication (role-aware): Admin post-notice form (title, body, audience) with live preview; Teacher/Parent notice board with 3 mock notices.
+
 ## Prioritised backlog (P0/P1/P2)
 - P1: Wire up remaining 16 modules (Attendance, Examination, Digital Diary, Homework, Communication, Gallery, Events & Holidays, Fees, Transport, Library, Inventory, Front Office, Building & Hostel, Admissions, Payroll, Income & Expense, Certificates, Leave, Copy Checking, ID Card Generator, Settings).
 - P1: Backend + auth (role-based) when Stage 2 begins.
