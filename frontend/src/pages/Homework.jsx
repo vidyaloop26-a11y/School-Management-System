@@ -23,7 +23,8 @@ function TeacherList() {
         subtitle="Assignments you have posted, with submission counters."
       />
       <div className="glass rounded-2xl p-4 md:p-5 reveal">
-        <div className="overflow-hidden rounded-xl border border-slate-100 bg-white/60">
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
           <table className="min-w-full text-[13px]">
             <thead className="bg-slate-50/80">
               <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
@@ -48,6 +49,22 @@ function TeacherList() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2.5">
+          {HOMEWORK.map((h) => (
+            <div key={h.id} data-testid={`hw-teacher-card-${h.id}`} className="glass-soft rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <SubjectPill subject={h.subject} />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-slate-200 px-2.5 py-0.5 text-[11.5px] font-medium text-slate-700 shrink-0">
+                  <Check className="h-3 w-3 text-[#29ABE2]" /> {h.submissions}
+                </span>
+              </div>
+              <div className="font-medium text-slate-800 text-[14px]">{h.title}</div>
+              <div className="text-[11.5px] text-slate-500 mt-1">Due {h.due}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

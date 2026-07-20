@@ -1,35 +1,51 @@
 import React from "react";
-import { Bell, Search, ChevronDown } from "lucide-react";
+import { Bell, Search, ChevronDown, Menu } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
 import { useRole } from "@/lib/RoleContext";
 
-export default function TopBar({ onOpenPalette }) {
+export default function TopBar({ onOpenPalette, onOpenSidebar }) {
   const { role, setRole } = useRole();
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/50 bg-white/55 backdrop-blur-xl">
       <div className="grid-lines">
-        <div className="flex items-center gap-4 h-16 px-6 xl:px-10">
+        <div className="flex items-center gap-3 md:gap-4 h-16 px-4 md:px-6 xl:px-10">
+          <button
+            data-testid="mobile-menu-btn"
+            onClick={onOpenSidebar}
+            aria-label="Open menu"
+            className="md:hidden h-10 w-10 grid place-items-center rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition shrink-0"
+          >
+            <Menu className="h-5 w-5 text-slate-600" strokeWidth={1.8} />
+          </button>
+          <button
+            data-testid="mobile-search-btn"
+            onClick={onOpenPalette}
+            aria-label="Search"
+            className="md:hidden h-10 w-10 grid place-items-center rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition shrink-0"
+          >
+            <Search className="h-4 w-4 text-slate-500" />
+          </button>
           <button
             data-testid="topbar-search"
             onClick={onOpenPalette}
-            className="flex-1 max-w-2xl flex items-center gap-3 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-4 py-2.5 text-left shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_1px_2px_rgba(15,40,60,0.04)]"
+            className="hidden md:flex flex-1 max-w-2xl items-center gap-3 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-4 py-2.5 text-left shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_1px_2px_rgba(15,40,60,0.04)]"
           >
             <Search className="h-4 w-4 text-slate-400" />
             <span className="text-[13px] text-slate-400 flex-1 truncate">Search students, staff, records…</span>
             <span className="text-[10.5px] font-medium text-slate-500 border border-slate-200 rounded-md px-1.5 py-0.5 bg-white">⌘K</span>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
                   data-testid="role-switcher"
                   className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-3 py-2 text-[12.5px] text-slate-600"
                 >
-                  <span className="text-slate-400">Viewing as:</span>
+                  <span className="hidden md:inline text-slate-400">Viewing as:</span>
                   <span className="font-medium text-slate-800">{role}</span>
                   <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                 </button>

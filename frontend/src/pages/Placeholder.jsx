@@ -2,13 +2,13 @@ import React from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Sparkles } from "lucide-react";
 
-export default function Placeholder({ title, icon: Icon }) {
+export default function Placeholder({ title, icon: Icon, description }) {
   return (
     <div data-testid={`placeholder-${title.toLowerCase().replace(/\s+/g, "-")}`} className="max-w-[1400px] mx-auto">
       <PageHeader
         eyebrow="MODULE"
         title={title}
-        subtitle="This module is on our roadmap for Vidyaloop and will be available shortly."
+        subtitle={description || "This module is on our roadmap for Vidyaloop and will be available shortly."}
         right={
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f4fb] text-[#0c6a99] px-3 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
             <Sparkles className="h-3.5 w-3.5" /> Coming soon
