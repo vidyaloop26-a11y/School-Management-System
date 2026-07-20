@@ -1,6 +1,7 @@
 import React from "react";
 import { UserPlus, Wallet, PlaneTakeoff, BellRing, CalendarDays } from "lucide-react";
 import { NOTIFICATIONS } from "@/lib/mockData";
+import EmptyState from "@/components/common/EmptyState";
 
 const KIND_ICON = {
   admission: UserPlus,
@@ -22,6 +23,15 @@ export default function NotificationDropdown() {
         <span className="text-[10px] tracking-widest font-semibold text-[#0c6a99] bg-[#e6f4fb] px-2 py-0.5 rounded-full">LIVE</span>
       </div>
       <ul className="max-h-[360px] overflow-y-auto thin-scroll">
+        {NOTIFICATIONS.length === 0 && (
+          <li>
+            <EmptyState
+              icon={BellRing}
+              title="You&rsquo;re all caught up"
+              hint="No unread notifications right now."
+            />
+          </li>
+        )}
         {NOTIFICATIONS.map((n) => {
           const Icon = KIND_ICON[n.kind] || BellRing;
           return (

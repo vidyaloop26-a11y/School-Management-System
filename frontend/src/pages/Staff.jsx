@@ -4,6 +4,7 @@ import PageHeader from "@/components/common/PageHeader";
 import { STAFF } from "@/lib/mockData";
 import { Search, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ExportButton from "@/components/common/ExportButton";
 
 export default function Staff() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export default function Staff() {
         eyebrow="ACADEMICS"
         title="Staff"
         subtitle="82 teaching, 14 non-teaching — 96 people who make Vidyaloop run."
+        right={<ExportButton testId="staff-export" />}
       />
 
       <div className="glass rounded-2xl p-4 md:p-5 reveal">
@@ -84,7 +86,7 @@ export default function Staff() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">No staff match your filters.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">No results found — try a different search term.</td></tr>
               )}
             </tbody>
           </table>
@@ -117,7 +119,7 @@ export default function Staff() {
             </div>
           ))}
           {rows.length === 0 && (
-            <div className="text-center text-slate-500 text-[13px] py-8 glass-soft rounded-xl">No staff match your filters.</div>
+            <div className="text-center text-slate-500 text-[13px] py-8 glass-soft rounded-xl">No results found — try a different search term.</div>
           )}
         </div>
       </div>

@@ -43,6 +43,15 @@ Build a School Management Platform web app for Vidyaloop — a premium, non-gene
 - [x] Events & Holidays: full month grid with distinct event/holiday chips + agenda list, month navigation (July 2026 default), all 6 spec events (Jul-Oct 2026).
 - [x] All remaining 11 placeholder modules use the reusable template with the exact copy from the doc via `PLACEHOLDER_DESCRIPTIONS` map.
 
+### Stage 4 — Polish additions
+- [x] `RouteSkeleton` reusable component + `Layout` briefly (~380ms) shows a pulsing skeleton on every route change AND role switch.
+- [x] `Toaster` (sonner) mounted globally with glassmorphism `classNames`. 7 auto-dismissing action toasts wired: Submit Attendance ("Attendance submitted for [Class]"), Post to Diary ("Diary entry posted"), Send Notice ("Notice sent to [Audience]"), Add New Student ("Student added successfully"), Submit Inquiry ("Inquiry recorded"), Save Marks ("Marks saved for [Class] — [Subject]"), Generate ID Card ("ID card generated — ready to download").
+- [x] `EmptyState` reusable component applied to StaffProfile Leave tab ("No pending leave requests — smooth sailing"), NotificationDropdown ("You're all caught up"), Homework parent checklist all-done ("No pending homework right now"), Command-K search ("No results found — try a different search term"), Events month agenda ("No events scheduled this month"). Table empty states (Students, Staff, Fees) now use the exact "No results found" copy.
+- [x] Chart tooltip on Fee Collection line chart restyled to glassmorphism (translucent white + backdrop-blur) showing month + `₹XX L collected`.
+- [x] `ExportButton` reusable component applied to Student list, Staff list, Fee Collection, and Examination pages; click fires the "Export started — this may take a moment" toast.
+- [x] `LastSynced` reusable component ("Last synced: Just now") shown next to the Admin Dashboard title.
+- [x] `DemoBadge` reusable component ("DEMO DATA") shown as a subtle muted pill in the top bar (lg+ screens).
+
 ### Mobile responsiveness (whole app, tested at 375px)
 - [x] Sidebar collapses to a slide-out drawer with backdrop; hamburger button in top bar opens it; drawer auto-closes on route change.
 - [x] Top bar on mobile: hamburger + search icon (Cmd-K reachable via icon) + compact role switcher (label hidden) + bell + avatar. Full search pill returns at `md:`.

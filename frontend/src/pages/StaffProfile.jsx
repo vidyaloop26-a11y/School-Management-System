@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Mail, Phone, CalendarDays, GraduationCap, BookOpen, IdCard } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { STAFF, STAFF_PROFILE, TIMETABLE_8A, DAYS, PERIODS, SUBJECT_COLORS } from "@/lib/mockData";
+import EmptyState from "@/components/common/EmptyState";
+import { PlaneTakeoff } from "lucide-react";
 
 function Field({ icon: Icon, label, value }) {
   return (
@@ -142,8 +144,12 @@ export default function StaffProfile() {
           </TabsContent>
 
           <TabsContent value="leave" className="mt-6">
-            <div className="glass-soft rounded-xl p-8 text-center text-slate-500 text-[13.5px]">
-              No leave requests filed this term.
+            <div className="glass-soft rounded-xl py-6">
+              <EmptyState
+                icon={PlaneTakeoff}
+                title="No pending leave requests — smooth sailing"
+                hint="Any staff or student leave submissions will appear here."
+              />
             </div>
           </TabsContent>
 

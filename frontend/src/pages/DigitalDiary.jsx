@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { DIARY_ENTRIES } from "@/lib/stage2Data";
 import { SUBJECT_COLORS } from "@/lib/mockData";
 import { Send } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 function SubjectPill({ subject }) {
   const col = SUBJECT_COLORS[subject] || { bg: "bg-slate-100", text: "text-slate-700", dot: "bg-slate-400" };

@@ -126,7 +126,7 @@ export default function Events() {
         <div className="glass rounded-2xl p-5 reveal d1">
           <div className="text-[11px] tracking-[0.18em] font-semibold text-slate-500 uppercase mb-3 flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5" /> This month</div>
           <ul className="space-y-3">
-            {monthEvents.length === 0 && <li className="text-[13px] text-slate-500">No events this month.</li>}
+            {monthEvents.length === 0 && <li className="text-[13px] text-slate-500 py-4">No events scheduled this month.</li>}
             {monthEvents.map((e, i) => (
               <li key={i} className="glass-soft rounded-xl p-3.5 flex items-center gap-3">
                 <div className={`h-12 w-12 rounded-xl grid place-items-center shrink-0 ${e.type === "Holiday" ? "bg-rose-50 text-rose-700" : "bg-[#e6f4fb] text-[#0c6a99]"}`}>
@@ -151,7 +151,7 @@ export default function Events() {
         <div className="glass rounded-2xl p-4">
           <div className="text-[11px] tracking-[0.18em] font-semibold text-slate-500 uppercase mb-3 flex items-center gap-2"><CalendarDays className="h-3.5 w-3.5" /> {MONTHS[month]} agenda</div>
           <ul className="space-y-3">
-            {monthEvents.length === 0 && <li className="text-[13px] text-slate-500 py-6 text-center">No events this month.</li>}
+            {monthEvents.length === 0 && <li className="text-[13px] text-slate-500 py-6 text-center">No events scheduled this month.</li>}
             {monthEvents.map((e, i) => (
               <li key={i} className="glass-soft rounded-xl p-3.5 flex items-center gap-3">
                 <div className={`h-12 w-12 rounded-xl grid place-items-center shrink-0 ${e.type === "Holiday" ? "bg-rose-50 text-rose-700" : "bg-[#e6f4fb] text-[#0c6a99]"}`}>

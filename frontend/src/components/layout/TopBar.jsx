@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
 import { useRole } from "@/lib/RoleContext";
+import DemoBadge from "@/components/common/DemoBadge";
 
 export default function TopBar({ onOpenPalette, onOpenSidebar }) {
   const { role, setRole } = useRole();
@@ -39,6 +40,7 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
           </button>
 
           <div className="ml-auto flex items-center gap-2">
+            <DemoBadge className="hidden lg:inline-flex" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

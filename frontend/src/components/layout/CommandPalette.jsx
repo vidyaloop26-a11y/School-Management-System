@@ -18,7 +18,7 @@ export default function CommandPalette({ open, onOpenChange }) {
         data-testid="command-input"
       />
       <CommandList className="thin-scroll">
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>No results found — try a different search term.</CommandEmpty>
 
         {showQuick && (
           <CommandGroup heading="Quick Actions">

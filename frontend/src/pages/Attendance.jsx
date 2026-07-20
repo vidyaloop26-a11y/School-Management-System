@@ -4,6 +4,7 @@ import { useRole } from "@/lib/RoleContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ATTENDANCE_ROSTER_8A, PARENT_ATTENDANCE_JULY_2026, PARENT_CHILD } from "@/lib/stage2Data";
 import { Check, X, CheckCircle2, XCircle, CalendarDays } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 function TeacherMark() {
   const [cls, setCls] = useState("8-A");
@@ -115,7 +116,7 @@ function TeacherMark() {
             <span className="font-medium text-emerald-700">{roster.filter(r => r.status === "Present").length} present</span> ·
             <span className="font-medium text-rose-700 ml-1">{roster.filter(r => r.status === "Absent").length} absent</span>
           </div>
-          <button data-testid="submit-attendance" className="rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-6 py-2.5 text-[13px] font-medium shadow-sm">
+          <button data-testid="submit-attendance" onClick={() => toast(`Attendance submitted for ${cls}`)} className="rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-6 py-2.5 text-[13px] font-medium shadow-sm">
             Submit
           </button>
         </div>

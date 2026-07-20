@@ -4,6 +4,8 @@ import PageHeader from "@/components/common/PageHeader";
 import { STUDENTS } from "@/lib/mockData";
 import { Search, Plus, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ExportButton from "@/components/common/ExportButton";
+import { toast } from "@/components/ui/sonner";
 
 export default function Students() {
   const navigate = useNavigate();
@@ -35,9 +37,16 @@ export default function Students() {
         title="Students"
         subtitle="1,284 students across 24 sections. Filter, search, drill in."
         right={
-          <button data-testid="add-student-btn" className="inline-flex items-center gap-2 bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-4 py-2.5 rounded-full text-[13px] font-medium shadow-sm">
-            <Plus className="h-4 w-4" /> Add Student
-          </button>
+          <div className="flex items-center gap-2">
+            <ExportButton testId="students-export" />
+            <button
+              data-testid="add-student-btn"
+              onClick={() => toast("Student added successfully")}
+              className="inline-flex items-center gap-2 bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-4 py-2.5 rounded-full text-[13px] font-medium shadow-sm"
+            >
+              <Plus className="h-4 w-4" /> Add Student
+            </button>
+          </div>
         }
       />
 
@@ -119,7 +128,7 @@ export default function Students() {
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500 text-[13px]">No students match your filters.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500 text-[13px]">No results found — try a different search term.</td></tr>
               )}
             </tbody>
           </table>
@@ -152,7 +161,7 @@ export default function Students() {
             </div>
           ))}
           {rows.length === 0 && (
-            <div className="text-center text-slate-500 text-[13px] py-8 glass-soft rounded-xl">No students match your filters.</div>
+            <div className="text-center text-slate-500 text-[13px] py-8 glass-soft rounded-xl">No results found — try a different search term.</div>
           )}
         </div>
       </div>

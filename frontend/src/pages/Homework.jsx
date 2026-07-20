@@ -3,7 +3,8 @@ import PageHeader from "@/components/common/PageHeader";
 import { useRole } from "@/lib/RoleContext";
 import { HOMEWORK } from "@/lib/stage2Data";
 import { SUBJECT_COLORS } from "@/lib/mockData";
-import { CheckCircle2, Clock, Circle, Check } from "lucide-react";
+import { CheckCircle2, Clock, Circle, Check, PartyPopper } from "lucide-react";
+import EmptyState from "@/components/common/EmptyState";
 
 function SubjectPill({ subject }) {
   const col = SUBJECT_COLORS[subject] || { bg: "bg-slate-100", text: "text-slate-700", dot: "bg-slate-400" };
@@ -74,6 +75,7 @@ function TeacherList() {
 function ChecklistView() {
   const [items, setItems] = useState(HOMEWORK.map((h) => ({ ...h })));
   const toggle = (id) => setItems((prev) => prev.map((i) => i.id === id ? { ...i, status: i.status === "Pending" ? "Submitted" : "Pending" } : i));
+  const allDone = items.every((i) => i.status === "Submitted");
 
   return (
     <div>
@@ -83,6 +85,15 @@ function ChecklistView() {
         subtitle="Tick off submissions as your child completes them."
       />
       <ul className="space-y-3 max-w-3xl">
+        {allDone && (
+          <li className="glass rounded-2xl">
+            <EmptyState
+              icon={PartyPopper}
+              title="No pending homework right now"
+              hint="You&rsquo;re all caught up. New assignments will appear here."
+            />
+          </li>
+        )}
         {items.map((h, i) => {
           const done = h.status === "Submitted";
           return (

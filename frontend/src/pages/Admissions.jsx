@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KANBAN_STAGES, APPLICANTS, ADMISSIONS_STATS } from "@/lib/stage3Data";
 import { Plus, UserPlus, ChevronRight } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 function StatCard({ card, index }) {
   return (
@@ -95,7 +96,7 @@ function NewInquiryDialog() {
         </div>
         <DialogFooter className="mt-4">
           <button onClick={() => setOpen(false)} data-testid="inquiry-cancel" className="rounded-full bg-white border border-slate-200 hover:bg-slate-50 transition px-4 py-2 text-[13px] font-medium text-slate-700">Cancel</button>
-          <button data-testid="inquiry-submit" className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2 text-[13px] font-medium shadow-sm">
+          <button onClick={() => { toast("Inquiry recorded"); setOpen(false); }} data-testid="inquiry-submit" className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2 text-[13px] font-medium shadow-sm">
             <UserPlus className="h-4 w-4" /> Submit
           </button>
         </DialogFooter>
