@@ -41,7 +41,8 @@ function TeacherMark() {
       />
 
       <div className="glass rounded-2xl p-4 md:p-5 reveal">
-        <div className="overflow-hidden rounded-xl border border-slate-100 bg-white/60">
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
           <table className="min-w-full text-[13px]">
             <thead className="bg-slate-50/80">
               <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
@@ -79,7 +80,37 @@ function TeacherMark() {
           </table>
         </div>
 
-        <div className="flex items-center justify-between mt-5">
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2.5">
+          {roster.map((r, i) => (
+            <div key={r.roll} data-testid={`attendance-card-${r.roll}`} className="glass-soft rounded-xl p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <div className="font-mono text-[11px] text-slate-500">Roll {r.roll}</div>
+                  <div className="font-medium text-slate-800 text-[14px] mt-0.5">{r.name}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  data-testid={`m-present-${r.roll}`}
+                  onClick={() => setRoster((prev) => prev.map((x, idx) => idx === i ? { ...x, status: "Present" } : x))}
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium border transition ${r.status === "Present" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-white text-slate-500 border-slate-200"}`}
+                >
+                  <Check className="h-3.5 w-3.5" /> Present
+                </button>
+                <button
+                  data-testid={`m-absent-${r.roll}`}
+                  onClick={() => setRoster((prev) => prev.map((x, idx) => idx === i ? { ...x, status: "Absent" } : x))}
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-[12.5px] font-medium border transition ${r.status === "Absent" ? "bg-rose-50 text-rose-700 border-rose-200" : "bg-white text-slate-500 border-slate-200"}`}
+                >
+                  <X className="h-3.5 w-3.5" /> Absent
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-5">
           <div className="text-[12.5px] text-slate-500">
             <span className="font-medium text-emerald-700">{roster.filter(r => r.status === "Present").length} present</span> ·
             <span className="font-medium text-rose-700 ml-1">{roster.filter(r => r.status === "Absent").length} absent</span>

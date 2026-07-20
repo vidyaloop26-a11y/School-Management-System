@@ -86,13 +86,15 @@ export default function StudentProfile() {
         </div>
 
         <Tabs defaultValue="overview" className="mt-7">
-          <TabsList className="bg-white/70 border border-slate-200/70 rounded-full p-1">
-            <TabsTrigger value="overview" data-testid="tab-overview" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px]">Overview</TabsTrigger>
-            <TabsTrigger value="attendance" data-testid="tab-attendance" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px]">Attendance</TabsTrigger>
-            <TabsTrigger value="fees" data-testid="tab-fees" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px]">Fee History</TabsTrigger>
-            <TabsTrigger value="academic" data-testid="tab-academic" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px]">Academic Records</TabsTrigger>
-            <TabsTrigger value="docs" data-testid="tab-docs" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px]">Documents</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto thin-scroll -mx-1 px-1">
+            <TabsList className="bg-white/70 border border-slate-200/70 rounded-full p-1 w-max">
+              <TabsTrigger value="overview" data-testid="tab-overview" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Overview</TabsTrigger>
+              <TabsTrigger value="attendance" data-testid="tab-attendance" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Attendance</TabsTrigger>
+              <TabsTrigger value="fees" data-testid="tab-fees" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Fee History</TabsTrigger>
+              <TabsTrigger value="academic" data-testid="tab-academic" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Academic Records</TabsTrigger>
+              <TabsTrigger value="docs" data-testid="tab-docs" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Documents</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="mt-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -62,12 +62,18 @@ function Group({ label, items, defaultOpen = true }) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   useLocation();
   const { role } = useRole();
   const allow = (key) => role === "Admin" || ROLE_VISIBILITY[role]?.has(key);
   return (
-    <aside className="w-[260px] shrink-0 border-r border-white/60 bg-white/50 backdrop-blur-xl h-screen sticky top-0 flex flex-col">
+    <>
+      <div
+        onClick={onClose}
+        aria-hidden
+        className={`md:hidden fixed inset-0 z-40 bg-slate-900/40 transition-opacity ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+      />
+      <aside className={`fixed md:sticky left-0 top-0 z-50 md:z-auto w-[280px] md:w-[260px] h-screen shrink-0 flex flex-col border-r border-white/60 bg-white/95 md:bg-white/50 backdrop-blur-xl transform transition-transform duration-300 ease-out ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
       <div className="px-4 pt-5 pb-4 border-b border-slate-100/80">
         <BrandMark />
       </div>
@@ -105,5 +111,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

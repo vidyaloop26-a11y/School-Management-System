@@ -33,6 +33,29 @@ Build a School Management Platform web app for Vidyaloop — a premium, non-gene
 ### Stage 2 additions
 - [x] Role switcher supports Admin / Teacher / Parent with a `RoleContext`.
 - [x] Per-role sidebar visibility: Teacher and Parent get focused sets; Admin keeps the full grouped sidebar with placeholders.
+- [x] Teacher Dashboard + Parent Dashboard + role-aware Attendance / Digital Diary / Homework / Fees / Communication modules.
+
+### Stage 3 additions
+- [x] Promoted 4 modules from placeholder → functional: Admissions, Examination, ID Card Generator, Events & Holidays.
+- [x] Admissions: 3 stat cards (Total Inquiries 142 +12, Enrolled 58, Conversion 40.8% +2.1%) + 4-column kanban with the 4 mock applicants; "New Inquiry" dialog form with all 6 fields.
+- [x] Examination: two tabs — Mark Entry (editable marks per student, class/subject/exam selectors) and Report Card (Aarav Sharma · Class 8-A · Term 1, 5 subjects with grades, footer with Total 399/500, %79.8, Grade A, Rank #4).
+- [x] ID Card Generator: template selector (Classic Blue / Minimal White), student picker, live preview panel with print/download.
+- [x] Events & Holidays: full month grid with distinct event/holiday chips + agenda list, month navigation (July 2026 default), all 6 spec events (Jul-Oct 2026).
+- [x] All remaining 11 placeholder modules use the reusable template with the exact copy from the doc via `PLACEHOLDER_DESCRIPTIONS` map.
+
+### Mobile responsiveness (whole app, tested at 375px)
+- [x] Sidebar collapses to a slide-out drawer with backdrop; hamburger button in top bar opens it; drawer auto-closes on route change.
+- [x] Top bar on mobile: hamburger + search icon (Cmd-K reachable via icon) + compact role switcher (label hidden) + bell + avatar. Full search pill returns at `md:`.
+- [x] Stat cards stack 1-per-row → 2 → 4 across breakpoints (already responsive in Stage 1/2).
+- [x] All tables (Students, Staff, Fees admin, Homework teacher, Attendance mark) switch to stacked glass cards on mobile.
+- [x] Admissions kanban → horizontally-scrollable tab strip with single-column list on mobile.
+- [x] Events calendar → agenda list only on mobile.
+- [x] Timetable retains horizontal scroll (already set in Stage 1).
+- [x] Report card and ID card preview stay readable at 375px without zoom.
+- [x] Profile tab lists (StudentProfile 5 tabs, StaffProfile 4 tabs) become horizontally scrollable on mobile.
+- [x] Main content padding reduced to `px-4 py-6` on mobile.
+- [x] Role switcher supports Admin / Teacher / Parent with a `RoleContext`.
+- [x] Per-role sidebar visibility: Teacher and Parent get focused sets; Admin keeps the full grouped sidebar with placeholders.
 - [x] Teacher Dashboard: 4 stat cards (My Classes, Today's Periods, Pending HW Reviews with -3 pill, Attendance Marked) + Mark Attendance / Post to Diary quick-action tiles.
 - [x] Parent Dashboard: 4 stat cards + latest 3 diary entries + latest 2 notices with `View All` links.
 - [x] Attendance (role-aware): Teacher mark screen with Present/Absent per row, Mark All Present, Submit; Parent monthly calendar (July 2026) with Present/Absent/Holiday legend + summary card.

@@ -19,7 +19,7 @@ export const NAV = {
         { key: "staff",       label: "Staff",       path: "/staff",       icon: GraduationCap,    functional: true },
         { key: "timetable",   label: "Timetable",   path: "/timetable",   icon: CalendarDays,     functional: true },
         { key: "attendance",  label: "Attendance",  path: "/attendance",  icon: ClipboardCheck,   functional: false },
-        { key: "examination", label: "Examination", path: "/examination", icon: FileSpreadsheet,  functional: false },
+        { key: "examination", label: "Examination", path: "/examination", icon: FileSpreadsheet,  functional: true },
       ],
     },
     {
@@ -29,7 +29,7 @@ export const NAV = {
         { key: "homework",      label: "Homework",            path: "/homework",      icon: PencilLine,    functional: true },
         { key: "communication", label: "Communication",       path: "/communication", icon: MessageSquare, functional: true },
         { key: "gallery",       label: "Gallery",             path: "/gallery",       icon: Images,        functional: false },
-        { key: "events",        label: "Events & Holidays",   path: "/events",        icon: PartyPopper,   functional: false },
+        { key: "events",        label: "Events & Holidays",   path: "/events",        icon: PartyPopper,   functional: true },
       ],
     },
     {
@@ -46,7 +46,7 @@ export const NAV = {
     {
       label: "ADMINISTRATION",
       items: [
-        { key: "admissions", label: "Admissions",       path: "/admissions", icon: UserPlus,   functional: false },
+        { key: "admissions", label: "Admissions",       path: "/admissions", icon: UserPlus,   functional: true },
         { key: "payroll",    label: "Payroll",          path: "/payroll",    icon: Banknote,   functional: false },
         { key: "income",     label: "Income & Expense", path: "/income",     icon: TrendingUp, functional: false },
         { key: "certificates",label:"Certificates",     path: "/certificates",icon:ScrollText,  functional: false },
@@ -56,7 +56,7 @@ export const NAV = {
     },
   ],
   bottom: [
-    { key: "idcard",   label: "ID Card Generator", path: "/id-card", icon: IdCard,   functional: false },
+    { key: "idcard",   label: "ID Card Generator", path: "/id-card", icon: IdCard,   functional: true },
     { key: "settings", label: "Settings",          path: "/settings",icon: Settings, functional: false },
   ],
 };

@@ -73,7 +73,8 @@ function AdminView() {
           </Select>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-slate-100 bg-white/60">
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
           <table className="min-w-full text-[13px]">
             <thead className="bg-slate-50/80">
               <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
@@ -106,6 +107,35 @@ function AdminView() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2.5">
+          {rows.map((r) => (
+            <div key={r.admNo} data-testid={`fee-card-${r.admNo}`} className="glass-soft rounded-xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-mono text-[11px] text-slate-500">{r.admNo}</div>
+                  <div className="font-medium text-slate-800 text-[14.5px] mt-0.5 truncate">{r.name}</div>
+                </div>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium shrink-0 ${r.status === "Paid" ? "bg-emerald-50 text-emerald-700" : r.status === "Overdue" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${r.status === "Paid" ? "bg-emerald-500" : r.status === "Overdue" ? "bg-rose-500" : "bg-amber-500"}`} />
+                  {r.status}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center justify-between text-[12px]">
+                <div className="text-slate-500 flex items-center gap-1.5">
+                  <span>Class {r.classSection}</span>
+                  <span className="text-slate-300">·</span>
+                  <span>Term {r.term}</span>
+                </div>
+                <div className="text-slate-500">Due: <span className="font-medium text-slate-700">{r.due}</span></div>
+              </div>
+            </div>
+          ))}
+          {rows.length === 0 && (
+            <div className="text-center text-slate-500 text-[13px] py-8 glass-soft rounded-xl">No fee records match your filters.</div>
+          )}
         </div>
       </div>
     </div>

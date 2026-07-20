@@ -82,7 +82,8 @@ export default function Students() {
         </div>
 
         {/* Table */}
-        <div className="overflow-hidden rounded-xl border border-slate-100 bg-white/60">
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
           <table className="min-w-full text-[13px]">
             <thead className="bg-slate-50/80">
               <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
@@ -122,6 +123,37 @@ export default function Students() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden space-y-2.5">
+          {rows.map((s) => (
+            <div
+              key={s.admNo}
+              data-testid={`student-card-${s.admNo}`}
+              onClick={() => navigate(`/students/${s.admNo}`)}
+              className="glass-soft rounded-xl p-4 cursor-pointer active:scale-[0.99] transition"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-mono text-[11px] text-slate-500">{s.admNo}</div>
+                  <div className="font-medium text-slate-800 text-[14.5px] mt-0.5 truncate">{s.name}</div>
+                </div>
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium shrink-0 ${s.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${s.status === "Active" ? "bg-emerald-500" : "bg-slate-400"}`} />
+                  {s.status}
+                </span>
+              </div>
+              <div className="mt-3 flex items-center gap-1.5 text-[12px] text-slate-500">
+                <span>Class {s.class}-{s.section}</span>
+                <span className="text-slate-300">·</span>
+                <span>Roll {s.roll}</span>
+              </div>
+            </div>
+          ))}
+          {rows.length === 0 && (
+            <div className="text-center text-slate-500 text-[13px] py-8 glass-soft rounded-xl">No students match your filters.</div>
+          )}
         </div>
       </div>
     </div>

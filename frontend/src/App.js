@@ -16,8 +16,13 @@ import DigitalDiary from "@/pages/DigitalDiary";
 import Homework from "@/pages/Homework";
 import Fees from "@/pages/Fees";
 import Communication from "@/pages/Communication";
+import Admissions from "@/pages/Admissions";
+import Examination from "@/pages/Examination";
+import IDCard from "@/pages/IDCard";
+import Events from "@/pages/Events";
 import { RoleProvider, useRole } from "@/lib/RoleContext";
 import { NAV } from "@/lib/mockData";
+import { PLACEHOLDER_DESCRIPTIONS } from "@/lib/stage3Data";
 
 function DashboardRouter() {
   const { role } = useRole();
@@ -53,8 +58,12 @@ function App() {
               <Route path="/homework" element={<Homework />} />
               <Route path="/fees" element={<Fees />} />
               <Route path="/communication" element={<Communication />} />
+              <Route path="/admissions" element={<Admissions />} />
+              <Route path="/examination" element={<Examination />} />
+              <Route path="/id-card" element={<IDCard />} />
+              <Route path="/events" element={<Events />} />
               {placeholderRoutes.map((p) => (
-                <Route key={p.key} path={p.path} element={<Placeholder title={p.label} icon={p.icon} />} />
+                <Route key={p.key} path={p.path} element={<Placeholder title={p.label} icon={p.icon} description={PLACEHOLDER_DESCRIPTIONS[p.key]} />} />
               ))}
             </Route>
           </Routes>
