@@ -1,0 +1,187 @@
+// ============================================================================
+// Vidyaloop School Management Platform — Prisma schema
+//
+// Currently targets MongoDB (provider = "mongodb"), schema is written
+// provider-agnostic so switching to PostgreSQL is a documented, mechanical
+// change (see backend/README.md "Switching to PostgreSQL").
+//
+// NOTE (MongoDB connector):
+//  - IDs use `String @id @default(auto()) @map("_id") @db.ObjectId`
+//  - Foreign keys must be `String @db.ObjectId`
+//  - Enums are NOT supported by the MongoDB connector, so enum-like fields
+//    (role, status, ...) are plain String validated at the app layer (zod).
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users & Authentication
+// ---------------------------------------------------------------------------
+
+model User {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  name                String
+  email               String?  @unique
+  username            String?  @unique
+  passwordHash        String
+  role                String // superAdmin | schoolAdmin | teacher | parent
+  schoolId            String?  @db.ObjectId
+  school              School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  // Link to the child (parent accounts) / staff record (teacher accounts).
+  // Plain String (NOT unique) because MongoDB unique indexes reject nulls;
+  // uniqueness of the link is enforced in application logic.
+  studentId           String?  @db.ObjectId
+  staffId             String?  @db.ObjectId
+  isActive            Boolean  @default(true)
+  mustChangePassword  Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  refreshTokens       RefreshToken[]
+
+  @@index([studentId])
+  @@index([staffId])
+  @@index([role])
+  @@index([schoolId])
+}
+
+model RefreshToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// School (multi-tenant root). Super admins create schools.
+// ---------------------------------------------------------------------------
+
+model School {
+  id          String             @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  code        String             @unique
+  board       String?
+  address     String?
+  phone       String?
+  email       String?
+  session     String             @default("2026-27")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  users       User[]
+  students    Student[]
+  staff       Staff[]
+  timetable   TimetableEntry[]
+  attendance  AttendanceRecord[]
+}
+
+// ---------------------------------------------------------------------------
+// Students
+// ---------------------------------------------------------------------------
+
+model Student {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String   @db.ObjectId
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  admNo       String
+  name        String
+  cls         String
+  section     String
+  roll        Int
+  dob         String? // ISO date string, e.g. "2012-03-14"
+  bloodGroup  String?
+  emergency   String?
+  address     String?
+  fatherName  String?
+  fatherEmail String?
+  fatherPhone String?
+  motherName  String?
+  status      String   @default("Active") // Active | Inactive
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  attendances AttendanceRecord[]
+
+  @@unique([schoolId, admNo])
+  @@index([schoolId, cls, section])
+}
+
+// ---------------------------------------------------------------------------
+// Staff (teachers & non-teaching)
+// ---------------------------------------------------------------------------
+
+model Staff {
+  id            String           @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String           @db.ObjectId
+  school        School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  staffId       String
+  name          String
+  jobTitle      String // Teacher | Vice Principal | Front Office | Accountant | ...
+  dept          String?
+  subject       String?
+  qualification String?
+  phone         String?
+  email         String?
+  joined        String?
+  status        String           @default("Active")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  timetable     TimetableEntry[]
+
+  @@unique([schoolId, staffId])
+  @@index([schoolId, dept])
+}
+
+// ---------------------------------------------------------------------------
+// Timetable
+// ---------------------------------------------------------------------------
+
+model TimetableEntry {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId   String   @db.ObjectId
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  cls        String
+  section    String
+  day        String // Mon..Fri
+  period     String // P1..P5, BREAK
+  subject    String
+  room       String?
+  staffId    String?  @db.ObjectId
+  staff      Staff?   @relation(fields: [staffId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([schoolId, cls, section, day, period])
+  @@index([schoolId, staffId])
+  @@index([schoolId, cls, section])
+}
+
+// ---------------------------------------------------------------------------
+// Attendance
+// ---------------------------------------------------------------------------
+
+model AttendanceRecord {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId     String   @db.ObjectId
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId    String   @db.ObjectId
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  cls          String
+  section      String
+  date         DateTime
+  status       String // P (present) | A (absent) | L (late) | H (holiday)
+  markedById   String?  // User id of the staff who marked it
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([studentId, date])
+  @@index([schoolId, cls, section, date])
+}
