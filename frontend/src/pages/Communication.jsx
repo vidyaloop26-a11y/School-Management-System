@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PageHeader from "@/components/common/PageHeader";
-import { useRole } from "@/lib/RoleContext";
+import { useAuth } from "@/lib/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NOTICES } from "@/lib/stage2Data";
 import { Megaphone, Send } from "lucide-react";
@@ -118,10 +118,11 @@ function NoticeBoard() {
 }
 
 export default function Communication() {
-  const { role } = useRole();
+  const { user } = useAuth();
+  const role = user?.role;
   return (
     <div data-testid="communication-page" className="max-w-[1400px] mx-auto">
-      {role === "Admin" ? <AdminForm /> : <NoticeBoard />}
+      {role === "schoolAdmin" || role === "superAdmin" ? <AdminForm /> : <NoticeBoard />}
     </div>
   );
 }

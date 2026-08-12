@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ID_CARD_TEMPLATES, ID_CARD_SAMPLE } from "@/lib/stage3Data";
-import { STUDENTS } from "@/lib/mockData";
+import { useStudents } from "@/lib/queries";
+import { Loader2 } from "lucide-react";
 import { Download, Printer, Droplet, IdCard as IdCardIcon, Phone, GraduationCap } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 
@@ -37,7 +38,7 @@ function ClassicBlueCard({ s }) {
       {/* Details */}
       <div className="relative text-center px-5 mt-3">
         <div className="font-display font-bold text-white text-[19px] leading-tight tracking-tight">{s.name}</div>
-        <div className="text-white/85 text-[11.5px] mt-0.5">Class {s.classSection} · Roll 12</div>
+        <div className="text-white/85 text-[11.5px] mt-0.5">Class {s.classSection}{s.roll ? ` · Roll ${s.roll}` : ""}</div>
       </div>
 
       <div className="relative mx-5 mt-4 rounded-2xl bg-white/95 backdrop-blur px-4 py-3.5 grid grid-cols-2 gap-y-2.5 gap-x-3">
@@ -95,7 +96,7 @@ function MinimalWhiteCard({ s }) {
 
       <div className="text-center px-5 mt-3">
         <div className="font-display font-bold text-slate-900 text-[19px] leading-tight tracking-tight">{s.name}</div>
-        <div className="text-slate-500 text-[11.5px] mt-0.5">Class {s.classSection} · Roll 12</div>
+        <div className="text-slate-500 text-[11.5px] mt-0.5">Class {s.classSection}{s.roll ? ` · Roll ${s.roll}` : ""}</div>
       </div>
 
       <div className="mx-5 mt-4 rounded-2xl border border-slate-200 px-4 py-3.5 space-y-2">
@@ -127,16 +128,20 @@ function MinimalWhiteCard({ s }) {
 
 export default function IDCard() {
   const [template, setTemplate] = useState("classic-blue");
-  const [admNo, setAdmNo] = useState("VL2024001");
+  const [admNo, setAdmNo] = useState("");
+  const { data: students = [], isLoading } = useStudents();
+  const firstAdmNo = students[0]?.admNo;
+  const effectiveAdmNo = admNo || firstAdmNo || "";
 
-  const student = STUDENTS.find((s) => s.admNo === admNo);
+  const student = students.find((s) => s.admNo === effectiveAdmNo);
   const cardData = {
     ...ID_CARD_SAMPLE,
-    // when a different student is selected, only the sample record (Aarav) has full details.
-    // For other students we still show their basic identity, using the sample record's other fields.
     name: student ? student.name : ID_CARD_SAMPLE.name,
-    idNo: student ? student.admNo : ID_CARD_SAMPLE.idNo,
-    classSection: student ? `${student.class}-${student.section}` : ID_CARD_SAMPLE.classSection,
+    idNo: student ? student.admNo : (effectiveAdmNo || ID_CARD_SAMPLE.idNo),
+    classSection: student ? `${student.cls}-${student.section}` : ID_CARD_SAMPLE.classSection,
+    roll: student ? student.roll : "",
+    bloodGroup: student?.bloodGroup || ID_CARD_SAMPLE.bloodGroup,
+    emergency: student?.emergency || ID_CARD_SAMPLE.emergency,
   };
 
   return (
@@ -177,14 +182,18 @@ export default function IDCard() {
 
           <div>
             <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase mb-2">Student</div>
-            <Select value={admNo} onValueChange={setAdmNo}>
-              <SelectTrigger data-testid="idcard-student" className="w-full rounded-xl bg-white/80"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STUDENTS.map((s) => (
-                  <SelectItem key={s.admNo} value={s.admNo}>{s.name} · {s.admNo}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isLoading ? (
+              <div className="flex items-center gap-2 text-slate-400 text-[13px] px-2 py-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading students…</div>
+            ) : (
+              <Select value={effectiveAdmNo} onValueChange={(v) => v && setAdmNo(v)}>
+                <SelectTrigger data-testid="idcard-student" className="w-full rounded-xl bg-white/80"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {students.map((s) => (
+                    <SelectItem key={s.admNo} value={s.admNo}>{s.name} · {s.admNo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           <div className="glass-soft rounded-xl p-4 grid grid-cols-2 gap-y-2 gap-x-3 text-[12.5px]">

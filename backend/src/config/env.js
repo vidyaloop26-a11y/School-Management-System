@@ -12,6 +12,10 @@ const env = {
   corsOrigins: (process.env.CORS_ORIGINS || "http://localhost:3000")
     .split(",")
     .map((s) => s.trim()),
+  // Encrypts generated credentials (temp passwords) at rest. MUST be a stable
+  // 32-byte secret; rotate only when you intend to lose the ability to reveal
+  // previously generated credentials.
+  secretKey: process.env.CREDENTIAL_SECRET_KEY || "change-me-credential-secret-32bytes!!",
   superAdmin: {
     name: process.env.SUPER_ADMIN_NAME || "Vidyaloop Super Admin",
     email: process.env.SUPER_ADMIN_EMAIL || "superadmin@vidyaloop.in",

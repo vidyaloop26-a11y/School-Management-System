@@ -21,6 +21,11 @@ async function listStudents({ user, query }) {
     ...(query.status ? { status: query.status } : {}),
   };
 
+  // Parents only ever see their own child.
+  if (user.role === "parent") {
+    where.id = user.studentId || "000000000000000000000000";
+  }
+
   if (query.search) {
     where.OR = [
       { name: { contains: query.search, mode: "insensitive" } },
@@ -78,7 +83,7 @@ async function createStudent({ user, data }) {
 
   const wantParent = Boolean(data.parentName || data.parentEmail || data.parentPhone);
 
-  const credentials = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const student = await tx.student.create({
       data: {
         schoolId,
@@ -132,9 +137,9 @@ async function createStudent({ user, data }) {
   });
 
   return {
-    ...student.student,
-    classSection: `${student.student.cls}-${student.student.section}`,
-    credentials: student.credentials,
+    ...result.student,
+    classSection: `${result.student.cls}-${result.student.section}`,
+    credentials: result.credentials,
   };
 }
 

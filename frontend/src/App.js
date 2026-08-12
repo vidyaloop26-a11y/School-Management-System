@@ -1,6 +1,8 @@
 import "@/App.css";
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth, ROLES } from "@/lib/AuthContext";
+import { ProtectedRoute, PublicRoute } from "@/components/auth/ProtectedRoute";
 import Layout from "@/components/layout/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Students from "@/pages/Students";
@@ -20,20 +22,20 @@ import Admissions from "@/pages/Admissions";
 import Examination from "@/pages/Examination";
 import IDCard from "@/pages/IDCard";
 import Events from "@/pages/Events";
-import { RoleProvider, useRole } from "@/lib/RoleContext";
+import Login from "@/pages/Login";
 import { NAV } from "@/lib/mockData";
 import { PLACEHOLDER_DESCRIPTIONS } from "@/lib/stage3Data";
 import { Toaster } from "@/components/ui/sonner";
 
 function DashboardRouter() {
-  const { role } = useRole();
-  if (role === "Teacher") return <TeacherDashboard />;
-  if (role === "Parent")  return <ParentDashboard />;
+  const { user } = useAuth();
+  if (!user) return null;
+  if (user.role === ROLES.TEACHER) return <TeacherDashboard />;
+  if (user.role === ROLES.PARENT) return <ParentDashboard />;
   return <Dashboard />;
 }
 
-function App() {
-  // Build placeholder routes for all non-functional entries
+function AppRoutes() {
   const placeholderRoutes = [];
   const collect = (item) => {
     if (!item.functional) placeholderRoutes.push(item);
@@ -43,33 +45,61 @@ function App() {
   NAV.bottom.forEach(collect);
 
   return (
+    <Routes>
+      <Route
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      >
+        <Route path="/login" element={<Login />} />
+      </Route>
+
+      <Route
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/" element={<DashboardRouter />} />
+        <Route path="/students" element={<Students />} />
+        <Route path="/students/:id" element={<StudentProfile />} />
+        <Route path="/staff" element={<Staff />} />
+        <Route path="/staff/:id" element={<StaffProfile />} />
+        <Route path="/timetable" element={<Timetable />} />
+        <Route path="/attendance" element={<Attendance />} />
+        <Route path="/diary" element={<DigitalDiary />} />
+        <Route path="/homework" element={<Homework />} />
+        <Route path="/fees" element={<Fees />} />
+        <Route path="/communication" element={<Communication />} />
+        <Route path="/admissions" element={<Admissions />} />
+        <Route path="/examination" element={<Examination />} />
+        <Route path="/id-card" element={<IDCard />} />
+        <Route path="/events" element={<Events />} />
+        {placeholderRoutes.map((p) => (
+          <Route
+            key={p.key}
+            path={p.path}
+            element={<Placeholder title={p.label} icon={p.icon} description={PLACEHOLDER_DESCRIPTIONS[p.key]} />}
+          />
+        ))}
+      </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
     <div className="App">
-      <RoleProvider>
+      <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route element={<Layout />}>
-              <Route path="/" element={<DashboardRouter />} />
-              <Route path="/students" element={<Students />} />
-              <Route path="/students/:admNo" element={<StudentProfile />} />
-              <Route path="/staff" element={<Staff />} />
-              <Route path="/staff/:staffId" element={<StaffProfile />} />
-              <Route path="/timetable" element={<Timetable />} />
-              <Route path="/attendance" element={<Attendance />} />
-              <Route path="/diary" element={<DigitalDiary />} />
-              <Route path="/homework" element={<Homework />} />
-              <Route path="/fees" element={<Fees />} />
-              <Route path="/communication" element={<Communication />} />
-              <Route path="/admissions" element={<Admissions />} />
-              <Route path="/examination" element={<Examination />} />
-              <Route path="/id-card" element={<IDCard />} />
-              <Route path="/events" element={<Events />} />
-              {placeholderRoutes.map((p) => (
-                <Route key={p.key} path={p.path} element={<Placeholder title={p.label} icon={p.icon} description={PLACEHOLDER_DESCRIPTIONS[p.key]} />} />
-              ))}
-            </Route>
-          </Routes>
+          <AppRoutes />
         </BrowserRouter>
-      </RoleProvider>
+      </AuthProvider>
       <Toaster
         position="top-right"
         offset={16}

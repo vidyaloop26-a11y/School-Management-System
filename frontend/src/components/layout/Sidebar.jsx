@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { NAV } from "@/lib/mockData";
-import { useRole, ROLE_VISIBILITY } from "@/lib/RoleContext";
+import { useAuth, ROLES } from "@/lib/AuthContext";
 
 function BrandMark() {
   return (
@@ -23,12 +23,13 @@ function BrandMark() {
   );
 }
 
-function NavItem({ item }) {
+function NavItem({ item, onClose }) {
   const Icon = item.icon;
   return (
     <NavLink
       to={item.path}
       end={item.path === "/"}
+      onClick={onClose}
       data-testid={`nav-${item.key}`}
       className={({ isActive }) =>
         `nav-item flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] text-slate-600 ${isActive ? "active font-medium" : ""}`
@@ -40,7 +41,7 @@ function NavItem({ item }) {
   );
 }
 
-function Group({ label, items, defaultOpen = true }) {
+function Group({ label, items, defaultOpen = true, onClose }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="mb-2">
@@ -55,17 +56,39 @@ function Group({ label, items, defaultOpen = true }) {
       </button>
       {open && (
         <div className="flex flex-col gap-0.5 px-2">
-          {items.map((it) => <NavItem key={it.key} item={it} />)}
+          {items.map((it) => <NavItem key={it.key} item={it} onClose={onClose} />)}
         </div>
       )}
     </div>
   );
 }
 
+const ROLE_VISIBILITY = {
+  [ROLES.TEACHER]: new Set([
+    "dashboard", "students", "timetable", "attendance",
+    "diary", "homework", "communication", "examination", "settings",
+  ]),
+  [ROLES.PARENT]: new Set([
+    "dashboard", "timetable", "attendance", "diary",
+    "homework", "fees", "communication", "settings",
+  ]),
+};
+
 export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   useLocation();
-  const { role } = useRole();
-  const allow = (key) => role === "Admin" || ROLE_VISIBILITY[role]?.has(key);
+  const { user, logout } = useAuth();
+
+  const allow = (key) => {
+    if (!user) return false;
+    if (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SCHOOL_ADMIN) return true;
+    return ROLE_VISIBILITY[user.role]?.has(key);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    onClose();
+  };
+
   return (
     <>
       <div
@@ -74,43 +97,52 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         className={`md:hidden fixed inset-0 z-40 bg-slate-900/40 transition-opacity ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
       />
       <aside className={`fixed md:sticky left-0 top-0 z-50 md:z-auto w-[280px] md:w-[260px] h-screen shrink-0 flex flex-col border-r border-white/60 bg-white/95 md:bg-white/50 backdrop-blur-xl transform transition-transform duration-300 ease-out ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
-      <div className="px-4 pt-5 pb-4 border-b border-slate-100/80">
-        <BrandMark />
-      </div>
-
-      <div className="flex-1 overflow-y-auto thin-scroll py-3">
-        <div className="px-2 mb-1">
-          {NAV.top.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} />)}
+        <div className="px-4 pt-5 pb-4 border-b border-slate-100/80">
+          <BrandMark />
         </div>
 
-        {NAV.groups.map((g) => {
-          const items = g.items.filter((i) => allow(i.key));
-          if (items.length === 0) return null;
-          return <Group key={g.label} label={g.label} items={items} />;
-        })}
-
-        {NAV.bottom.some((i) => allow(i.key)) && (
-          <div className="mt-2 pt-2 border-t border-slate-100">
-            <div className="px-3 pt-3 pb-1.5 text-[10px] tracking-[0.16em] font-semibold text-slate-400">
-              SYSTEM
-            </div>
-            <div className="flex flex-col gap-0.5 px-2">
-              {NAV.bottom.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} />)}
-            </div>
+        <div className="flex-1 overflow-y-auto thin-scroll py-3">
+          <div className="px-2 mb-1">
+            {NAV.top.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} onClose={onClose} />)}
           </div>
-        )}
-      </div>
 
-      <div className="px-4 py-3 border-t border-slate-100/80">
-        <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-xs font-semibold">RD</div>
-          <div className="min-w-0">
-            <div className="text-[13px] font-medium text-slate-800 truncate">Radhika Deshmukh</div>
-            <div className="text-[11px] text-slate-500 truncate">Principal · Admin</div>
+          {NAV.groups.map((g) => {
+            const items = g.items.filter((i) => allow(i.key));
+            if (items.length === 0) return null;
+            return <Group key={g.label} label={g.label} items={items} onClose={onClose} />;
+          })}
+
+          {NAV.bottom.some((i) => allow(i.key)) && (
+            <div className="mt-2 pt-2 border-t border-slate-100">
+              <div className="px-3 pt-3 pb-1.5 text-[10px] tracking-[0.16em] font-semibold text-slate-400">
+                SYSTEM
+              </div>
+              <div className="flex flex-col gap-0.5 px-2">
+                {NAV.bottom.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} onClose={onClose} />)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-4 py-3 border-t border-slate-100/80">
+          <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-xs font-semibold">
+              {user?.name?.charAt(0) || "U"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-medium text-slate-800 truncate">{user?.name || "User"}</div>
+              <div className="text-[11px] text-slate-500 truncate capitalize">{user?.role || "guest"}</div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              aria-label="Logout"
+            >
+              <LogOut className="h-4 w-4" strokeWidth={2} />
+            </button>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
     </>
   );
 }

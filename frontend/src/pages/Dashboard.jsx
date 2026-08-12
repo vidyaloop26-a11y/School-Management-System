@@ -3,8 +3,9 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import PageHeader from "@/components/common/PageHeader";
 import TrendPill from "@/components/common/TrendPill";
 import LastSynced from "@/components/common/LastSynced";
-import { STAT_CARDS, FEE_CHART, UPCOMING_EVENTS } from "@/lib/mockData";
-import { ArrowUpRight } from "lucide-react";
+import { useDashboard } from "@/lib/queries";
+import { useAuth } from "@/lib/AuthContext";
+import { ArrowUpRight, Loader2 } from "lucide-react";
 
 function StatCard({ card, index }) {
   return (
@@ -35,10 +36,44 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const { data, isLoading } = useDashboard();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 text-[#29ABE2] animate-spin" />
+      </div>
+    );
+  }
+
+  const stats = data?.stats || {};
+  const cards = [
+    { key: "students", title: "Total Students", value: (stats.students ?? 0).toLocaleString(), sub: "across all sections", trend: null },
+    { key: "staff", title: "Total Staff", value: (stats.staff ?? 0).toLocaleString(), sub: stats.teachers != null ? `${stats.teachers} teaching / ${(stats.staff ?? 0) - (stats.teachers ?? 0)} non-teaching` : "full team", trend: null },
+    { key: "classes", title: "Class Sections", value: (stats.classes ?? 0).toLocaleString(), sub: "active class groups", trend: null },
+    { key: "attendance", title: "Attendance Marked Today", value: (stats.attendanceMarkedToday ?? 0).toLocaleString(), sub: stats.attendancePending != null ? `${stats.attendancePending} pending` : "", trend: null },
+  ];
+
+  if (user?.role === "superAdmin") {
+    cards[0] = { key: "schools", title: "Schools", value: (stats.schools ?? 0).toLocaleString(), sub: "managed by platform", trend: null };
+    cards[2] = { key: "teachers", title: "Teacher Accounts", value: (stats.teacherAccounts ?? 0).toLocaleString(), sub: "portal logins", trend: null };
+    cards[3] = { key: "parents", title: "Parent Accounts", value: (stats.parentAccounts ?? 0).toLocaleString(), sub: "portal logins", trend: null };
+  }
+
+  const FEE_CHART = [
+    { month: "Feb", amount: 40 },
+    { month: "Mar", amount: 48 },
+    { month: "Apr", amount: 55 },
+    { month: "May", amount: 42 },
+    { month: "Jun", amount: 58 },
+    { month: "Jul", amount: 68.4 },
+  ];
+
   return (
     <div data-testid="dashboard-page" className="max-w-[1400px] mx-auto">
       <PageHeader
-        eyebrow="ADMIN · THURSDAY, 16 JULY"
+        eyebrow={`${user?.role === "superAdmin" ? "SUPER ADMIN" : user?.role === "schoolAdmin" ? "SCHOOL ADMIN" : (user?.role || "").toUpperCase()}`}
         title={<>Overview</>}
         subtitle={<>A snapshot of today at <span className="font-serif-i text-slate-700">Vidyaloop</span>.</>}
         right={<LastSynced />}
@@ -46,7 +81,7 @@ export default function Dashboard() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-        {STAT_CARDS.map((c, i) => <StatCard key={c.key} card={c} index={i} />)}
+        {cards.map((c, i) => <StatCard key={c.key} card={c} index={i} />)}
       </div>
 
       {/* Chart + events */}
@@ -101,22 +136,9 @@ export default function Dashboard() {
           <div className="font-display text-[24px] leading-tight font-bold text-slate-900 mt-1.5 mb-5 tracking-tight">
             On the calendar
           </div>
-          <ul className="space-y-3">
-            {UPCOMING_EVENTS.map((ev, i) => (
-              <li key={i} data-testid={`event-${i}`} className="flex items-center gap-4 rounded-xl p-3 hover:bg-white/60 transition">
-                <div className="h-14 w-14 rounded-xl glass-soft grid place-items-center text-center shrink-0">
-                  <div>
-                    <div className="text-[10px] tracking-widest font-semibold text-[#0c6a99]">{ev.month}</div>
-                    <div className="font-display font-bold text-slate-900 text-lg leading-none mt-0.5">{ev.day}</div>
-                  </div>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[13.5px] font-medium text-slate-800 leading-snug break-words">{ev.title}</div>
-                  <div className="text-[11.5px] text-slate-500 mt-0.5">{ev.sub}</div>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="text-center py-10 text-slate-500 text-[13px]">
+            Events module coming soon.
+          </div>
         </div>
       </div>
     </div>
