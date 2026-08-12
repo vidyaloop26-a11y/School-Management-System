@@ -34,9 +34,11 @@ model User {
   role                String // superAdmin | schoolAdmin | teacher | parent
   schoolId            String?  @db.ObjectId
   school              School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  // Link to the child (parent accounts) / staff record (teacher accounts).
-  // Plain String (NOT unique) because MongoDB unique indexes reject nulls;
-  // uniqueness of the link is enforced in application logic.
+  // Parent accounts belong to a Family (one account per family, may hold many
+  // children). studentId is retained as a convenience link to the primary
+  // child of the family.
+  familyId            String?  @db.ObjectId
+  family              Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
   studentId           String?  @db.ObjectId
   staffId             String?  @db.ObjectId
   isActive            Boolean  @default(true)
@@ -44,11 +46,30 @@ model User {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   refreshTokens       RefreshToken[]
+  credentials         Credential[]
 
   @@index([studentId])
   @@index([staffId])
+  @@index([familyId])
   @@index([role])
   @@index([schoolId])
+}
+
+// One parent portal account per family. Multiple children share a family
+// (grouped on import by parentEmail). contactEmail is the grouping key.
+model Family {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId     String    @db.ObjectId
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  users        User[]
+  students     Student[]
+
+  @@index([schoolId, contactEmail])
 }
 
 model RefreshToken {
@@ -79,10 +100,88 @@ model School {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   users       User[]
+  families    Family[]
   students    Student[]
   staff       Staff[]
   timetable   TimetableEntry[]
   attendance  AttendanceRecord[]
+  classes     SchoolClass[]
+  subjects    SchoolSubject[]
+  exams       ExamConfig[]
+  config      SchoolConfig?
+  credentials Credential[]
+}
+
+// Per-school academic configuration (how many exams/terms, subjects, classes).
+// Every school customises its own structure; import validates against these.
+model SchoolConfig {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @unique @db.ObjectId
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  term      Int      @default(2) // 2 or 3 exams per session
+  grading   String?  // 0-100 | A-F | GPA ...
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Canonical classes/sections a school runs. Import validates cls/section.
+model SchoolClass {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @db.ObjectId
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  cls       String
+  section   String
+  createdAt DateTime @default(now())
+
+  @@unique([schoolId, cls, section])
+  @@index([schoolId])
+}
+
+// Per-school subject list — shared vocabulary for timetable, marks, exams.
+model SchoolSubject {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @db.ObjectId
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name      String
+  code      String?
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+}
+
+// Exam terms a school conducts (2 or 3, custom names). Future Exam marks will
+// reference these + SchoolSubject + SchoolClass, so no rework is needed later.
+model ExamConfig {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @db.ObjectId
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  term      String   // "Term 1" | "Semester 2" ...
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([schoolId, term])
+  @@index([schoolId])
+}
+
+// Encrypted credential ledger — every generated portal account stores its
+// (encrypted, at-rest) password so school admins can view/reset/export later.
+model Credential {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @db.ObjectId
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  userId    String   @unique @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   // parent | teacher
+  username  String
+  email     String?
+  password  String   // encrypted via lib/encryption
+  scope     String   // human note, e.g. "Robert Sharma • children: Aarav, Ishita"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([schoolId, role])
 }
 
 // ---------------------------------------------------------------------------
@@ -93,19 +192,27 @@ model Student {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   schoolId    String   @db.ObjectId
   school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  familyId    String?  @db.ObjectId
+  family      Family?  @relation(fields: [familyId], references: [id], onDelete: SetNull)
   admNo       String
   name        String
   cls         String
   section     String
   roll        Int
   dob         String? // ISO date string, e.g. "2012-03-14"
+  gender      String?
   bloodGroup  String?
-  emergency   String?
+  category    String?
   address     String?
+  emergency   String?
   fatherName  String?
   fatherEmail String?
   fatherPhone String?
   motherName  String?
+  motherPhone String?
+  parentName  String?
+  parentEmail String?
+  parentPhone String?
   status      String   @default("Active") // Active | Inactive
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

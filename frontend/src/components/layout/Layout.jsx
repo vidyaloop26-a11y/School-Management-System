@@ -4,14 +4,15 @@ import Sidebar from "@/components/layout/Sidebar";
 import TopBar from "@/components/layout/TopBar";
 import CommandPalette from "@/components/layout/CommandPalette";
 import RouteSkeleton from "@/components/common/RouteSkeleton";
-import { useRole } from "@/lib/RoleContext";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function Layout() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const location = useLocation();
-  const { role } = useRole();
+  const { user } = useAuth();
+  const role = user?.role || "";
 
   useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 

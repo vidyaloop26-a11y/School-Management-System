@@ -1,25 +1,38 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/common/PageHeader";
-import { STUDENTS } from "@/lib/mockData";
-import { Search, Plus, ChevronRight } from "lucide-react";
+import { useStudents } from "@/lib/queries";
+import { useAuth, ROLES } from "@/lib/AuthContext";
+import { Search, Plus, ChevronRight, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ExportButton from "@/components/common/ExportButton";
 import { toast } from "@/components/ui/sonner";
+import AddStudentDialog from "@/components/students/AddStudentDialog";
 
 export default function Students() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [q, setQ] = useState("");
   const [cls, setCls] = useState("all");
   const [sec, setSec] = useState("all");
   const [status, setStatus] = useState("all");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
-  const classes = Array.from(new Set(STUDENTS.map((s) => s.class))).sort();
-  const sections = Array.from(new Set(STUDENTS.map((s) => s.section))).sort();
+  const { data: students = [], isLoading } = useStudents({
+    search: q || undefined,
+    cls: cls !== "all" ? cls : undefined,
+    section: sec !== "all" ? sec : undefined,
+    status: status !== "all" ? status.charAt(0).toUpperCase() + status.slice(1) : undefined,
+  });
+
+  const canManage = user?.role === ROLES.SCHOOL_ADMIN || user?.role === ROLES.SUPER_ADMIN;
+
+  const classes = useMemo(() => Array.from(new Set(students.map((s) => s.cls))).sort(), [students]);
+  const sections = useMemo(() => Array.from(new Set(students.map((s) => s.section))).sort(), [students]);
 
   const rows = useMemo(() => {
-    return STUDENTS.filter((s) => {
-      if (cls !== "all" && s.class !== cls) return false;
+    return students.filter((s) => {
+      if (cls !== "all" && s.cls !== cls) return false;
       if (sec !== "all" && s.section !== sec) return false;
       if (status !== "all" && s.status.toLowerCase() !== status) return false;
       if (q) {
@@ -28,24 +41,26 @@ export default function Students() {
       }
       return true;
     });
-  }, [q, cls, sec, status]);
+  }, [students, q, cls, sec, status]);
 
   return (
     <div data-testid="students-page" className="max-w-[1400px] mx-auto">
       <PageHeader
         eyebrow="ACADEMICS"
         title="Students"
-        subtitle="1,284 students across 24 sections. Filter, search, drill in."
+        subtitle={`${students.length.toLocaleString()} students across sections. Filter, search, drill in.`}
         right={
           <div className="flex items-center gap-2">
             <ExportButton testId="students-export" />
-            <button
-              data-testid="add-student-btn"
-              onClick={() => toast("Student added successfully")}
-              className="inline-flex items-center gap-2 bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-4 py-2.5 rounded-full text-[13px] font-medium shadow-sm"
-            >
-              <Plus className="h-4 w-4" /> Add Student
-            </button>
+            {canManage && (
+              <button
+                data-testid="add-student-btn"
+                onClick={() => setDialogOpen(true)}
+                className="inline-flex items-center gap-2 bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-4 py-2.5 rounded-full text-[13px] font-medium shadow-sm"
+              >
+                <Plus className="h-4 w-4" /> Add Student
+              </button>
+            )}
           </div>
         }
       />
@@ -90,81 +105,90 @@ export default function Students() {
           </Select>
         </div>
 
-        {/* Table */}
-        {/* Desktop table */}
-        <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
-          <table className="min-w-full text-[13px]">
-            <thead className="bg-slate-50/80">
-              <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                <th className="px-5 py-3 font-semibold">Adm. No.</th>
-                <th className="px-5 py-3 font-semibold">Name</th>
-                <th className="px-5 py-3 font-semibold">Class</th>
-                <th className="px-5 py-3 font-semibold">Section</th>
-                <th className="px-5 py-3 font-semibold">Roll No.</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
-                <th className="px-5 py-3 font-semibold w-4"></th>
-              </tr>
-            </thead>
-            <tbody>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 text-[#29ABE2] animate-spin" />
+          </div>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
+              <table className="min-w-full text-[13px]">
+                <thead className="bg-slate-50/80">
+                  <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
+                    <th className="px-5 py-3 font-semibold">Adm. No.</th>
+                    <th className="px-5 py-3 font-semibold">Name</th>
+                    <th className="px-5 py-3 font-semibold">Class</th>
+                    <th className="px-5 py-3 font-semibold">Section</th>
+                    <th className="px-5 py-3 font-semibold">Roll No.</th>
+                    <th className="px-5 py-3 font-semibold">Status</th>
+                    <th className="px-5 py-3 font-semibold w-4"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((s) => (
+                    <tr
+                      key={s.id || s.admNo}
+                      data-testid={`student-row-${s.admNo}`}
+                      onClick={() => navigate(`/students/${s.id}`)}
+                      className="border-t border-slate-100 hover:bg-[#f3faff] cursor-pointer transition"
+                    >
+                      <td className="px-5 py-3.5 font-mono text-[12px] text-slate-500">{s.admNo}</td>
+                      <td className="px-5 py-3.5 font-medium text-slate-800">{s.name}</td>
+                      <td className="px-5 py-3.5 text-slate-600">Class {s.cls}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{s.section}</td>
+                      <td className="px-5 py-3.5 text-slate-600">{s.roll}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${s.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${s.status === "Active" ? "bg-emerald-500" : "bg-slate-400"}`} />
+                          {s.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3.5 text-slate-400"><ChevronRight className="h-4 w-4" /></td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 && (
+                    <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500 text-[13px]">No results found — try a different search term.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-2.5">
               {rows.map((s) => (
-                <tr
-                  key={s.admNo}
-                  data-testid={`student-row-${s.admNo}`}
-                  onClick={() => navigate(`/students/${s.admNo}`)}
-                  className="border-t border-slate-100 hover:bg-[#f3faff] cursor-pointer transition"
+                <div
+                  key={s.id || s.admNo}
+                  data-testid={`student-card-${s.admNo}`}
+                  onClick={() => navigate(`/students/${s.id}`)}
+                  className="glass-soft rounded-xl p-4 cursor-pointer active:scale-[0.99] transition"
                 >
-                  <td className="px-5 py-3.5 font-mono text-[12px] text-slate-500">{s.admNo}</td>
-                  <td className="px-5 py-3.5 font-medium text-slate-800">{s.name}</td>
-                  <td className="px-5 py-3.5 text-slate-600">Class {s.class}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{s.section}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{s.roll}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${s.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-mono text-[11px] text-slate-500">{s.admNo}</div>
+                      <div className="font-medium text-slate-800 text-[14.5px] mt-0.5 truncate">{s.name}</div>
+                    </div>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium shrink-0 ${s.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
                       <span className={`h-1.5 w-1.5 rounded-full ${s.status === "Active" ? "bg-emerald-500" : "bg-slate-400"}`} />
                       {s.status}
                     </span>
-                  </td>
-                  <td className="px-3 py-3.5 text-slate-400"><ChevronRight className="h-4 w-4" /></td>
-                </tr>
+                  </div>
+                  <div className="mt-3 flex items-center gap-1.5 text-[12px] text-slate-500">
+                    <span>Class {s.cls}-{s.section}</span>
+                    <span className="text-slate-300">·</span>
+                    <span>Roll {s.roll}</span>
+                  </div>
+                </div>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500 text-[13px]">No results found — try a different search term.</td></tr>
+                <div className="text-center text-slate-500 text-[13px] py-8 glass-soft rounded-xl">No results found — try a different search term.</div>
               )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile cards */}
-        <div className="md:hidden space-y-2.5">
-          {rows.map((s) => (
-            <div
-              key={s.admNo}
-              data-testid={`student-card-${s.admNo}`}
-              onClick={() => navigate(`/students/${s.admNo}`)}
-              className="glass-soft rounded-xl p-4 cursor-pointer active:scale-[0.99] transition"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-mono text-[11px] text-slate-500">{s.admNo}</div>
-                  <div className="font-medium text-slate-800 text-[14.5px] mt-0.5 truncate">{s.name}</div>
-                </div>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium shrink-0 ${s.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${s.status === "Active" ? "bg-emerald-500" : "bg-slate-400"}`} />
-                  {s.status}
-                </span>
-              </div>
-              <div className="mt-3 flex items-center gap-1.5 text-[12px] text-slate-500">
-                <span>Class {s.class}-{s.section}</span>
-                <span className="text-slate-300">·</span>
-                <span>Roll {s.roll}</span>
-              </div>
             </div>
-          ))}
-          {rows.length === 0 && (
-            <div className="text-center text-slate-500 text-[13px] py-8 glass-soft rounded-xl">No results found — try a different search term.</div>
-          )}
-        </div>
+          </>
+        )}
       </div>
+
+      <AddStudentDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 }

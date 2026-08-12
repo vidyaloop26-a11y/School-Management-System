@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PageHeader from "@/components/common/PageHeader";
-import { useRole } from "@/lib/RoleContext";
+import { useAuth } from "@/lib/AuthContext";
 import { HOMEWORK } from "@/lib/stage2Data";
 import { SUBJECT_COLORS } from "@/lib/mockData";
 import { CheckCircle2, Clock, Circle, Check, PartyPopper } from "lucide-react";
@@ -124,10 +124,11 @@ function ChecklistView() {
 }
 
 export default function Homework() {
-  const { role } = useRole();
+  const { user } = useAuth();
+  const role = user?.role;
   return (
     <div data-testid="homework-page" className="max-w-[1400px] mx-auto">
-      {role === "Parent" ? <ChecklistView /> : <TeacherList />}
+      {role === "parent" ? <ChecklistView /> : <TeacherList />}
     </div>
   );
 }

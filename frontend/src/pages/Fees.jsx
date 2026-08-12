@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import PageHeader from "@/components/common/PageHeader";
-import { useRole } from "@/lib/RoleContext";
+import { useAuth } from "@/lib/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FEE_ROWS, FEE_STAT_STRIP, PARENT_FEE_TERMS, PARENT_CHILD } from "@/lib/stage2Data";
 import { formatINR } from "@/lib/format";
@@ -208,10 +208,11 @@ function ParentView() {
 }
 
 export default function Fees() {
-  const { role } = useRole();
+  const { user } = useAuth();
+  const role = user?.role;
   return (
     <div data-testid="fees-page" className="max-w-[1400px] mx-auto">
-      {role === "Parent" ? <ParentView /> : <AdminView />}
+      {role === "parent" ? <ParentView /> : <AdminView />}
     </div>
   );
 }
