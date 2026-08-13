@@ -1,6 +1,6 @@
 import "@/App.css";
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth, ROLES } from "@/lib/AuthContext";
 import { ProtectedRoute, PublicRoute } from "@/components/auth/ProtectedRoute";
 import Layout from "@/components/layout/Layout";
@@ -49,7 +49,7 @@ function AppRoutes() {
       <Route
         element={
           <PublicRoute>
-            <Login />
+            <Outlet />
           </PublicRoute>
         }
       >

@@ -95,7 +95,7 @@ async function refresh(refreshToken) {
   return {
     user: toSafeUser(stored.user),
     accessToken: signAccessToken(stored.user),
-    refreshToken: newRefresh,
+    refreshToken: newRefreshToken,
   };
 }
 
