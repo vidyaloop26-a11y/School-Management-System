@@ -34,6 +34,7 @@ export const useAuth = () => {
     },
     staleTime: 5 * 60 * 1000,
     retry: false,
+    enabled: !!localStorage.getItem("accessToken"),
   });
 };
 
