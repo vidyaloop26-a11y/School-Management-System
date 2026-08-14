@@ -1,8 +1,21 @@
 const prisma = require("../../lib/prisma");
 const attendanceService = require("../attendance/attendance.service");
 const { ROLES } = require("../../middleware/rbac");
+const { toUtcDate } = require("../attendance/attendance.service");
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
+
+async function resolveSchoolScope(query = {}) {
+  if (!query.schoolId || query.schoolId === "all") return null;
+  const cleanId = String(query.schoolId).replace(/^"|"$/g, "").trim();
+  if (!cleanId || cleanId === "all") return null;
+
+  const school = await prisma.school.findFirst({
+    where: { OR: [{ id: cleanId }, { code: cleanId }] },
+    select: { id: true },
+  });
+  return school ? school.id : cleanId;
+}
 
 async function superAdminDashboard() {
   const schoolCount = await prisma.school.count();
@@ -29,21 +42,16 @@ async function schoolAdminDashboard(schoolId) {
   const teacherCount = await prisma.staff.count({
     where: {
       schoolId,
-      jobTitle: { equals: "Teacher", mode: "insensitive" },
+      jobTitle: { contains: "Teacher", mode: "insensitive" },
     },
   });
-  const classGroups = await prisma.student.groupBy({
-    by: ["cls", "section"],
-    where: { schoolId, status: "Active" },
+
+  const todayDate = toUtcDate(todayKey());
+  const todayAttendance = await prisma.attendanceRecord.findMany({
+    where: { schoolId, date: todayDate },
   });
 
-  const todayUtc = attendanceService.toUtcDate(todayKey());
-  const markedToday = await prisma.attendanceRecord.count({
-    where: { schoolId, date: todayUtc },
-  });
-  const activeStudents = await prisma.student.count({
-    where: { schoolId, status: "Active" },
-  });
+  const presentCount = todayAttendance.filter((r) => r.status === "P").length;
 
   return {
     role: "schoolAdmin",
@@ -51,50 +59,54 @@ async function schoolAdminDashboard(schoolId) {
       students: studentCount,
       staff: staffCount,
       teachers: teacherCount,
-      classes: classGroups.length,
-      attendanceMarkedToday: markedToday,
-      attendancePending: Math.max(activeStudents - markedToday, 0),
+      todayPresent: presentCount,
     },
   };
 }
 
 async function teacherDashboard(user) {
   const staff = await prisma.staff.findUnique({ where: { id: user.staffId } });
-  if (!staff) throw new Error("Staff record not found");
+  const schoolId = user.schoolId;
 
-  const classGroups = await prisma.timetableEntry.groupBy({
-    by: ["cls", "section"],
-    where: { staffId: staff.id },
+  const teacherEntries = await prisma.timetableEntry.findMany({
+    where: { schoolId, staffId: user.staffId },
   });
-  const classesList = classGroups.map((c) => `${c.cls}-${c.section}`);
 
-  const todayUtc = attendanceService.toUtcDate(todayKey());
-  const markedToday = await prisma.attendanceRecord.count({
-    where: { schoolId: staff.schoolId, date: todayUtc, markedById: user.id },
+  const uniqueClasses = Array.from(
+    new Set(teacherEntries.map((e) => `${e.cls}-${e.section}`))
+  );
+
+  const todayDate = toUtcDate(todayKey());
+  const todayAttendance = await prisma.attendanceRecord.findMany({
+    where: {
+      schoolId,
+      date: todayDate,
+      student: {
+        cls: { in: teacherEntries.map((e) => e.cls) },
+      },
+    },
   });
 
   return {
     role: "teacher",
-    staff: { id: staff.id, staffId: staff.staffId, name: staff.name, subject: staff.subject },
-    stats: {
-      classes: classesList.length,
-      classesList,
-      attendanceMarkedToday: markedToday,
-    },
+    staff,
+    assignedClassesCount: uniqueClasses.length,
+    assignedClasses: uniqueClasses,
+    todayAttendanceMarkedCount: todayAttendance.length,
   };
 }
 
-async function parentDashboard(parentUser) {
-  if (!parentUser.studentId) throw new Error("No student linked to this parent account");
+async function parentDashboard(user) {
+  const student = await prisma.student.findUnique({
+    where: { id: user.studentId },
+  });
 
-  const student = await prisma.student.findUnique({ where: { id: parentUser.studentId } });
-  if (!student) throw new Error("Linked student not found");
+  if (!student) {
+    throw new Error("Associated student record not found");
+  }
 
-  const now = new Date();
-  const attendance = await attendanceService.getStudentAttendance({
-    user: parentUser,
-    month: now.getUTCMonth() + 1,
-    year: now.getUTCFullYear(),
+  const attendance = await attendanceService.studentSummary({
+    studentId: student.id,
   });
 
   const school = await prisma.school.findUnique({
@@ -115,10 +127,15 @@ async function parentDashboard(parentUser) {
   };
 }
 
-async function dashboardFor(user) {
+async function dashboardFor(user, query = {}) {
   switch (user.role) {
-    case ROLES.SUPER_ADMIN:
+    case ROLES.SUPER_ADMIN: {
+      const resolvedSchoolId = await resolveSchoolScope(query);
+      if (resolvedSchoolId) {
+        return schoolAdminDashboard(resolvedSchoolId);
+      }
       return superAdminDashboard();
+    }
     case ROLES.SCHOOL_ADMIN:
       return schoolAdminDashboard(user.schoolId);
     case ROLES.TEACHER:

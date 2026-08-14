@@ -1,31 +1,36 @@
-import React from "react";
-import { useNavigate } from "react-router-dom";
-import { Bell, Search, Menu, LogOut, User } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Bell, Search, ChevronDown, Menu, LogOut, Building2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
 import { useRole } from "@/lib/RoleContext";
 import DemoBadge from "@/components/common/DemoBadge";
-import { toast } from "@/components/ui/sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import api from "@/lib/api";
 
 export default function TopBar({ onOpenPalette, onOpenSidebar }) {
-  const navigate = useNavigate();
   const { user, role, logout } = useRole();
+  const isSuperAdmin = role === "superAdmin" || user?.role === "superAdmin";
 
-  const handleLogout = () => {
-    logout();
-    toast.success("Logged out successfully");
-    navigate("/login");
-  };
+  const [schoolsList, setSchoolsList] = useState([]);
+  const [activeSchoolId, setActiveSchoolIdState] = useState(() => {
+    return localStorage.getItem("vidyaloop_active_school_id") || "all";
+  });
 
-  const getInitials = (name) => {
-    if (!name) return "VD";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase();
+  // Load real multi-tenant schools from backend API
+  useEffect(() => {
+    api.getSchools()
+      .then((res) => {
+        const list = Array.isArray(res) ? res : (res?.schools || []);
+        setSchoolsList(list);
+      })
+      .catch(() => setSchoolsList([]));
+  }, []);
+
+  const handleSchoolChange = (id) => {
+    setActiveSchoolIdState(id);
+    localStorage.setItem("vidyaloop_active_school_id", id);
+    window.dispatchEvent(new Event("schoolScopeChanged"));
   };
 
   return (
@@ -51,7 +56,7 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
           <button
             data-testid="topbar-search"
             onClick={onOpenPalette}
-            className="hidden md:flex flex-1 max-w-2xl items-center gap-3 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-4 py-2.5 text-left shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_1px_2px_rgba(15,40,60,0.04)]"
+            className="hidden md:flex flex-1 max-w-xl items-center gap-3 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-4 py-2.5 text-left shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_1px_2px_rgba(15,40,60,0.04)]"
           >
             <Search className="h-4 w-4 text-slate-400" />
             <span className="text-[13px] text-slate-400 flex-1 truncate">Search students, staff, records…</span>
@@ -59,11 +64,29 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
           </button>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* SuperAdmin Multi-Tenant School Selector */}
+            {isSuperAdmin && (
+              <Select value={activeSchoolId} onValueChange={handleSchoolChange}>
+                <SelectTrigger data-testid="school-scope-selector" className="h-9 px-3 text-[12px] font-semibold bg-white/80 rounded-full border-blue-200 w-[150px] md:w-[220px] text-[#0c6a99]">
+                  <Building2 className="h-3.5 w-3.5 text-[#29ABE2] mr-1 shrink-0" />
+                  <SelectValue placeholder="Select School" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-[12.5px] font-bold">
+                    🏢 All Schools View
+                  </SelectItem>
+                  {schoolsList.map((s) => (
+                    <SelectItem key={s.id} value={s.id} className="text-[12.5px]">
+                      <span className="font-mono text-[11px] font-bold text-slate-400 mr-1.5">{s.code}</span>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             <DemoBadge className="hidden lg:inline-flex" />
 
-
-
-            {/* Notifications */}
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -79,36 +102,27 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
               </PopoverContent>
             </Popover>
 
-            {/* User Profile & Logout Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  data-testid="user-avatar-btn"
-                  className="h-10 w-10 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-[12px] font-semibold shadow-sm border border-white cursor-pointer hover:scale-105 transition"
+                  data-testid="user-menu"
+                  className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-3 py-2"
                 >
-                  {getInitials(user?.name)}
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-[12px] font-semibold">
+                    {user?.name?.charAt(0) || "U"}
+                  </div>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl border-slate-200">
-                <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                  <div className="font-semibold text-slate-800 text-sm truncate">{user?.name || "User"}</div>
-                  <div className="text-[11px] text-slate-500 truncate">{user?.email || "user@vidyaloop.in"}</div>
-                  <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium border border-blue-200">
-                    {role}
-                  </span>
+              <DropdownMenuContent align="end" className="min-w-[180px]">
+                <div className="px-3 py-2 border-b border-slate-100">
+                  <p className="text-[13px] font-medium text-slate-900 truncate">{user?.name}</p>
+                  <p className="text-[11.5px] text-slate-500 capitalize">{user?.role}</p>
                 </div>
-
-                <DropdownMenuItem onClick={() => navigate("/login")} className="rounded-xl text-xs py-2 text-slate-700 cursor-pointer">
-                  <User className="h-4 w-4 mr-2 text-slate-500" /> Switch Account
-                </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
-
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="rounded-xl text-xs py-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50 cursor-pointer font-medium"
-                >
-                  <LogOut className="h-4 w-4 mr-2" /> Log Out
+                <DropdownMenuItem onClick={logout} data-testid="logout-btn" className="text-rose-600 focus:text-rose-600">
+                  <LogOut className="h-4 w-4 mr-2" strokeWidth={2} />
+                  Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

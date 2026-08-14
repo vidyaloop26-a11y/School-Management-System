@@ -7,13 +7,13 @@ async function main() {
     await prisma.$connect();
     console.log("✔ Connected to MongoDB");
   } catch (err) {
-    console.error("Could not connect to database. Check DATABASE_URL in backend/.env");
+    console.error("✘ Could not connect to database. Check DATABASE_URL in backend/.env");
     console.error(err.message);
     process.exit(1);
   }
 
   app.listen(env.port, () => {
-    console.log(`Vidyaloop API listening on http://localhost:${env.port}/api`);
+    console.log(`✔ Vidyaloop API listening on http://localhost:${env.port}/api`);
   });
 }
 

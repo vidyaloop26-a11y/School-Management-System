@@ -4,24 +4,24 @@ const attendanceService = require("./attendance.service");
 const getByClass = catchAsync(async (req, res) => {
   const data = await attendanceService.listByClass({
     user: req.user,
-    cls: req.query.cls,
-    section: req.query.section,
+    cls: req.query.cls || "8",
+    section: req.query.section || "A",
     date: req.query.date,
+    query: req.query,
   });
   res.json({ success: true, ...data });
 });
 
 const mark = catchAsync(async (req, res) => {
-  const data = await attendanceService.markBulk({ user: req.user, data: req.body });
+  const data = await attendanceService.markClassAttendance({ user: req.user, data: req.body });
   res.json({ success: true, ...data });
 });
 
 const getForStudent = catchAsync(async (req, res) => {
-  const data = await attendanceService.getStudentAttendance({
-    user: req.user,
+  const data = await attendanceService.studentSummary({
     studentId: req.query.studentId,
-    month: req.query.month,
-    year: req.query.year,
+    month: req.query.month ? parseInt(req.query.month, 10) : undefined,
+    year: req.query.year ? parseInt(req.query.year, 10) : undefined,
   });
   res.json({ success: true, ...data });
 });

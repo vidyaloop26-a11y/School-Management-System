@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/common/PageHeader";
 import { Search, Plus, ChevronRight, Loader2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, UserPlus, KeyRound, Briefcase, GraduationCap, Phone, Mail, UserCheck } from "lucide-react";
@@ -64,7 +64,7 @@ export default function Staff() {
   const [parsedRows, setParsedRows] = useState([]);
   const [importSummary, setImportSummary] = useState(null);
 
-  const fetchStaff = async () => {
+  const fetchStaff = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.getStaff({ search: q, dept, status });
@@ -79,11 +79,16 @@ export default function Staff() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [q, dept, status]);
 
   useEffect(() => {
     fetchStaff();
-  }, [q, dept, status]);
+
+    // Re-fetch when SuperAdmin changes active school in topbar
+    const handleScopeChange = () => fetchStaff();
+    window.addEventListener("schoolScopeChanged", handleScopeChange);
+    return () => window.removeEventListener("schoolScopeChanged", handleScopeChange);
+  }, [fetchStaff]);
 
   const depts = useMemo(
     () => Array.from(new Set(staffList.map((s) => s.dept).filter(Boolean))).sort(),
@@ -598,7 +603,6 @@ export default function Staff() {
             </div>
 
             <div className="space-y-4 mt-4">
-              {/* Step 1: Download Template */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-blue-50/70 border border-blue-100">
                 <div className="flex items-center gap-2.5">
                   <FileSpreadsheet className="h-5 w-5 text-[#29ABE2] shrink-0" />
@@ -615,7 +619,6 @@ export default function Staff() {
                 </button>
               </div>
 
-              {/* Step 2: Upload CSV File */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">2. Upload CSV File or Paste Text</label>
                 <input
@@ -636,7 +639,6 @@ export default function Staff() {
                 />
               </div>
 
-              {/* Pre-Import Summary Grid */}
               {parsedRows.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold">
@@ -677,7 +679,6 @@ export default function Staff() {
                 </div>
               )}
 
-              {/* Buttons */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   onClick={() => setShowBulkModal(false)}
@@ -688,7 +689,7 @@ export default function Staff() {
                 <button
                   disabled={submitting || parsedRows.filter(r => r.isValid).length === 0}
                   onClick={handleBulkSubmit}
-                  className="px-6 py-2 rounded-full bg-[#29ABE2] text-white text-xs font-medium hover:bg-[#0e7fb1] disabled:opacity-50 flex items-center gap-2"
+                  className="px-6 py-2 rounded-full bg-[#29ABE2] text-[#fff] text-xs font-medium hover:bg-[#0e7fb1] disabled:opacity-50 flex items-center gap-2"
                 >
                   {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Import Valid Staff to DB
                 </button>

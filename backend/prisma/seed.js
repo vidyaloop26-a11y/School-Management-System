@@ -101,12 +101,38 @@ async function main() {
   const record = (label, creds) => log.push({ label, ...creds });
 
   // 1. Super Admin
-  const superAdminUser = await prisma.user.findFirst({ where: { role: "superAdmin" } });
+  const superAdminUser = await prisma.user.findFirst({
+    where: { OR: [{ role: "superAdmin" }, { email: SUPER.email.toLowerCase() }] },
+  });
+
+  const superHash = await authService.hashPassword(SUPER.password);
   if (!superAdminUser) {
-    await authService.createSuperAdmin(SUPER);
-    record("Super Admin", { username: SUPER.email, password: SUPER.password });
+    await prisma.user.create({
+      data: {
+        name: SUPER.name,
+        email: SUPER.email.toLowerCase().trim(),
+        username: SUPER.email.toLowerCase().trim(),
+        passwordHash: superHash,
+        role: "superAdmin",
+        isActive: true,
+        mustChangePassword: false,
+      },
+    });
+    record("Super Admin (Created)", { username: SUPER.email, password: SUPER.password });
   } else {
-    record("Super Admin (Existing)", { username: SUPER.email, password: SUPER.password });
+    await prisma.user.update({
+      where: { id: superAdminUser.id },
+      data: {
+        name: SUPER.name,
+        email: SUPER.email.toLowerCase().trim(),
+        username: SUPER.email.toLowerCase().trim(),
+        passwordHash: superHash,
+        role: "superAdmin",
+        isActive: true,
+        mustChangePassword: false,
+      },
+    });
+    record("Super Admin (Reset Password)", { username: SUPER.email, password: SUPER.password });
   }
 
   // 2. Loop over Schools
@@ -125,7 +151,8 @@ async function main() {
     }
 
     // School Admin User
-    const adminEmail = sData.adminEmail.toLowerCase();
+    const adminEmail = sData.adminEmail.toLowerCase().trim();
+    const adminHash = await authService.hashPassword(sData.adminPassword);
     const existingAdmin = await prisma.user.findFirst({
       where: { email: adminEmail },
     });
@@ -136,9 +163,19 @@ async function main() {
           name: sData.adminName,
           email: adminEmail,
           username: adminEmail,
-          passwordHash: await authService.hashPassword(sData.adminPassword),
+          passwordHash: adminHash,
           role: "schoolAdmin",
           schoolId: school.id,
+          isActive: true,
+          mustChangePassword: false,
+        },
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: {
+          passwordHash: adminHash,
+          isActive: true,
           mustChangePassword: false,
         },
       });
@@ -168,28 +205,38 @@ async function main() {
       if (stf.jobTitle === "Teacher") {
         const email = `${stf.staffId.toLowerCase()}@vidyaloop.local`;
         const username = stf.staffId.toLowerCase();
+        const password = `${stf.staffId}@1234`;
+        const teacherHash = await authService.hashPassword(password);
+
         const existingTeacherUser = await prisma.user.findFirst({
-          where: { email },
+          where: { OR: [{ email }, { username }] },
         });
 
         if (!existingTeacherUser) {
-          const password = `${stf.staffId}@1234`;
           await prisma.user.create({
             data: {
               name: stf.name,
               email,
               username,
-              passwordHash: await authService.hashPassword(password),
+              passwordHash: teacherHash,
               role: "teacher",
               schoolId: school.id,
               staffId: staffObj.id,
+              isActive: true,
               mustChangePassword: false,
             },
           });
-          record(`Teacher [${sData.code}]`, { name: stf.name, username, password });
         } else {
-          record(`Teacher [${sData.code}]`, { name: stf.name, username, password: `${stf.staffId}@1234` });
+          await prisma.user.update({
+            where: { id: existingTeacherUser.id },
+            data: {
+              passwordHash: teacherHash,
+              isActive: true,
+              mustChangePassword: false,
+            },
+          });
         }
+        record(`Teacher [${sData.code}]`, { name: stf.name, username, password });
       }
     }
 
@@ -221,28 +268,37 @@ async function main() {
       if (std.parentName || std.parentEmail) {
         const parentEmail = std.parentEmail || `${std.admNo.toLowerCase()}-parent@vidyaloop.local`;
         const username = `${std.admNo.toLowerCase()}-parent`;
+        const password = `${std.admNo}@1234`;
+        const parentHash = await authService.hashPassword(password);
+
         const existingParentUser = await prisma.user.findFirst({
-          where: { email: parentEmail },
+          where: { OR: [{ email: parentEmail }, { username }] },
         });
 
         if (!existingParentUser) {
-          const password = `${std.admNo}@1234`;
           await prisma.user.create({
             data: {
               name: std.parentName || `Parent of ${std.name}`,
               email: parentEmail,
               username,
-              passwordHash: await authService.hashPassword(password),
+              passwordHash: parentHash,
               role: "parent",
               schoolId: school.id,
               studentId: studentObj.id,
+              isActive: true,
               mustChangePassword: false,
             },
           });
-          record(`Parent [${sData.code}]`, { child: std.name, username, password });
         } else {
-          record(`Parent [${sData.code}]`, { child: std.name, username, password: `${std.admNo}@1234` });
+          await prisma.user.update({
+            where: { id: existingParentUser.id },
+            data: {
+              passwordHash: parentHash,
+              isActive: true,
+            },
+          });
         }
+        record(`Parent [${sData.code}]`, { child: std.name, username, password });
       }
     }
 
@@ -310,14 +366,14 @@ async function main() {
   }
 
   console.log("\n=======================================================================");
-  console.log("   VIDYALOOP MULTI-TENANT DATABASE SEED COMPLETE                     ");
+  console.log("   VIDYALOOP MULTI-TENANT DATABASE SEED & CREDENTIAL RESET COMPLETE    ");
   console.log("=======================================================================\n");
-  console.log("---- Multi-Tenant Accounts & Passwords ----\n");
+  console.log("---- Verified Credentials ----\n");
   for (const row of log) {
     const who = row.label;
     const id = row.username || row.email;
     const child = row.child ? ` (child: ${row.child})` : "";
-    console.log(`${who.padEnd(28)}${child.padEnd(28)} ${id.padEnd(35)} / ${row.password}`);
+    console.log(`${who.padEnd(30)}${child.padEnd(28)} ${id.padEnd(35)} / ${row.password}`);
   }
   console.log("\n=======================================================================\n");
 }

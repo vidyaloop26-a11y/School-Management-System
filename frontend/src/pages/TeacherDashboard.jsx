@@ -1,24 +1,17 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import PageHeader from "@/components/common/PageHeader";
-import TrendPill from "@/components/common/TrendPill";
-import { TEACHER_STATS, TEACHER_ME } from "@/lib/stage2Data";
-import { ClipboardCheck, BookOpen, ArrowRight, ArrowDownRight } from "lucide-react";
+import { useDashboard } from "@/lib/queries";
+import { useAuth } from "@/lib/AuthContext";
+import { ClipboardCheck, BookOpen, ArrowRight, Loader2 } from "lucide-react";
 
 function StatCard({ card, index }) {
-  const t = card.trend;
   return (
     <div data-testid={`teacher-stat-${card.key}`} className={`glass rounded-2xl p-5 reveal d${index + 1}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase leading-snug">
           {card.title}
         </div>
-        {t && t.dir === "down-good" && (
-          <span className="inline-flex items-center gap-1 rounded-full pill-up px-2 py-0.5 text-[11px] font-medium">
-            <ArrowDownRight className="h-3 w-3" strokeWidth={2.2} /> {t.text}
-          </span>
-        )}
-        {t && t.dir === "up" && <TrendPill text={t.text} dir="up" />}
       </div>
       <div className="font-display text-[38px] leading-[1.05] font-bold text-slate-900 mt-4 tracking-tight">
         {card.value}
@@ -29,22 +22,42 @@ function StatCard({ card, index }) {
 }
 
 export default function TeacherDashboard() {
+  const { user } = useAuth();
+  const { data, isLoading } = useDashboard();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 text-[#29ABE2] animate-spin" /></div>;
+  }
+
+  const stats = data?.stats || {};
+  const staff = data?.staff || {};
+  const classesList = stats.classesList || [];
+
+  const cards = [
+    { key: "classes", title: "My Classes", value: stats.classes || 0, sub: classesList.length ? classesList.join(", ") : "no classes assigned", trend: null },
+    { key: "attendance", title: "Attendance Marked Today", value: stats.attendanceMarkedToday || 0, sub: "records for today", trend: null },
+  ];
+
   return (
     <div data-testid="teacher-dashboard" className="max-w-[1400px] mx-auto">
       <PageHeader
-        eyebrow="TEACHER · THURSDAY, 16 JULY"
+        eyebrow="TEACHER"
         title="Overview"
         subtitle={<>A snapshot of today at <span className="font-serif-i text-slate-700">Vidyaloop</span>.</>}
         right={
           <div className="text-right">
             <div className="text-[11px] tracking-[0.14em] text-slate-400 uppercase">Signed in as</div>
-            <div className="text-[13.5px] font-medium text-slate-800 mt-0.5">{TEACHER_ME.name} · {TEACHER_ME.id}</div>
+            <div className="text-[13.5px] font-medium text-slate-800 mt-0.5">{staff.name || user?.name} · {staff.staffId || ""}</div>
           </div>
         }
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-        {TEACHER_STATS.map((c, i) => <StatCard key={c.key} card={c} index={i} />)}
+        <div data-testid="teacher-stat-subject" className="glass rounded-2xl p-5 reveal">
+          <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase leading-snug">Subject</div>
+          <div className="font-display text-[22px] leading-tight font-bold text-slate-900 mt-4 tracking-tight">{staff.subject || "—"}</div>
+        </div>
+        {cards.map((c, i) => <StatCard key={c.key} card={c} index={i + 1} />)}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 reveal d5">
@@ -55,7 +68,7 @@ export default function TeacherDashboard() {
           <div className="min-w-0 flex-1">
             <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Quick action</div>
             <div className="font-display text-[22px] font-bold text-slate-900 tracking-tight mt-0.5">Mark Attendance</div>
-            <div className="text-[12.5px] text-slate-500 mt-1">9-A is still pending for today.</div>
+            <div className="text-[12.5px] text-slate-500 mt-1">Record today&rsquo;s attendance for your classes.</div>
           </div>
           <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-[#29ABE2] group-hover:translate-x-1 transition" />
         </Link>

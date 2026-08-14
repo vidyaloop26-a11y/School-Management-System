@@ -1,5 +1,4 @@
 const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
 const prisma = require("../../lib/prisma");
 const env = require("../../config/env");
 const { ApiError } = require("../../lib/errors");
@@ -7,36 +6,41 @@ const {
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
+  hashToken,
 } = require("../../utils/tokens");
 
-const hashPassword = (plain) => bcrypt.hash(plain, 10);
-const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
+const SALT_ROUNDS = 10;
+
+const toSafeUser = (u) => {
+  const { passwordHash, ...safe } = u;
+  return safe;
+};
+
+async function hashPassword(plain) {
+  return bcrypt.hash(plain, SALT_ROUNDS);
+}
 
 async function findByIdentifier(identifier) {
-  const key = identifier.toLowerCase().trim();
+  const clean = identifier.trim();
   return prisma.user.findFirst({
     where: {
-      OR: [{ email: key }, { username: key }],
+      OR: [
+        { email: { equals: clean, mode: "insensitive" } },
+        { username: { equals: clean, mode: "insensitive" } },
+      ],
     },
   });
 }
 
-async function findUserByEmail(email) {
-  return prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
-}
-
-// Creates the very first superAdmin. Guarded at the controller layer so it
-// can only ever run while no superAdmin exists.
-async function createSuperAdmin({ name, email, password }) {
-  const finalEmail = email.toLowerCase().trim();
-  if (await findUserByEmail(finalEmail)) {
-    throw new ApiError(409, "A user with that email already exists");
-  }
+async function createSuperAdmin(data) {
+  const existing = await findByIdentifier(data.email);
+  if (existing) return toSafeUser(existing);
+  const password = data.password || env.superAdmin.password;
   const user = await prisma.user.create({
     data: {
-      name: name || "Super Admin",
-      email: finalEmail,
-      username: finalEmail, // MongoDB unique index requires a non-null username
+      name: data.name || env.superAdmin.name,
+      email: data.email.toLowerCase().trim(),
+      username: data.email.toLowerCase().trim(),
       passwordHash: await hashPassword(password),
       role: "superAdmin",
       mustChangePassword: false,
@@ -55,7 +59,7 @@ async function login({ identifier, password }) {
   await prisma.refreshToken.create({
     data: {
       userId: user.id,
-      tokenHash: hashToken(refreshToken),
+      token: hashToken(refreshToken),
       expiresAt: new Date(Date.now() + env.refreshTtlDays * 24 * 60 * 60 * 1000),
     },
   });
@@ -76,10 +80,10 @@ async function refresh(refreshToken) {
   }
   const tokenHash = hashToken(refreshToken);
   const stored = await prisma.refreshToken.findUnique({
-    where: { tokenHash },
+    where: { token: tokenHash },
     include: { user: true },
   });
-  if (!stored || stored.revoked || stored.expiresAt < new Date()) {
+  if (!stored || stored.expiresAt < new Date()) {
     throw new ApiError(401, "Refresh token revoked or expired");
   }
 
@@ -87,7 +91,7 @@ async function refresh(refreshToken) {
   await prisma.refreshToken.update({
     where: { id: stored.id },
     data: {
-      tokenHash: hashToken(newRefreshToken),
+      token: hashToken(newRefreshToken),
       expiresAt: new Date(Date.now() + env.refreshTtlDays * 24 * 60 * 60 * 1000),
     },
   });
@@ -95,39 +99,24 @@ async function refresh(refreshToken) {
   return {
     user: toSafeUser(stored.user),
     accessToken: signAccessToken(stored.user),
-    refreshToken: newRefresh,
+    refreshToken: newRefreshToken,
   };
 }
 
 async function logout(refreshToken) {
   if (!refreshToken) return;
-  await prisma.refreshToken.updateMany({
-    where: { tokenHash: hashToken(refreshToken), revoked: false },
-    data: { revoked: true },
+  const tokenHash = hashToken(refreshToken);
+  await prisma.refreshToken.deleteMany({
+    where: { token: tokenHash },
   });
-}
-
-function toSafeUser(user) {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    username: user.username,
-    role: user.role,
-    schoolId: user.schoolId,
-    studentId: user.studentId,
-    staffId: user.staffId,
-    mustChangePassword: user.mustChangePassword,
-  };
 }
 
 module.exports = {
   hashPassword,
-  hashToken,
   createSuperAdmin,
   login,
   refresh,
   logout,
+  findUserByEmail: findByIdentifier,
   toSafeUser,
-  findUserByEmail,
 };

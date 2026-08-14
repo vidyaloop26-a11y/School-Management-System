@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/common/PageHeader";
-import { Search, Plus, ChevronRight, Loader2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, UserPlus, Calendar, User, Phone, Mail, MapPin, Hash, Sparkles } from "lucide-react";
+import { Search, Plus, ChevronRight, Loader2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, UserPlus, Calendar, User, Phone, Mail, MapPin, Hash } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ExportButton from "@/components/common/ExportButton";
 import { toast } from "@/components/ui/sonner";
@@ -48,36 +48,48 @@ export default function Students() {
   const [parsedRows, setParsedRows] = useState([]);
   const [importSummary, setImportSummary] = useState(null);
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const data = await api.getStudents({ search: q, cls, section: sec, session, status });
-      if (data && data.students) {
-        setStudents(
-          data.students.map((s) => ({
-            id: s.id,
-            admNo: s.admNo,
-            name: s.name,
-            class: s.cls,
-            section: s.section,
-            roll: s.roll,
-            session: s.session || "2024-2025",
-            batch: s.batch || "2020-2025",
-            status: s.status || "Active",
-          }))
-        );
-      }
+      const rawList = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.students)
+        ? data.students
+        : Array.isArray(data?.students?.students)
+        ? data.students.students
+        : [];
+
+      setStudents(
+        rawList.map((s) => ({
+          id: s.id,
+          admNo: s.admNo,
+          name: s.name,
+          class: s.cls,
+          section: s.section,
+          roll: s.roll,
+          session: s.session || "2024-2025",
+          batch: s.batch || "2020-2025",
+          status: s.status || "Active",
+          schoolName: s.school?.name || "",
+        }))
+      );
     } catch (err) {
-      console.error("Failed to fetch students:", err);
       toast.error("Failed to load students from database");
+      setStudents([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [q, cls, sec, session, status]);
 
   useEffect(() => {
     fetchStudents();
-  }, [q, cls, sec, session, status]);
+
+    // Re-fetch when SuperAdmin changes active school in topbar
+    const handleScopeChange = () => fetchStudents();
+    window.addEventListener("schoolScopeChanged", handleScopeChange);
+    return () => window.removeEventListener("schoolScopeChanged", handleScopeChange);
+  }, [fetchStudents]);
 
   const classes = useMemo(() => Array.from(new Set(students.map((s) => s.class))).sort(), [students]);
   const sections = useMemo(() => Array.from(new Set(students.map((s) => s.section))).sort(), [students]);
@@ -104,7 +116,7 @@ export default function Students() {
         fatherPhone: singleForm.fatherPhone || singleForm.emergency || undefined,
         motherName: singleForm.motherName || undefined,
       };
-      const res = await api.createStudent(payload);
+      await api.createStudent(payload);
       toast.success(`Student "${singleForm.name}" created successfully for Session ${payload.session}!`);
       setShowSingleModal(false);
       fetchStudents();
@@ -442,7 +454,7 @@ export default function Students() {
         )}
       </div>
 
-      {/* 1. Add Single Student Modal (Full Personal & Family Details Form) */}
+      {/* Add Single Student Modal */}
       {showSingleModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto thin-scroll">
@@ -457,7 +469,6 @@ export default function Students() {
             </div>
 
             <form onSubmit={handleSingleSubmit} className="space-y-4 sm:space-y-5 mt-4">
-              {/* Section 1: Academic & Session Info */}
               <div className="bg-blue-50/60 p-3 sm:p-4 rounded-2xl border border-blue-100 space-y-3">
                 <div className="text-xs font-bold text-[#0c6a99] uppercase tracking-wider flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 text-[#29ABE2]" /> Academic Session & Class Assignment
@@ -524,7 +535,6 @@ export default function Students() {
                 </div>
               </div>
 
-              {/* Section 2: Personal Details */}
               <div className="space-y-3">
                 <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                   <User className="h-3.5 w-3.5 text-[#29ABE2]" /> Personal Details
@@ -587,59 +597,6 @@ export default function Students() {
                 </div>
               </div>
 
-              {/* Section 3: Parent & Family Details */}
-              <div className="space-y-3">
-                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <UserCheck className="h-3.5 w-3.5 text-[#29ABE2]" /> Parent & Family Information
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Father / Guardian Name</label>
-                    <input
-                      type="text"
-                      placeholder="Father's full name"
-                      value={singleForm.fatherName}
-                      onChange={(e) => setSingleForm({ ...singleForm, fatherName: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Mother Name</label>
-                    <input
-                      type="text"
-                      placeholder="Mother's full name"
-                      value={singleForm.motherName}
-                      onChange={(e) => setSingleForm({ ...singleForm, motherName: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Father / Parent Email (Portal Login)</label>
-                    <input
-                      type="email"
-                      placeholder="parent@example.com"
-                      value={singleForm.fatherEmail}
-                      onChange={(e) => setSingleForm({ ...singleForm, fatherEmail: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Father Contact Number</label>
-                    <input
-                      type="text"
-                      placeholder="+91 9811002201"
-                      value={singleForm.fatherPhone}
-                      onChange={(e) => setSingleForm({ ...singleForm, fatherPhone: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Form Buttons */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
@@ -661,7 +618,7 @@ export default function Students() {
         </div>
       )}
 
-      {/* 2. Bulk CSV Import Modal */}
+      {/* Bulk CSV Import Modal */}
       {showBulkModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto thin-scroll">
@@ -676,7 +633,6 @@ export default function Students() {
             </div>
 
             <div className="space-y-4 mt-4">
-              {/* Step 1: Download Template */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-blue-50/70 border border-blue-100">
                 <div className="flex items-center gap-2.5">
                   <FileSpreadsheet className="h-5 w-5 text-[#29ABE2] shrink-0" />
@@ -693,7 +649,6 @@ export default function Students() {
                 </button>
               </div>
 
-              {/* Step 2: Upload CSV File */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">2. Upload CSV File or Paste Raw Text</label>
                 <input
@@ -704,7 +659,6 @@ export default function Students() {
                 />
               </div>
 
-              {/* Or Paste Raw Text */}
               <div>
                 <textarea
                   rows={4}
@@ -715,7 +669,6 @@ export default function Students() {
                 />
               </div>
 
-              {/* Pre-Import Summary Grid */}
               {parsedRows.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold">
@@ -756,7 +709,6 @@ export default function Students() {
                 </div>
               )}
 
-              {/* Buttons */}
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   onClick={() => setShowBulkModal(false)}

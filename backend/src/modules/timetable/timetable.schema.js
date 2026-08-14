@@ -27,7 +27,7 @@ const timetableQuerySchema = z.object({
 });
 
 const staffTimetableQuerySchema = z.object({
-  staffId: z.string().optional(),
+  staffId: z.string().min(1),
 });
 
 const entryIdParam = z.object({ id: z.string().min(1) });
