@@ -5,8 +5,6 @@ const { generateTempPassword, generateUsername } = require("../../utils/credenti
 const { TEACHER_EDITABLE } = require("./students.schema");
 
 // Resolve effective school scope for a query.
-// - superAdmin: any school via ?schoolId (or null = all schools)
-// - everyone else: their own school
 function resolveSchoolScope(user, query = {}) {
   if (user.role === "superAdmin") return query.schoolId || null;
   return user.schoolId;
@@ -18,6 +16,7 @@ async function listStudents({ user, query }) {
     ...(schoolId ? { schoolId } : {}),
     ...(query.cls ? { cls: query.cls } : {}),
     ...(query.section ? { section: query.section } : {}),
+    ...(query.session && query.session !== "all" ? { session: query.session } : {}),
     ...(query.status ? { status: query.status } : {}),
   };
 
@@ -30,8 +29,8 @@ async function listStudents({ user, query }) {
 
   const students = await prisma.student.findMany({
     where,
-    orderBy: [{ cls: "asc" }, { section: "asc" }, { roll: "asc" }],
-    include: { school: { select: { name: true } } },
+    orderBy: [{ session: "desc" }, { cls: "asc" }, { section: "asc" }, { roll: "asc" }],
+    include: { school: { select: { name: true, session: true } } },
   });
 
   return students.map((s) => ({
@@ -40,30 +39,21 @@ async function listStudents({ user, query }) {
   }));
 }
 
-// A parent may only view their linked child's record; any school member can
-// read any student in their school.
-function assertCanView(user, student) {
-  if (user.role === "parent") {
-    if (user.studentId !== student.id) {
-      throw new ApiError(403, "You may only view your own child");
-    }
-  } else if (user.schoolId && student.schoolId !== user.schoolId) {
-    throw new ApiError(403, "Student does not belong to your school");
-  }
-}
-
 async function getStudent({ user, id }) {
   const student = await prisma.student.findUnique({
     where: { id },
-    include: { school: { select: { name: true } } },
+    include: { school: { select: { name: true, session: true } } },
   });
   if (!student) throw new ApiError(404, "Student not found");
-  assertCanView(user, student);
+  if (user.role === "parent") {
+    if (user.studentId !== student.id) throw new ApiError(403, "You may only view your own child");
+  } else if (user.schoolId && student.schoolId !== user.schoolId) {
+    throw new ApiError(403, "Student does not belong to your school");
+  }
   return { ...student, classSection: `${student.cls}-${student.section}` };
 }
 
-// Creates a student. schoolAdmin (or superAdmin with schoolId). When parent
-// details are supplied, a parent portal account is generated with creds.
+// Creates a student.
 async function createStudent({ user, data }) {
   const schoolId = user.role === "superAdmin" ? data.schoolId : user.schoolId;
   if (!schoolId) throw new ApiError(400, "A school is required to add students");
@@ -76,9 +66,9 @@ async function createStudent({ user, data }) {
   });
   if (existing) throw new ApiError(409, "Student with this admission number already exists");
 
-  const wantParent = Boolean(data.parentName || data.parentEmail || data.parentPhone);
+  const wantParent = Boolean(data.parentName || data.parentEmail || data.parentPhone || data.fatherName);
 
-  const credentials = await prisma.$transaction(async (tx) => {
+  const res = await prisma.$transaction(async (tx) => {
     const student = await tx.student.create({
       data: {
         schoolId,
@@ -86,15 +76,17 @@ async function createStudent({ user, data }) {
         name: data.name,
         cls: data.cls,
         section: data.section,
-        roll: data.roll,
+        roll: Number(data.roll) || 1,
+        session: data.session || school.session || "2024-2025",
+        batch: data.batch || null,
         dob: data.dob || null,
-        bloodGroup: data.bloodGroup,
-        emergency: data.emergency,
-        address: data.address,
-        fatherName: data.fatherName,
-        fatherEmail: data.fatherEmail || null,
-        fatherPhone: data.fatherPhone,
-        motherName: data.motherName,
+        bloodGroup: data.bloodGroup || null,
+        emergency: data.emergency || null,
+        address: data.address || null,
+        fatherName: data.fatherName || data.parentName || null,
+        fatherEmail: data.fatherEmail || data.parentEmail || null,
+        fatherPhone: data.fatherPhone || data.parentPhone || null,
+        motherName: data.motherName || null,
         status: data.status || "Active",
       },
     });
@@ -103,13 +95,13 @@ async function createStudent({ user, data }) {
     if (wantParent) {
       const tempPassword = generateTempPassword();
       const username = await generateUsername(`${data.admNo}-parent`, tx);
-      const syntheticEmail = data.parentEmail
-        ? data.parentEmail
+      const syntheticEmail = (data.parentEmail || data.fatherEmail)
+        ? (data.parentEmail || data.fatherEmail).toLowerCase().trim()
         : `${data.admNo.toLowerCase()}-parent@vidyaloop.local`;
 
       await tx.user.create({
         data: {
-          name: data.parentName || `Parent of ${data.name}`,
+          name: data.parentName || data.fatherName || `Parent of ${data.name}`,
           email: syntheticEmail,
           username,
           passwordHash: await authService.hashPassword(tempPassword),
@@ -122,9 +114,9 @@ async function createStudent({ user, data }) {
 
       credentials = {
         username,
-        email: data.parentEmail || null,
+        email: syntheticEmail,
         password: tempPassword,
-        note: "Parent portal login — ask them to change the password on first login.",
+        note: "Parent portal login — ask them to change password on first login.",
       };
     }
 
@@ -132,16 +124,110 @@ async function createStudent({ user, data }) {
   });
 
   return {
-    ...student.student,
-    classSection: `${student.student.cls}-${student.student.section}`,
-    credentials: student.credentials,
+    ...res.student,
+    classSection: `${res.student.cls}-${res.student.section}`,
+    credentials: res.credentials,
   };
 }
 
-// Update a student.
-// - schoolAdmin: any field
-// - teacher: ONLY correction fields (name, dob, blood, guardians, contact…)
-//   i.e. teachers may correct but never move/rename structural data.
+// Bulk create students
+async function bulkCreateStudents({ user, students }) {
+  if (!Array.isArray(students) || students.length === 0) {
+    throw new ApiError(400, "Please provide an array of student records to import");
+  }
+
+  const schoolId = user.role === "superAdmin" ? (students[0]?.schoolId || user.schoolId) : user.schoolId;
+  if (!schoolId) throw new ApiError(400, "A school is required to add students");
+
+  const school = await prisma.school.findUnique({ where: { id: schoolId } });
+  if (!school) throw new ApiError(404, "School not found");
+
+  const existingStudents = await prisma.student.findMany({
+    where: { schoolId },
+    select: { admNo: true },
+  });
+  const existingAdmNos = new Set(existingStudents.map((s) => s.admNo.toLowerCase()));
+
+  const created = [];
+  const errors = [];
+
+  for (let i = 0; i < students.length; i++) {
+    const data = students[i];
+    const rowNum = i + 1;
+
+    if (!data.admNo || !data.name || !data.cls || !data.section) {
+      errors.push({ row: rowNum, admNo: data.admNo || "—", message: "Missing required fields (admNo, name, cls, section)" });
+      continue;
+    }
+
+    const admClean = data.admNo.toString().trim();
+    if (existingAdmNos.has(admClean.toLowerCase())) {
+      errors.push({ row: rowNum, admNo: admClean, message: `Admission number ${admClean} already exists` });
+      continue;
+    }
+
+    try {
+      const studentObj = await prisma.student.create({
+        data: {
+          schoolId,
+          admNo: admClean,
+          name: data.name.toString().trim(),
+          cls: data.cls.toString().trim(),
+          section: data.section.toString().trim().toUpperCase(),
+          roll: Number(data.roll) || 1,
+          session: data.session || school.session || "2024-2025",
+          batch: data.batch || null,
+          dob: data.dob || null,
+          bloodGroup: data.bloodGroup || null,
+          emergency: data.emergency || null,
+          address: data.address || null,
+          fatherName: data.fatherName || data.parentName || null,
+          fatherEmail: data.fatherEmail || data.parentEmail || null,
+          fatherPhone: data.fatherPhone || data.parentPhone || null,
+          motherName: data.motherName || null,
+          status: data.status || "Active",
+        },
+      });
+
+      existingAdmNos.add(admClean.toLowerCase());
+
+      const tempPassword = generateTempPassword();
+      const username = await generateUsername(`${admClean}-parent`, prisma);
+      const parentEmail = (data.parentEmail || data.fatherEmail)
+        ? (data.parentEmail || data.fatherEmail).toString().toLowerCase().trim()
+        : `${admClean.toLowerCase()}-parent@vidyaloop.local`;
+
+      await prisma.user.create({
+        data: {
+          name: data.parentName || data.fatherName || `Parent of ${data.name}`,
+          email: parentEmail,
+          username,
+          passwordHash: await authService.hashPassword(tempPassword),
+          role: "parent",
+          schoolId,
+          studentId: studentObj.id,
+          mustChangePassword: true,
+        },
+      });
+
+      created.push({
+        student: { ...studentObj, classSection: `${studentObj.cls}-${studentObj.section}` },
+        parentAccount: { username, email: parentEmail, password: tempPassword },
+      });
+    } catch (err) {
+      errors.push({ row: rowNum, admNo: admClean, message: err.message || "Failed to create record" });
+    }
+  }
+
+  return {
+    totalRequested: students.length,
+    successCount: created.length,
+    errorCount: errors.length,
+    created,
+    errors,
+  };
+}
+
 async function updateStudent({ user, id, data, isTeacherCorrection }) {
   const existing = await prisma.student.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Student not found");
@@ -156,14 +242,10 @@ async function updateStudent({ user, id, data, isTeacherCorrection }) {
     for (const key of TEACHER_EDITABLE) {
       if (data[key] !== undefined) cleaned[key] = key === "fatherEmail" ? (data[key] || null) : data[key];
     }
-    // Empty strings -> null for optional fields to keep DB clean
     for (const k of ["dob", "bloodGroup", "emergency", "address", "fatherName", "fatherPhone", "motherName"]) {
       if (cleaned[k] === "") cleaned[k] = null;
     }
     payload = cleaned;
-    if (Object.keys(payload).length === 0) {
-      throw new ApiError(400, "No editable (correction) fields provided");
-    }
   }
 
   const student = await prisma.student.update({ where: { id }, data: payload });
@@ -180,7 +262,6 @@ async function deleteStudent({ user, id }) {
   return existing;
 }
 
-// Regenerates the password for a student's parent portal account (admin only).
 async function resetParentPassword({ user, id }) {
   const student = await prisma.student.findUnique({ where: { id } });
   if (!student) throw new ApiError(404, "Student not found");
@@ -209,6 +290,7 @@ module.exports = {
   listStudents,
   getStudent,
   createStudent,
+  bulkCreateStudents,
   updateStudent,
   deleteStudent,
   resetParentPassword,

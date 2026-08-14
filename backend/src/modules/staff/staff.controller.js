@@ -16,6 +16,11 @@ const create = catchAsync(async (req, res) => {
   res.status(201).json({ success: true, staff: member });
 });
 
+const bulkCreate = catchAsync(async (req, res) => {
+  const result = await staffService.bulkCreateStaff({ user: req.user, staffMembers: req.body.staffMembers });
+  res.status(201).json({ success: true, ...result });
+});
+
 const update = catchAsync(async (req, res) => {
   const member = await staffService.updateStaff({ user: req.user, id: req.params.id, data: req.body });
   res.json({ success: true, staff: member });
@@ -31,4 +36,4 @@ const resetPassword = catchAsync(async (req, res) => {
   res.json({ success: true, ...result });
 });
 
-module.exports = { list, get, create, update, remove, resetPassword };
+module.exports = { list, get, create, bulkCreate, update, remove, resetPassword };

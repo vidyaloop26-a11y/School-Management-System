@@ -10,6 +10,7 @@ import {
 export const NAV = {
   top: [
     { key: "dashboard", label: "Dashboard", path: "/", icon: LayoutDashboard, functional: true },
+    { key: "schools",   label: "Schools",   path: "/schools", icon: Building2, functional: true },
   ],
   groups: [
     {
@@ -18,7 +19,7 @@ export const NAV = {
         { key: "students",    label: "Students",    path: "/students",    icon: Users,            functional: true },
         { key: "staff",       label: "Staff",       path: "/staff",       icon: GraduationCap,    functional: true },
         { key: "timetable",   label: "Timetable",   path: "/timetable",   icon: CalendarDays,     functional: true },
-        { key: "attendance",  label: "Attendance",  path: "/attendance",  icon: ClipboardCheck,   functional: false },
+        { key: "attendance",  label: "Attendance",  path: "/attendance",  icon: ClipboardCheck,   functional: true },
         { key: "examination", label: "Examination", path: "/examination", icon: FileSpreadsheet,  functional: true },
       ],
     },

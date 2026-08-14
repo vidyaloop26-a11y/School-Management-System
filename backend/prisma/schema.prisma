@@ -1,15 +1,5 @@
 // ============================================================================
 // Vidyaloop School Management Platform — Prisma schema
-//
-// Currently targets MongoDB (provider = "mongodb"), schema is written
-// provider-agnostic so switching to PostgreSQL is a documented, mechanical
-// change (see backend/README.md "Switching to PostgreSQL").
-//
-// NOTE (MongoDB connector):
-//  - IDs use `String @id @default(auto()) @map("_id") @db.ObjectId`
-//  - Foreign keys must be `String @db.ObjectId`
-//  - Enums are NOT supported by the MongoDB connector, so enum-like fields
-//    (role, status, ...) are plain String validated at the app layer (zod).
 // ============================================================================
 
 generator client {
@@ -34,9 +24,6 @@ model User {
   role                String // superAdmin | schoolAdmin | teacher | parent
   schoolId            String?  @db.ObjectId
   school              School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  // Link to the child (parent accounts) / staff record (teacher accounts).
-  // Plain String (NOT unique) because MongoDB unique indexes reject nulls;
-  // uniqueness of the link is enforced in application logic.
   studentId           String?  @db.ObjectId
   staffId             String?  @db.ObjectId
   isActive            Boolean  @default(true)
@@ -75,7 +62,7 @@ model School {
   address     String?
   phone       String?
   email       String?
-  session     String             @default("2026-27")
+  session     String             @default("2024-2025")
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   users       User[]
@@ -83,6 +70,7 @@ model School {
   staff       Staff[]
   timetable   TimetableEntry[]
   attendance  AttendanceRecord[]
+  examMarks   ExamMark[]
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +86,9 @@ model Student {
   cls         String
   section     String
   roll        Int
-  dob         String? // ISO date string, e.g. "2012-03-14"
+  session     String?  @default("2024-2025") // Academic Session, e.g., "2024-2025", "2023-2024"
+  batch       String?  // Batch Year / Range, e.g., "2020-2025" or "Batch 2024"
+  dob         String?  // ISO date string, e.g. "2012-03-14"
   bloodGroup  String?
   emergency   String?
   address     String?
@@ -110,9 +100,11 @@ model Student {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   attendances AttendanceRecord[]
+  examMarks   ExamMark[]
 
   @@unique([schoolId, admNo])
   @@index([schoolId, cls, section])
+  @@index([schoolId, session])
 }
 
 // ---------------------------------------------------------------------------
@@ -184,4 +176,31 @@ model AttendanceRecord {
 
   @@unique([studentId, date])
   @@index([schoolId, cls, section, date])
+}
+
+// ---------------------------------------------------------------------------
+// Examinations & Student Marks
+// ---------------------------------------------------------------------------
+
+model ExamMark {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId     String   @db.ObjectId
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId    String   @db.ObjectId
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session      String   @default("2024-2025") // e.g. "2024-2025", "2023-2024"
+  term         String   @default("Mid-Term")  // Mid-Term | Final Exam | Unit Test 1 | Unit Test 2
+  cls          String
+  section      String
+  subject      String   // e.g. "Mathematics", "Science"
+  marksObtained Float
+  maxMarks     Float    @default(100)
+  grade        String?  // e.g. "A+", "A", "B", "C", "F"
+  remarks      String?  // e.g. "Excellent performance"
+  enteredById  String?  // User ID of teacher/admin who entered/updated marks
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([studentId, session, term, subject])
+  @@index([schoolId, session, term, cls, section])
 }

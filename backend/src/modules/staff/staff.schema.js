@@ -1,17 +1,20 @@
 const { z } = require("zod");
 
+const optionalString = z.string().nullable().optional().or(z.literal(""));
+const optionalEmail = z.union([z.string().email(), z.literal(""), z.null(), z.undefined()]);
+
 const staffBase = {
   staffId: z.string().min(1, "Staff ID is required"),
   name: z.string().min(1, "Name is required"),
   jobTitle: z.string().min(1, "Job title is required"),
-  dept: z.string().optional(),
-  subject: z.string().optional(),
-  qualification: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")).optional(),
-  joined: z.string().optional(),
-  status: z.enum(["Active", "Inactive"]).optional(),
-  schoolId: z.string().optional(),
+  dept: optionalString,
+  subject: optionalString,
+  qualification: optionalString,
+  phone: optionalString,
+  email: optionalEmail,
+  joined: optionalString,
+  status: z.enum(["Active", "Inactive"]).optional().default("Active"),
+  schoolId: optionalString,
 };
 
 const createStaffSchema = z.object(staffBase);

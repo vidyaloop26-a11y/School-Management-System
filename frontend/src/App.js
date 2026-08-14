@@ -1,6 +1,6 @@
 import "@/App.css";
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Students from "@/pages/Students";
@@ -20,6 +20,8 @@ import Admissions from "@/pages/Admissions";
 import Examination from "@/pages/Examination";
 import IDCard from "@/pages/IDCard";
 import Events from "@/pages/Events";
+import Schools from "@/pages/Schools";
+import Login from "@/pages/Login";
 import { RoleProvider, useRole } from "@/lib/RoleContext";
 import { NAV } from "@/lib/mockData";
 import { PLACEHOLDER_DESCRIPTIONS } from "@/lib/stage3Data";
@@ -30,6 +32,22 @@ function DashboardRouter() {
   if (role === "Teacher") return <TeacherDashboard />;
   if (role === "Parent")  return <ParentDashboard />;
   return <Dashboard />;
+}
+
+function ProtectedLayout() {
+  const { user } = useRole();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return <Layout />;
+}
+
+function SuperAdminRoute({ children }) {
+  const { role, user } = useRole();
+  if (role !== "superAdmin" && user?.role !== "superAdmin") {
+    return <Navigate to="/" replace />;
+  }
+  return children;
 }
 
 function App() {
@@ -47,7 +65,8 @@ function App() {
       <RoleProvider>
         <BrowserRouter>
           <Routes>
-            <Route element={<Layout />}>
+            <Route path="/login" element={<Login />} />
+            <Route element={<ProtectedLayout />}>
               <Route path="/" element={<DashboardRouter />} />
               <Route path="/students" element={<Students />} />
               <Route path="/students/:admNo" element={<StudentProfile />} />
@@ -63,10 +82,19 @@ function App() {
               <Route path="/examination" element={<Examination />} />
               <Route path="/id-card" element={<IDCard />} />
               <Route path="/events" element={<Events />} />
+              <Route
+                path="/schools"
+                element={
+                  <SuperAdminRoute>
+                    <Schools />
+                  </SuperAdminRoute>
+                }
+              />
               {placeholderRoutes.map((p) => (
                 <Route key={p.key} path={p.path} element={<Placeholder title={p.label} icon={p.icon} description={PLACEHOLDER_DESCRIPTIONS[p.key]} />} />
               ))}
             </Route>
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </RoleProvider>

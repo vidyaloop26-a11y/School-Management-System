@@ -25,6 +25,7 @@ async function getClassTimetable({ user, cls, section }) {
       const found = entries.find((e) => e.period === period && e.day === day);
       grid[period][day] = found
         ? {
+            id: found.id,
             subject: found.subject,
             room: found.room,
             teacher: found.staff ? found.staff.name : null,
@@ -38,18 +39,45 @@ async function getClassTimetable({ user, cls, section }) {
 }
 
 async function getStaffTimetable({ user, staffId }) {
-  const staff = await prisma.staff.findUnique({ where: { id: staffId } });
+  const targetStaffId = staffId || user.staffId;
+  if (!targetStaffId) {
+    throw new ApiError(400, "Teacher / Staff member ID is required");
+  }
+
+  const staff = await prisma.staff.findUnique({ where: { id: targetStaffId } }).catch(async () => {
+    return prisma.staff.findFirst({ where: { staffId: targetStaffId } });
+  });
+
   if (!staff) throw new ApiError(404, "Staff member not found");
   if (user.schoolId && staff.schoolId !== user.schoolId) {
     throw new ApiError(403, "Staff member does not belong to your school");
   }
 
   const entries = await prisma.timetableEntry.findMany({
-    where: { staffId },
+    where: { staffId: staff.id },
     orderBy: [{ day: "asc" }, { period: "asc" }],
   });
 
-  return entries.map((e) => ({
+  // Format a complete grid for the teacher's schedule across all classes
+  const grid = {};
+  for (const period of PERIODS) {
+    grid[period] = {};
+    for (const day of DAYS) {
+      const found = entries.find((e) => e.period === period && e.day === day);
+      grid[period][day] = found
+        ? {
+            id: found.id,
+            subject: found.subject,
+            room: found.room || "Room 204",
+            cls: `${found.cls}-${found.section}`,
+            teacher: staff.name,
+            teacherId: staff.id,
+          }
+        : null;
+    }
+  }
+
+  const mappedEntries = entries.map((e) => ({
     id: e.id,
     day: e.day,
     period: e.period,
@@ -57,6 +85,13 @@ async function getStaffTimetable({ user, staffId }) {
     room: e.room,
     classSection: `${e.cls}-${e.section}`,
   }));
+
+  return {
+    teacherName: staff.name,
+    teacherId: staff.staffId,
+    entries: mappedEntries,
+    grid,
+  };
 }
 
 // Upserts a full class timetable. School admin only.
