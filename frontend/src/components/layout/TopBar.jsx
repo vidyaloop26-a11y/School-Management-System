@@ -4,10 +4,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
 import { useAuth } from "@/lib/AuthContext";
+import { useDataStore } from "@/lib/dataStore";
 import DemoBadge from "@/components/common/DemoBadge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function TopBar({ onOpenPalette, onOpenSidebar }) {
   const { user, logout } = useAuth();
+  const { schools, activeSchoolId, setActiveSchoolId } = useDataStore();
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/50 bg-white/55 backdrop-blur-xl">
@@ -32,7 +35,7 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
           <button
             data-testid="topbar-search"
             onClick={onOpenPalette}
-            className="hidden md:flex flex-1 max-w-2xl items-center gap-3 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-4 py-2.5 text-left shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_1px_2px_rgba(15,40,60,0.04)]"
+            className="hidden md:flex flex-1 max-w-xl items-center gap-3 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-4 py-2.5 text-left shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_1px_2px_rgba(15,40,60,0.04)]"
           >
             <Search className="h-4 w-4 text-slate-400" />
             <span className="text-[13px] text-slate-400 flex-1 truncate">Search students, staff, records…</span>
@@ -40,6 +43,21 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
           </button>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* Active School Selector */}
+            <Select value={activeSchoolId} onValueChange={setActiveSchoolId}>
+              <SelectTrigger data-testid="school-scope-selector" className="h-9 px-3 text-[12px] font-semibold bg-white/80 rounded-full border-slate-200 w-[150px] md:w-[200px] text-slate-700">
+                <SelectValue placeholder="Select School" />
+              </SelectTrigger>
+              <SelectContent>
+                {schools.map((s) => (
+                  <SelectItem key={s.id} value={s.id} className="text-[12.5px]">
+                    <span className="font-mono text-[11px] font-bold text-slate-400 mr-1.5">{s.code}</span>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
             <DemoBadge className="hidden lg:inline-flex" />
             
             <Popover>

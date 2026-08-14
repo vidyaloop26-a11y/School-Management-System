@@ -23,6 +23,8 @@ import Examination from "@/pages/Examination";
 import IDCard from "@/pages/IDCard";
 import Events from "@/pages/Events";
 import Login from "@/pages/Login";
+import Schools from "@/pages/Schools";
+import { DataStoreProvider } from "@/lib/dataStore";
 import { NAV } from "@/lib/mockData";
 import { PLACEHOLDER_DESCRIPTIONS } from "@/lib/stage3Data";
 import { Toaster } from "@/components/ui/sonner";
@@ -64,6 +66,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<DashboardRouter />} />
+        <Route path="/schools" element={<Schools />} />
         <Route path="/students" element={<Students />} />
         <Route path="/students/:id" element={<StudentProfile />} />
         <Route path="/staff" element={<Staff />} />
@@ -96,9 +99,11 @@ function App() {
   return (
     <div className="App">
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <DataStoreProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </DataStoreProvider>
       </AuthProvider>
       <Toaster
         position="top-right"

@@ -64,13 +64,19 @@ function Group({ label, items, defaultOpen = true, onClose }) {
 }
 
 const ROLE_VISIBILITY = {
+  [ROLES.SUPER_ADMIN]: new Set([
+    "dashboard", "schools", "students", "staff", "timetable", "attendance",
+    "examination", "fees",
+  ]),
+  [ROLES.SCHOOL_ADMIN]: new Set([
+    "dashboard", "students", "staff", "timetable", "attendance",
+    "examination", "fees",
+  ]),
   [ROLES.TEACHER]: new Set([
-    "dashboard", "students", "timetable", "attendance",
-    "diary", "homework", "communication", "examination", "settings",
+    "dashboard", "students", "timetable", "attendance", "examination",
   ]),
   [ROLES.PARENT]: new Set([
-    "dashboard", "timetable", "attendance", "diary",
-    "homework", "fees", "communication", "settings",
+    "dashboard", "timetable", "attendance", "fees", "examination",
   ]),
 };
 
@@ -80,8 +86,8 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
 
   const allow = (key) => {
     if (!user) return false;
-    if (user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SCHOOL_ADMIN) return true;
-    return ROLE_VISIBILITY[user.role]?.has(key);
+    const allowed = ROLE_VISIBILITY[user.role];
+    return allowed ? allowed.has(key) : true;
   };
 
   const handleLogout = async () => {
