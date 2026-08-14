@@ -16,23 +16,15 @@ const {
 router.use(authenticate);
 
 router.get("/", validateQuery(listQuerySchema), studentsController.list);
+router.get("/:id", validateQuery(studentIdParam, "params"), studentsController.get);
 
-// Bulk import students — school admin (and super admin)
-router.post(
-  "/bulk",
-  requireRole(ROLES.SCHOOL_ADMIN),
-  studentsController.bulkCreate
-);
-
-// Create single student — school admin (and super admin)
+// Create — school admin only (and super admin). Teachers cannot add users.
 router.post(
   "/",
   requireRole(ROLES.SCHOOL_ADMIN),
   validate(createStudentSchema),
   studentsController.create
 );
-
-router.get("/:id", validateQuery(studentIdParam, "params"), studentsController.get);
 
 // Update — school admin full update; teacher correction-only.
 router.put(
@@ -53,7 +45,6 @@ router.delete(
   requireRole(ROLES.SCHOOL_ADMIN),
   studentsController.remove
 );
-
 router.post(
   "/:id/reset-parent-password",
   validateQuery(studentIdParam, "params"),

@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, LogOut } from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
+import { ChevronRight, LogOut, Menu } from "lucide-react";
 import { NAV } from "@/lib/mockData";
-import { useRole, ROLE_VISIBILITY } from "@/lib/RoleContext";
-import { toast } from "@/components/ui/sonner";
+import { useAuth, ROLES } from "@/lib/AuthContext";
 
 function BrandMark() {
   return (
@@ -24,12 +23,13 @@ function BrandMark() {
   );
 }
 
-function NavItem({ item }) {
+function NavItem({ item, onClose }) {
   const Icon = item.icon;
   return (
     <NavLink
       to={item.path}
       end={item.path === "/"}
+      onClick={onClose}
       data-testid={`nav-${item.key}`}
       className={({ isActive }) =>
         `nav-item flex items-center gap-3 rounded-lg px-3 py-2 text-[13.5px] text-slate-600 ${isActive ? "active font-medium" : ""}`
@@ -41,7 +41,7 @@ function NavItem({ item }) {
   );
 }
 
-function Group({ label, items, defaultOpen = true }) {
+function Group({ label, items, defaultOpen = true, onClose }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="mb-2">
@@ -56,51 +56,44 @@ function Group({ label, items, defaultOpen = true }) {
       </button>
       {open && (
         <div className="flex flex-col gap-0.5 px-2">
-          {items.map((it) => <NavItem key={it.key} item={it} />)}
+          {items.map((it) => <NavItem key={it.key} item={it} onClose={onClose} />)}
         </div>
       )}
     </div>
   );
 }
 
+const ROLE_VISIBILITY = {
+  [ROLES.SUPER_ADMIN]: new Set([
+    "dashboard", "schools", "students", "staff", "timetable", "attendance",
+    "examination", "fees",
+  ]),
+  [ROLES.SCHOOL_ADMIN]: new Set([
+    "dashboard", "students", "staff", "timetable", "attendance",
+    "examination", "fees",
+  ]),
+  [ROLES.TEACHER]: new Set([
+    "dashboard", "students", "timetable", "attendance", "examination",
+  ]),
+  [ROLES.PARENT]: new Set([
+    "dashboard", "timetable", "attendance", "fees", "examination",
+  ]),
+};
+
 export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   useLocation();
-  const navigate = useNavigate();
-  const { user, role, logout } = useRole();
-
-  const handleLogout = () => {
-    logout();
-    toast.success("Logged out successfully");
-    navigate("/login");
-  };
-
-  const getInitials = (name) => {
-    if (!name) return "VD";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .substring(0, 2)
-      .toUpperCase();
-  };
+  const { user, logout } = useAuth();
 
   const allow = (key) => {
-    // Schools tab is strictly for Super Admin (Vidyaloop Platform Owner)
-    if (key === "schools") {
-      return role === "superAdmin" || user?.role === "superAdmin";
-    }
-    if (role === "Teacher" || role === "Parent") {
-      return ROLE_VISIBILITY[role]?.has(key);
-    }
-    return true;
+    if (!user) return false;
+    const allowed = ROLE_VISIBILITY[user.role];
+    return allowed ? allowed.has(key) : true;
   };
 
-  const displayRoleLabel =
-    role === "superAdmin" || user?.role === "superAdmin"
-      ? "Super Admin"
-      : role === "Admin"
-      ? "School Admin"
-      : role;
+  const handleLogout = async () => {
+    await logout();
+    onClose();
+  };
 
   return (
     <>
@@ -116,13 +109,13 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
 
         <div className="flex-1 overflow-y-auto thin-scroll py-3">
           <div className="px-2 mb-1">
-            {NAV.top.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} />)}
+            {NAV.top.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} onClose={onClose} />)}
           </div>
 
           {NAV.groups.map((g) => {
             const items = g.items.filter((i) => allow(i.key));
             if (items.length === 0) return null;
-            return <Group key={g.label} label={g.label} items={items} />;
+            return <Group key={g.label} label={g.label} items={items} onClose={onClose} />;
           })}
 
           {NAV.bottom.some((i) => allow(i.key)) && (
@@ -131,29 +124,27 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
                 SYSTEM
               </div>
               <div className="flex flex-col gap-0.5 px-2">
-                {NAV.bottom.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} />)}
+                {NAV.bottom.filter((i) => allow(i.key)).map((it) => <NavItem key={it.key} item={it} onClose={onClose} />)}
               </div>
             </div>
           )}
         </div>
 
         <div className="px-4 py-3 border-t border-slate-100/80">
-          <div className="glass rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-xs font-semibold shrink-0">
-                {getInitials(user?.name)}
-              </div>
-              <div className="min-w-0">
-                <div className="text-[13px] font-medium text-slate-800 truncate">{user?.name || "User"}</div>
-                <div className="text-[11px] text-slate-500 truncate">{displayRoleLabel} Account</div>
-              </div>
+          <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-xs font-semibold">
+              {user?.name?.charAt(0) || "U"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-medium text-slate-800 truncate">{user?.name || "User"}</div>
+              <div className="text-[11px] text-slate-500 truncate capitalize">{user?.role || "guest"}</div>
             </div>
             <button
               onClick={handleLogout}
-              title="Log Out"
-              className="h-8 w-8 grid place-items-center rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition shrink-0"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+              aria-label="Logout"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-4 w-4" strokeWidth={2} />
             </button>
           </div>
         </div>

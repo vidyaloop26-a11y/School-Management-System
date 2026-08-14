@@ -4,24 +4,24 @@ const timetableService = require("./timetable.service");
 const getClass = catchAsync(async (req, res) => {
   const data = await timetableService.getClassTimetable({
     user: req.user,
-    cls: req.query.cls,
-    section: req.query.section,
+    cls: req.query.cls || "8",
+    section: req.query.section || "A",
+    query: req.query,
   });
   res.json({ success: true, ...data });
 });
 
 const getByTeacher = catchAsync(async (req, res) => {
-  const staffId = req.query.staffId || req.user.staffId;
   const data = await timetableService.getStaffTimetable({
     user: req.user,
-    staffId,
+    staffId: req.query.staffId,
   });
   res.json({ success: true, ...data });
 });
 
 const upsertClass = catchAsync(async (req, res) => {
-  const data = await timetableService.upsertClassTimetable({ user: req.user, data: req.body });
-  res.json({ success: true, ...data });
+  const data = await timetableService.upsertSlot({ user: req.user, data: req.body });
+  res.json({ success: true, slot: data });
 });
 
 const removeEntry = catchAsync(async (req, res) => {

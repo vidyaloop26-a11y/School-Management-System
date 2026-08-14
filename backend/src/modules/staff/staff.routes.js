@@ -13,24 +13,15 @@ const {
 router.use(authenticate);
 
 router.get("/", validateQuery(listQuerySchema), staffController.list);
+router.get("/:id", validateQuery(staffIdParam, "params"), staffController.get);
 
-// Bulk import staff / teachers — school admin only
-router.post(
-  "/bulk",
-  requireRole(ROLES.SCHOOL_ADMIN),
-  staffController.bulkCreate
-);
-
-// Create single staff — school admin only
+// Create / delete / reset password — school admin only (teachers cannot add users).
 router.post(
   "/",
   requireRole(ROLES.SCHOOL_ADMIN),
   validate(createStaffSchema),
   staffController.create
 );
-
-router.get("/:id", validateQuery(staffIdParam, "params"), staffController.get);
-
 router.put(
   "/:id",
   validateQuery(staffIdParam, "params"),
@@ -38,14 +29,12 @@ router.put(
   validate(updateStaffSchema),
   staffController.update
 );
-
 router.delete(
   "/:id",
   validateQuery(staffIdParam, "params"),
   requireRole(ROLES.SCHOOL_ADMIN),
   staffController.remove
 );
-
 router.post(
   "/:id/reset-password",
   validateQuery(staffIdParam, "params"),

@@ -47,6 +47,7 @@ export const NAV = {
     {
       label: "ADMINISTRATION",
       items: [
+        { key: "schools",    label: "Schools & Campuses", path: "/schools",    icon: Building2,  functional: true },
         { key: "admissions", label: "Admissions",       path: "/admissions", icon: UserPlus,   functional: true },
         { key: "payroll",    label: "Payroll",          path: "/payroll",    icon: Banknote,   functional: false },
         { key: "income",     label: "Income & Expense", path: "/income",     icon: TrendingUp, functional: false },

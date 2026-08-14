@@ -1,152 +1,297 @@
-// API Client for Vidyaloop Backend (Express + Prisma + MongoDB)
+import axios from "axios";
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
-function getAuthHeaders() {
-  const token = localStorage.getItem("vidyaloop_token");
-  const headers = { "Content-Type": "application/json" };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  return headers;
-}
+const apiInstance = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const config = {
-    ...options,
-    headers: {
-      ...getAuthHeaders(),
-      ...(options.headers || {}),
-    },
-  };
+// Request interceptor to attach Bearer token to every API call
+apiInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken") || localStorage.getItem("vidyaloop_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-  try {
-    const res = await fetch(url, config);
-    const data = await res.json();
+let isRefreshing = false;
+let failedQueue = [];
 
-    if (res.status === 401 && endpoint !== "/auth/login") {
-      // 401 Unauthorized: Clear invalid token & prompt re-login
-      console.warn("Session unauthorized (401). Clearing token...");
-      localStorage.removeItem("vidyaloop_user");
-      localStorage.removeItem("vidyaloop_token");
-      localStorage.removeItem("vidyaloop_login_time");
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor to auto-refresh access token
+apiInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (originalRequest.url?.includes("/auth/me") || originalRequest.url?.includes("/auth/login")) {
+        return Promise.reject(error);
       }
-      throw new Error(data.message || "Unauthorized (401). Please log in again.");
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return apiInstance(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = localStorage.getItem("refreshToken");
+        if (!refreshToken) throw new Error("No refresh token");
+
+        const response = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          { refreshToken },
+          { withCredentials: true }
+        );
+
+        const { accessToken, refreshToken: newRefreshToken } = response.data;
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("vidyaloop_token", accessToken);
+        if (newRefreshToken) localStorage.setItem("refreshToken", newRefreshToken);
+        apiInstance.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+        processQueue(null, accessToken);
+        originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+        return apiInstance(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("vidyaloop_token");
+        localStorage.removeItem("user");
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
     }
 
-    if (!res.ok) {
-      throw new Error(data.message || data.error || `HTTP ${res.status}`);
-    }
-    return data;
-  } catch (err) {
-    console.warn(`API Error [${endpoint}]:`, err.message);
-    throw err;
+    return Promise.reject(error);
   }
+);
+
+export function getActiveSchoolId() {
+  const raw = localStorage.getItem("vidyaloop_active_school_id") || localStorage.getItem("vidyaloop_active_school") || "";
+  const cleaned = String(raw).replace(/^"|"$/g, "").trim();
+  return cleaned === "all" ? "" : cleaned;
 }
 
-export const api = {
-  // Auth
-  login: (credentials) =>
-    request("/auth/login", { method: "POST", body: JSON.stringify(credentials) }),
-  getMe: () => request("/auth/me"),
-  logout: (refreshToken) =>
-    request("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken }) }),
+const api = apiInstance;
 
-  // Students
-  getStudents: (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.search) query.append("search", params.search);
-    if (params.cls && params.cls !== "all") query.append("cls", params.cls);
-    if (params.section && params.section !== "all") query.append("section", params.section);
-    if (params.session && params.session !== "all") query.append("session", params.session);
-    if (params.status && params.status !== "all") query.append("status", params.status);
-    const qStr = query.toString();
-    return request(`/students${qStr ? `?${qStr}` : ""}`);
-  },
-  getStudentById: (id) => request(`/students/${id}`),
-  createStudent: (studentData) =>
-    request("/students", { method: "POST", body: JSON.stringify(studentData) }),
-  bulkCreateStudents: (students) =>
-    request("/students/bulk", { method: "POST", body: JSON.stringify({ students }) }),
-  updateStudent: (id, studentData) =>
-    request(`/students/${id}`, { method: "PUT", body: JSON.stringify(studentData) }),
-  deleteStudent: (id) => request(`/students/${id}`, { method: "DELETE" }),
+// Helper API methods attached to Axios instance
+api.getStudents = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.search) query.append("search", params.search);
+  if (params.cls && params.cls !== "all") query.append("cls", params.cls);
+  if (params.section && params.section !== "all") query.append("section", params.section);
+  if (params.session && params.session !== "all") query.append("session", params.session);
+  if (params.status && params.status !== "all") query.append("status", params.status);
 
-  // Staff
-  getStaff: (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.search) query.append("search", params.search);
-    if (params.dept && params.dept !== "all") query.append("dept", params.dept);
-    if (params.status && params.status !== "all") query.append("status", params.status);
-    const qStr = query.toString();
-    return request(`/staff${qStr ? `?${qStr}` : ""}`);
-  },
-  getStaffById: (id) => request(`/staff/${id}`),
-  createStaff: (staffData) =>
-    request("/staff", { method: "POST", body: JSON.stringify(staffData) }),
-  bulkCreateStaff: (staffMembers) =>
-    request("/staff/bulk", { method: "POST", body: JSON.stringify({ staffMembers }) }),
-  updateStaff: (id, staffData) =>
-    request(`/staff/${id}`, { method: "PUT", body: JSON.stringify(staffData) }),
-  deleteStaff: (id) => request(`/staff/${id}`, { method: "DELETE" }),
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
 
-  // Timetable
-  getTimetable: (cls = "8", section = "A") =>
-    request(`/timetable?cls=${cls}&section=${section}`),
-  getTeacherTimetable: (staffId) =>
-    request(`/timetable/teacher?staffId=${staffId}`),
-  upsertTimetable: (timetableData) =>
-    request("/timetable/upsert", { method: "POST", body: JSON.stringify(timetableData) }),
+  const qStr = query.toString();
+  const res = await api.get(`/students${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
 
-  // Attendance
-  getAttendanceRoster: (cls = "8", section = "A", date) => {
-    const dStr = date ? `&date=${date}` : "";
-    return request(`/attendance?cls=${cls}&section=${section}${dStr}`);
-  },
-  markAttendance: (attendanceData) =>
-    request("/attendance/mark", { method: "POST", body: JSON.stringify(attendanceData) }),
-  getStudentAttendance: (studentId, month, year) => {
-    const query = new URLSearchParams({ studentId });
-    if (month) query.append("month", month);
-    if (year) query.append("year", year);
-    return request(`/attendance/student?${query.toString()}`);
-  },
+api.getStudentById = async (id) => {
+  const res = await api.get(`/students/${id}`);
+  return res.data;
+};
 
-  // Examinations
-  getExaminationRoster: (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.cls) query.append("cls", params.cls);
-    if (params.section) query.append("section", params.section);
-    if (params.session) query.append("session", params.session);
-    if (params.term) query.append("term", params.term);
-    if (params.subject) query.append("subject", params.subject);
-    const qStr = query.toString();
-    return request(`/examination${qStr ? `?${qStr}` : ""}`);
-  },
-  saveExamMarks: (examData) =>
-    request("/examination/marks", { method: "POST", body: JSON.stringify(examData) }),
-  getStudentReportCard: (params = {}) => {
-    const query = new URLSearchParams();
-    if (params.studentId) query.append("studentId", params.studentId);
-    if (params.session) query.append("session", params.session);
-    if (params.term) query.append("term", params.term);
-    const qStr = query.toString();
-    return request(`/examination/report-card${qStr ? `?${qStr}` : ""}`);
-  },
+api.createStudent = async (studentData) => {
+  const res = await api.post("/students", studentData);
+  return res.data;
+};
 
-  // Schools (Super Admin)
-  getSchools: () => request("/schools"),
-  getSchoolById: (id) => request(`/schools/${id}`),
-  createSchool: (schoolData) =>
-    request("/schools", { method: "POST", body: JSON.stringify(schoolData) }),
-  updateSchool: (id, schoolData) =>
-    request(`/schools/${id}`, { method: "PUT", body: JSON.stringify(schoolData) }),
-  deleteSchool: (id) => request(`/schools/${id}`, { method: "DELETE" }),
+api.bulkCreateStudents = async (students) => {
+  const res = await api.post("/students/bulk", { students });
+  return res.data;
+};
 
-  // Dashboard
-  getDashboardStats: () => request("/dashboard"),
+api.updateStudent = async (id, studentData) => {
+  const res = await api.put(`/students/${id}`, studentData);
+  return res.data;
+};
+
+api.deleteStudent = async (id) => {
+  const res = await api.delete(`/students/${id}`);
+  return res.data;
+};
+
+// Staff
+api.getStaff = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.search) query.append("search", params.search);
+  if (params.dept && params.dept !== "all") query.append("dept", params.dept);
+  if (params.status && params.status !== "all") query.append("status", params.status);
+
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+
+  const qStr = query.toString();
+  const res = await api.get(`/staff${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+api.getStaffById = async (id) => {
+  const res = await api.get(`/staff/${id}`);
+  return res.data;
+};
+
+api.createStaff = async (staffData) => {
+  const res = await api.post("/staff", staffData);
+  return res.data;
+};
+
+api.bulkCreateStaff = async (staff) => {
+  const res = await api.post("/staff/bulk", { staff });
+  return res.data;
+};
+
+api.updateStaff = async (id, staffData) => {
+  const res = await api.put(`/staff/${id}`, staffData);
+  return res.data;
+};
+
+api.resetTeacherPassword = async (id, newPassword) => {
+  const res = await api.post(`/staff/${id}/reset-password`, { newPassword });
+  return res.data;
+};
+
+// Timetable
+api.getTimetable = async (cls = "8", section = "A", schoolIdParam) => {
+  const schoolId = schoolIdParam || getActiveSchoolId();
+  const qStr = schoolId ? `&schoolId=${schoolId}` : "";
+  const res = await api.get(`/timetable?cls=${cls}&section=${section}${qStr}`);
+  return res.data;
+};
+
+api.getTeacherTimetable = async (staffId) => {
+  const qStr = staffId ? `?staffId=${staffId}` : "";
+  const res = await api.get(`/timetable/teacher${qStr}`);
+  return res.data;
+};
+
+api.upsertTimetable = async (timetableData) => {
+  const res = await api.post("/timetable/upsert", timetableData);
+  return res.data;
+};
+
+// Attendance
+api.getAttendanceRoster = async (cls = "8", section = "A", date, schoolIdParam) => {
+  const query = new URLSearchParams({ cls, section });
+  if (date) query.append("date", date);
+  const schoolId = schoolIdParam || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+  const res = await api.get(`/attendance?${query.toString()}`);
+  return res.data;
+};
+
+api.markAttendance = async (attendanceData) => {
+  const res = await api.post("/attendance/mark", attendanceData);
+  return res.data;
+};
+
+api.getStudentAttendance = async (studentId, month, year) => {
+  const query = new URLSearchParams({ studentId });
+  if (month) query.append("month", month);
+  if (year) query.append("year", year);
+  const res = await api.get(`/attendance/student?${query.toString()}`);
+  return res.data;
+};
+
+// Examinations
+api.getExaminationRoster = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.cls) query.append("cls", params.cls);
+  if (params.section) query.append("section", params.section);
+  if (params.session) query.append("session", params.session);
+  if (params.term) query.append("term", params.term);
+  if (params.subject) query.append("subject", params.subject);
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+  const qStr = query.toString();
+  const res = await api.get(`/examination${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+api.saveExamMarks = async (examData) => {
+  const res = await api.post("/examination/marks", examData);
+  return res.data;
+};
+
+api.getStudentReportCard = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.studentId) query.append("studentId", params.studentId);
+  if (params.session) query.append("session", params.session);
+  if (params.term) query.append("term", params.term);
+  const qStr = query.toString();
+  const res = await api.get(`/examination/report-card${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+// Schools
+api.getSchools = async () => {
+  const res = await api.get("/schools");
+  return res.data;
+};
+
+api.getSchoolById = async (id) => {
+  const res = await api.get(`/schools/${id}`);
+  return res.data;
+};
+
+api.createSchool = async (schoolData) => {
+  const res = await api.post("/schools", schoolData);
+  return res.data;
+};
+
+api.updateSchool = async (id, schoolData) => {
+  const res = await api.put(`/schools/${id}`, schoolData);
+  return res.data;
+};
+
+api.deleteSchool = async (id) => {
+  const res = await api.delete(`/schools/${id}`);
+  return res.data;
+};
+
+export const setAuthToken = (token) => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+    localStorage.setItem("accessToken", token);
+    localStorage.setItem("vidyaloop_token", token);
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
 };
 
 export default api;

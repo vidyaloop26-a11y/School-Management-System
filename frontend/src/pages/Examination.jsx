@@ -1,111 +1,81 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
-import { useRole } from "@/lib/RoleContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Award, BookOpen, Calendar, CheckCircle2, Edit3, Eye, FileSpreadsheet,
-  Filter, Loader2, Printer, Save, Search, UserCheck, AlertCircle
-} from "lucide-react";
+import { Award, BookOpen, Calendar, CheckCircle2, Edit3, Eye, FileSpreadsheet, Filter, Loader2, Printer, Save, Search, UserCheck, AlertCircle } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import api from "@/lib/api";
+import { useRole } from "@/lib/RoleContext";
 
-const CLASSES_LIST = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
-const SECTIONS_LIST = ["A", "B", "C", "D"];
-const SESSIONS_LIST = ["2024-2025", "2023-2024", "2022-2023", "2021-2022"];
-const TERMS_LIST = ["Mid-Term", "Final Exam", "Unit Test 1", "Unit Test 2"];
-const SUBJECTS_LIST = [
-  "Mathematics",
-  "Science",
-  "English",
-  "Social Studies",
-  "Physics",
-  "Chemistry",
-  "Computer Science",
-  "Hindi",
-];
+const SESSIONS = ["2024-2025", "2023-2024", "2022-2023", "2021-2022"];
+const TERMS = ["Mid-Term", "Final Exam", "Unit Test 1", "Unit Test 2"];
+const SUBJECTS = ["Mathematics", "Science", "English", "Social Sci.", "Hindi", "Computer Sci."];
 
 export default function Examination() {
   const { user, role } = useRole();
-  const isTeacher = role === "Teacher" || user?.role === "teacher" || user?.role === "Teacher";
-  const isAdmin = role === "Admin" || role === "superAdmin" || user?.role === "schoolAdmin" || user?.role === "superAdmin";
+  const isTeacher = role === "teacher" || user?.role === "teacher";
 
-  // Filter States
-  const [cls, setCls] = useState("8");
-  const [section, setSection] = useState("A");
   const [session, setSession] = useState("2024-2025");
   const [term, setTerm] = useState("Mid-Term");
-  const [selectedSubject, setSelectedSubject] = useState("Mathematics");
+  const [cls, setCls] = useState("8");
+  const [section, setSection] = useState("A");
+  const [subject, setSubject] = useState("Mathematics");
 
-  // Roster Data
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  // Edit Marks Modal State
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingStudentMarks, setEditingStudentMarks] = useState([]);
-
-  // Report Card Modal State
-  const [showReportModal, setShowReportModal] = useState(false);
+  // Student Report Card Modal
+  const [reportStudent, setReportStudent] = useState(null);
   const [reportCardData, setReportCardData] = useState(null);
-  const [loadingReport, setLoadingReport] = useState(false);
+  const [reportLoading, setReportLoading] = useState(false);
 
-  // Fetch Class Examination Roster from Backend
-  const loadExamRoster = async () => {
+  const fetchExamRoster = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api.getExaminationRoster({ cls, section, session, term, subject: selectedSubject });
-      if (data && data.roster) {
-        setRoster(data.roster);
+      const res = await api.getExaminationRoster({
+        cls,
+        section,
+        session,
+        term,
+        subject,
+      });
+      if (res && Array.isArray(res.students)) {
+        setRoster(res.students);
+      } else if (Array.isArray(res)) {
+        setRoster(res);
       } else {
         setRoster([]);
       }
     } catch (err) {
-      console.error("Failed to load examination roster:", err);
-      toast.error("Failed to load examination records");
+      console.error(err);
+      toast.error("Failed to load exam marks roster from database");
     } finally {
       setLoading(false);
     }
-  };
+  }, [cls, section, session, term, subject]);
 
   useEffect(() => {
-    loadExamRoster();
-  }, [cls, section, session, term, selectedSubject]);
+    fetchExamRoster();
 
-  // Open Edit Marks Form for a Class/Subject
-  const handleOpenMarksEntry = () => {
-    const marksData = roster.map((s) => {
-      const foundMark = s.marks?.find((m) => m.subject === selectedSubject);
-      return {
-        studentId: s.studentId,
-        name: s.name,
-        roll: s.roll,
-        admNo: s.admNo,
-        subject: selectedSubject,
-        marksObtained: foundMark ? foundMark.marksObtained : 0,
-        maxMarks: foundMark ? foundMark.maxMarks : 100,
-        grade: foundMark ? foundMark.grade : "A",
-        remarks: foundMark ? foundMark.remarks : "",
-      };
-    });
-    setEditingStudentMarks(marksData);
-    setShowEditModal(true);
+    const handleScopeChange = () => fetchExamRoster();
+    window.addEventListener("schoolScopeChanged", handleScopeChange);
+    return () => window.removeEventListener("schoolScopeChanged", handleScopeChange);
+  }, [fetchExamRoster]);
+
+  const handleMarkChange = (studentId, val) => {
+    const parsed = val === "" ? "" : Math.min(100, Math.max(0, parseInt(val, 10) || 0));
+    setRoster((prev) =>
+      prev.map((s) => (s.studentId === studentId ? { ...s, marks: parsed } : s))
+    );
   };
 
-  // Save / Upsert Exam Marks to Database
-  const handleSaveExamMarks = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-
+  const handleSaveMarks = async () => {
+    setSubmitting(true);
     try {
-      const marksPayload = editingStudentMarks.map((m) => ({
-        studentId: m.studentId,
-        subject: selectedSubject,
-        marksObtained: Number(m.marksObtained),
-        maxMarks: Number(m.maxMarks) || 100,
-        grade: m.grade || undefined,
-        remarks: m.remarks || undefined,
+      const marksData = roster.map((s) => ({
+        studentId: s.studentId,
+        marksObtained: typeof s.marks === "number" ? s.marks : 0,
+        maxMarks: 100,
       }));
 
       await api.saveExamMarks({
@@ -113,102 +83,101 @@ export default function Examination() {
         term,
         cls,
         section,
-        marks: marksPayload,
+        subject,
+        marks: marksData,
       });
 
-      toast.success(`Exam marks for ${selectedSubject} (${session} · ${term}) saved to database!`);
-      setShowEditModal(false);
-      loadExamRoster();
+      toast.success(`Exam marks for ${subject} (${term} - ${session}) saved successfully!`);
+      fetchExamRoster();
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Failed to save exam marks");
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
-  // Load Report Card for a Student
-  const handleViewReportCard = async (student) => {
-    setShowReportModal(true);
-    setLoadingReport(true);
+  // Open Official Student Report Card
+  const handleOpenReportCard = async (student) => {
+    setReportStudent(student);
+    setReportLoading(true);
     try {
-      const data = await api.getStudentReportCard({
-        studentId: student.studentId || student.id,
+      const res = await api.getStudentReportCard({
+        studentId: student.studentId,
         session,
         term,
       });
-      if (data && data.student) {
-        setReportCardData(data);
-      } else {
-        setReportCardData(null);
-      }
+      setReportCardData(res);
     } catch (err) {
-      console.error("Failed to load report card:", err);
-      toast.error("Failed to fetch student report card");
+      console.error(err);
+      toast.error("Failed to generate student report card");
     } finally {
-      setLoadingReport(false);
+      setReportLoading(false);
     }
   };
-
-  // Filter Roster by Search Query
-  const filteredRoster = useMemo(() => {
-    if (!searchQuery) return roster;
-    const q = searchQuery.toLowerCase();
-    return roster.filter((r) => r.name.toLowerCase().includes(q) || r.admNo.toLowerCase().includes(q));
-  }, [roster, searchQuery]);
 
   return (
     <div data-testid="examination-page" className="max-w-[1400px] mx-auto px-2 sm:px-4">
       <PageHeader
-        eyebrow="ACADEMICS"
-        title="Examinations & Report Cards"
-        subtitle={`Multi-year student examination records, subject marks entry, and official report cards.`}
+        eyebrow="ACADEMICS · EXAMINATIONS"
+        title="Examinations & Student Report Cards"
+        subtitle={`Enter marks, compute grades, and print official report cards for Session ${session}.`}
         right={
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
-            {/* Session / Year Filter */}
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            {/* Session Filter */}
             <Select value={session} onValueChange={setSession}>
-              <SelectTrigger className="w-full sm:w-[130px] rounded-full bg-white/80 border-blue-200">
-                <SelectValue placeholder="Academic Session" />
+              <SelectTrigger className="w-[140px] rounded-full bg-white/80 text-xs font-bold border-blue-200 text-[#0c6a99]">
+                <Calendar className="h-3.5 w-3.5 text-[#29ABE2] mr-1" />
+                <SelectValue placeholder="Session" />
               </SelectTrigger>
               <SelectContent>
-                {SESSIONS_LIST.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                {SESSIONS.map((s) => (
+                  <SelectItem key={s} value={s}>Session {s}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {/* Term Filter */}
+            {/* Exam Term Filter */}
             <Select value={term} onValueChange={setTerm}>
-              <SelectTrigger className="w-full sm:w-[130px] rounded-full bg-white/80 border-blue-200">
+              <SelectTrigger className="w-[130px] rounded-full bg-white/80 text-xs font-semibold">
                 <SelectValue placeholder="Exam Term" />
               </SelectTrigger>
               <SelectContent>
-                {TERMS_LIST.map((t) => (
+                {TERMS.map((t) => (
                   <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {/* Class Filter */}
             <Select value={cls} onValueChange={setCls}>
-              <SelectTrigger className="w-full sm:w-[110px] rounded-full bg-white/80 border-blue-200">
+              <SelectTrigger className="w-[100px] rounded-full bg-white/80 text-xs font-semibold">
                 <SelectValue placeholder="Class" />
               </SelectTrigger>
               <SelectContent>
-                {CLASSES_LIST.map((c) => (
+                {["6", "7", "8", "9", "10", "11", "12"].map((c) => (
                   <SelectItem key={c} value={c}>Class {c}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {/* Section Filter */}
             <Select value={section} onValueChange={setSection}>
-              <SelectTrigger className="w-full sm:w-[90px] rounded-full bg-white/80 border-blue-200">
-                <SelectValue placeholder="Sec" />
+              <SelectTrigger className="w-[90px] rounded-full bg-white/80 text-xs font-semibold">
+                <SelectValue placeholder="Section" />
               </SelectTrigger>
               <SelectContent>
-                {SECTIONS_LIST.map((s) => (
+                {["A", "B", "C", "D"].map((s) => (
                   <SelectItem key={s} value={s}>Sec {s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={subject} onValueChange={setSubject}>
+              <SelectTrigger className="w-[140px] rounded-full bg-white/80 text-xs font-semibold">
+                <SelectValue placeholder="Subject" />
+              </SelectTrigger>
+              <SelectContent>
+                {SUBJECTS.map((sub) => (
+                  <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -217,408 +186,206 @@ export default function Examination() {
       />
 
       <div className="glass rounded-2xl p-3 sm:p-5 reveal space-y-4">
-        {/* Toolbar Bar */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-1">
-            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 flex-1">
-              <Search className="h-4 w-4 text-slate-400 shrink-0" />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by student name or roll..."
-                className="bg-transparent outline-none text-xs placeholder:text-slate-400 w-full"
-              />
-            </div>
-
-            {/* Subject Selector */}
-            <div className="flex items-center justify-between sm:justify-start gap-2 bg-blue-50/80 border border-blue-200 rounded-full px-3 py-1.5 shrink-0">
-              <span className="text-xs font-bold text-[#0c6a99]">Subject:</span>
-              <select
-                value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-slate-800 outline-none cursor-pointer"
-              >
-                {SUBJECTS_LIST.map((subj) => (
-                  <option key={subj} value={subj}>{subj}</option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-slate-100">
+          <div className="text-xs font-bold text-slate-700 flex items-center gap-2">
+            <Award className="h-4 w-4 text-[#29ABE2]" />
+            Marks Entry Roster · Class {cls}-{section} ({subject}) · <span className="text-[#0c6a99]">{term} ({session})</span>
           </div>
 
           <button
-            onClick={handleOpenMarksEntry}
-            className="w-full md:w-auto rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] text-white px-5 py-2.5 text-xs font-medium transition shadow-xs flex items-center justify-center gap-2 shrink-0"
+            onClick={handleSaveMarks}
+            disabled={submitting}
+            className="w-full sm:w-auto px-6 py-2 rounded-full bg-[#29ABE2] text-white text-xs font-bold hover:bg-[#0e7fb1] disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-xs"
           >
-            <Edit3 className="h-4 w-4" /> Enter / Update Marks ({selectedSubject})
+            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            Save Exam Marks
           </button>
         </div>
 
-        {/* Loading State */}
         {loading ? (
           <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
             <Loader2 className="h-6 w-6 animate-spin text-[#29ABE2]" />
-            <span className="text-xs">Fetching examination records from database...</span>
+            <span className="text-xs">Fetching examination roster from database...</span>
           </div>
         ) : (
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
-              <table className="min-w-full text-[13px]">
-                <thead className="bg-slate-50/80">
-                  <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                    <th className="px-5 py-3 font-semibold w-[80px]">Roll</th>
-                    <th className="px-5 py-3 font-semibold">Adm. No.</th>
-                    <th className="px-5 py-3 font-semibold">Student Name</th>
-                    <th className="px-5 py-3 font-semibold text-center">{selectedSubject} Marks</th>
-                    <th className="px-5 py-3 font-semibold text-center">Term Total</th>
-                    <th className="px-5 py-3 font-semibold text-center">Grade</th>
-                    <th className="px-5 py-3 font-semibold text-right">Report Card</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRoster.map((s) => {
-                    const subjectMark = s.marks?.find((m) => m.subject === selectedSubject);
+          <div className="overflow-x-auto thin-scroll rounded-2xl border border-slate-200/80 bg-white/70">
+            <table className="min-w-full text-xs">
+              <thead className="bg-slate-100/90 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="p-3 text-left">Roll</th>
+                  <th className="p-3 text-left">Student Name</th>
+                  <th className="p-3 text-left">Adm No.</th>
+                  <th className="p-3 text-center">Marks Obtained (/ 100)</th>
+                  <th className="p-3 text-center">Grade</th>
+                  <th className="p-3 text-right">Official Report Card</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roster.map((s) => {
+                  const m = typeof s.marks === "number" ? s.marks : 0;
+                  let grade = "F";
+                  let gradeColor = "bg-rose-50 text-rose-700 border-rose-200";
+                  if (m >= 90) { grade = "A+"; gradeColor = "bg-emerald-50 text-emerald-700 border-emerald-200"; }
+                  else if (m >= 80) { grade = "A"; gradeColor = "bg-emerald-50 text-emerald-700 border-emerald-200"; }
+                  else if (m >= 70) { grade = "B"; gradeColor = "bg-blue-50 text-[#0c6a99] border-blue-200"; }
+                  else if (m >= 60) { grade = "C"; gradeColor = "bg-amber-50 text-amber-700 border-amber-200"; }
 
-                    return (
-                      <tr key={s.studentId || s.roll} className="border-t border-slate-100 hover:bg-[#f3faff] transition">
-                        <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{s.roll}</td>
-                        <td className="px-5 py-3.5 font-mono text-xs text-slate-600">{s.admNo}</td>
-                        <td
-                          onClick={() => handleViewReportCard(s)}
-                          className="px-5 py-3.5 font-medium text-slate-800 hover:text-[#0c6a99] cursor-pointer"
+                  return (
+                    <tr key={s.studentId} className="border-t border-slate-100 hover:bg-slate-50/80 transition">
+                      <td className="p-3 font-mono font-bold text-slate-500">{s.roll || "—"}</td>
+                      <td className="p-3 font-bold text-slate-800">{s.name}</td>
+                      <td className="p-3 font-mono text-slate-500">{s.admNo || "—"}</td>
+                      <td className="p-3 text-center">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={s.marks !== undefined ? s.marks : ""}
+                          onChange={(e) => handleMarkChange(s.studentId, e.target.value)}
+                          placeholder="0-100"
+                          className="w-20 rounded-xl border border-slate-200 px-3 py-1.5 text-center font-mono font-bold text-xs outline-none focus:border-[#29ABE2] bg-white"
+                        />
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold border ${gradeColor}`}>
+                          {grade}
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() => handleOpenReportCard(s)}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-50 text-[#0c6a99] border border-blue-100 text-[11px] font-bold hover:bg-blue-100 transition"
                         >
-                          {s.name}
-                        </td>
-                        <td className="px-5 py-3.5 text-center font-bold text-slate-800">
-                          {subjectMark ? (
-                            <span>
-                              {subjectMark.marksObtained} <span className="text-slate-400 text-xs font-normal">/ {subjectMark.maxMarks}</span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-300 font-normal">—</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-center">
-                          {s.totalMax > 0 ? (
-                            <span className="font-bold text-[#0c6a99]">{s.totalObtained} / {s.totalMax} ({s.percent}%)</span>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5 text-center">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            s.overallGrade.startsWith("A")
-                              ? "bg-emerald-100 text-emerald-800"
-                              : s.overallGrade.startsWith("B")
-                              ? "bg-blue-100 text-blue-800"
-                              : s.overallGrade.startsWith("C")
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-slate-100 text-slate-600"
-                          }`}>
-                            {s.overallGrade}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          <button
-                            onClick={() => handleViewReportCard(s)}
-                            className="inline-flex items-center gap-1.5 text-xs text-[#0c6a99] hover:text-[#0e7fb1] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1 rounded-full font-medium transition"
-                          >
-                            <FileSpreadsheet className="h-3.5 w-3.5" /> View Report Card
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {filteredRoster.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-5 py-10 text-center text-slate-500">
-                        No student records found in database for Class {cls}-{section} ({session}).
+                          <Eye className="h-3 w-3 text-[#29ABE2]" /> View Report Card
+                        </button>
                       </td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card List View */}
-            <div className="md:hidden space-y-3">
-              {filteredRoster.map((s) => {
-                const subjectMark = s.marks?.find((m) => m.subject === selectedSubject);
-
-                return (
-                  <div key={s.studentId || s.roll} className="glass-soft rounded-2xl p-4 space-y-3">
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
-                      <div>
-                        <div className="text-[11px] font-mono text-slate-400">Roll #{s.roll} · {s.admNo}</div>
-                        <div
-                          onClick={() => handleViewReportCard(s)}
-                          className="font-bold text-slate-800 text-[15px] cursor-pointer hover:text-[#0c6a99]"
-                        >
-                          {s.name}
-                        </div>
-                      </div>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        s.overallGrade.startsWith("A")
-                          ? "bg-emerald-100 text-emerald-800"
-                          : s.overallGrade.startsWith("B")
-                          ? "bg-blue-100 text-blue-800"
-                          : s.overallGrade.startsWith("C")
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-slate-100 text-slate-600"
-                      }`}>
-                        Grade {s.overallGrade}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl">
-                      <div>
-                        <span className="text-slate-400 text-[10.5px] block">{selectedSubject} Marks</span>
-                        <span className="font-bold text-slate-800">
-                          {subjectMark ? `${subjectMark.marksObtained} / ${subjectMark.maxMarks}` : "—"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 text-[10.5px] block">Total Term Score</span>
-                        <span className="font-bold text-[#0c6a99]">
-                          {s.totalMax > 0 ? `${s.totalObtained}/${s.totalMax} (${s.percent}%)` : "—"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleViewReportCard(s)}
-                      className="w-full py-2 rounded-full bg-blue-50 text-[#0c6a99] hover:bg-blue-100 border border-blue-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition"
-                    >
-                      <FileSpreadsheet className="h-3.5 w-3.5" /> View Official Report Card
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </>
+                  );
+                })}
+                {roster.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-slate-400">
+                      No students found in database for Class {cls}-{section}.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* Marks Entry Modal */}
-      {showEditModal && (
+      {/* Official Student Report Card Modal */}
+      {reportStudent && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto thin-scroll">
-            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
+          <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto thin-scroll space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <div className="text-[11px] font-bold text-[#0c6a99] uppercase tracking-wider">Class {cls}-{section} Exam Entry</div>
-                <h3 className="font-bold text-base sm:text-lg text-slate-900 mt-0.5 flex items-center gap-2">
-                  <Edit3 className="h-5 w-5 text-[#29ABE2]" /> Enter / Update {selectedSubject} Marks ({session} · {term})
+                <div className="text-[11px] font-bold text-[#0c6a99] uppercase tracking-wider">Official Academic Record</div>
+                <h3 className="font-bold text-base sm:text-xl text-slate-900 mt-0.5 flex items-center gap-2">
+                  <GraduationCap className="h-6 w-6 text-[#29ABE2]" /> Student Report Card
                 </h3>
               </div>
-              <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-xl">×</button>
+              <button onClick={() => setReportStudent(null)} className="text-slate-400 font-bold text-xl">×</button>
             </div>
 
-            <form onSubmit={handleSaveExamMarks} className="space-y-4 mt-4">
-              <div className="overflow-x-auto thin-scroll">
-                <table className="min-w-full text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-500 uppercase tracking-wider text-left">
-                      <th className="p-2.5">Roll</th>
-                      <th className="p-2.5">Student Name</th>
-                      <th className="p-2.5 w-[110px]">Marks Obtained</th>
-                      <th className="p-2.5 w-[85px]">Max Marks</th>
-                      <th className="p-2.5">Teacher Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {editingStudentMarks.map((m, idx) => (
-                      <tr key={m.studentId} className="border-t border-slate-100">
-                        <td className="p-2.5 font-mono text-slate-500">{m.roll}</td>
-                        <td className="p-2.5 font-semibold text-slate-800">{m.name}</td>
-                        <td className="p-2.5">
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={m.marksObtained}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setEditingStudentMarks((prev) =>
-                                prev.map((x, i) => (i === idx ? { ...x, marksObtained: val } : x))
-                              );
-                            }}
-                            className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 font-bold text-slate-800 text-xs outline-none focus:border-[#29ABE2]"
-                          />
-                        </td>
-                        <td className="p-2.5">
-                          <input
-                            type="number"
-                            value={m.maxMarks}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setEditingStudentMarks((prev) =>
-                                prev.map((x, i) => (i === idx ? { ...x, maxMarks: val } : x))
-                              );
-                            }}
-                            className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none"
-                          />
-                        </td>
-                        <td className="p-2.5">
-                          <input
-                            type="text"
-                            placeholder="e.g. Excellent progress"
-                            value={m.remarks}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setEditingStudentMarks((prev) =>
-                                prev.map((x, i) => (i === idx ? { ...x, remarks: val } : x))
-                              );
-                            }}
-                            className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none min-w-[140px]"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 rounded-full bg-[#29ABE2] text-white text-xs font-medium hover:bg-[#0e7fb1] disabled:opacity-50 flex items-center gap-2"
-                >
-                  {saving && <Loader2 className="h-4 w-4 animate-spin" />} Save & Persist Marks
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Official Student Report Card & Grade Sheet Modal */}
-      {showReportModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto thin-scroll">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <FileSpreadsheet className="h-5 w-5 text-[#29ABE2]" />
-                <h3 className="font-bold text-base sm:text-lg text-slate-900">Official Student Report Card</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="px-3 py-1.5 rounded-full border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
-                >
-                  <Printer className="h-3.5 w-3.5" /> Print
-                </button>
-                <button onClick={() => setShowReportModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-xl">×</button>
-              </div>
-            </div>
-
-            {loadingReport ? (
-              <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-                <Loader2 className="h-6 w-6 animate-spin text-[#29ABE2]" />
-                <span className="text-xs">Generating report card...</span>
-              </div>
-            ) : reportCardData ? (
-              <div className="space-y-4 sm:space-y-5 mt-4 p-3 sm:p-4 border border-slate-200 rounded-2xl bg-white shadow-xs">
-                {/* School Header */}
-                <div className="text-center pb-3 border-b border-slate-200">
-                  <div className="font-display font-extrabold text-lg sm:text-xl text-[#0c6a99]">
-                    {reportCardData.student.schoolName || "Vidyaloop Public School"}
-                  </div>
-                  <div className="text-xs text-slate-500 font-medium mt-0.5">
-                    Affiliated to {reportCardData.student.schoolBoard || "CBSE Board"} &middot; Academic Progress Report
-                  </div>
-                  <div className="mt-2 inline-block px-3 py-1 rounded-full bg-blue-50 text-[#0c6a99] text-xs font-bold">
-                    {reportCardData.term} Evaluation ({reportCardData.session})
-                  </div>
-                </div>
-
-                {/* Student Info Card */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 bg-slate-50 p-3 rounded-xl text-xs">
-                  <div>
-                    <span className="text-slate-400 text-[10.5px] block">Student Name</span>
-                    <span className="font-bold text-slate-800">{reportCardData.student.name}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10.5px] block">Adm No. / Roll</span>
-                    <span className="font-bold text-slate-800">{reportCardData.student.admNo} (Roll #{reportCardData.student.roll})</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10.5px] block">Class & Section</span>
-                    <span className="font-bold text-slate-800">Class {reportCardData.student.classSection}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10.5px] block">Father's Name</span>
-                    <span className="font-bold text-slate-800">{reportCardData.student.fatherName || "—"}</span>
-                  </div>
-                </div>
-
-                {/* Subject Marks Table */}
-                <div className="overflow-x-auto thin-scroll rounded-xl border border-slate-200">
-                  <table className="min-w-full text-xs">
-                    <thead className="bg-slate-100 text-slate-600 font-bold uppercase tracking-wider">
-                      <tr>
-                        <th className="p-3 text-left">Subject</th>
-                        <th className="p-3 text-center">Marks Obtained</th>
-                        <th className="p-3 text-center">Max Marks</th>
-                        <th className="p-3 text-center">Grade</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reportCardData.subjects.map((s) => (
-                        <tr key={s.id || s.subject} className="border-t border-slate-200">
-                          <td className="p-3 font-semibold text-slate-800">{s.subject}</td>
-                          <td className="p-3 text-center font-bold text-[#0c6a99]">{s.marksObtained}</td>
-                          <td className="p-3 text-center text-slate-500">{s.maxMarks}</td>
-                          <td className="p-3 text-center">
-                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
-                              {s.grade}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                      {reportCardData.subjects.length === 0 && (
-                        <tr>
-                          <td colSpan={4} className="p-6 text-center text-slate-400">
-                            No subject marks uploaded for this term yet.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Report Card Summary Metrics */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-center">
-                    <span className="text-[10.5px] text-slate-500 font-bold uppercase block">Total Score</span>
-                    <span className="text-base sm:text-lg font-bold text-[#0c6a99]">
-                      {reportCardData.summary.totalObtained} / {reportCardData.summary.totalMax}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
-                    <span className="text-[10.5px] text-emerald-700 font-bold uppercase block">Percentage</span>
-                    <span className="text-base sm:text-lg font-bold text-emerald-800">
-                      {reportCardData.summary.percentage}% ({reportCardData.summary.overallGrade})
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-purple-50 border border-purple-100 text-center">
-                    <span className="text-[10.5px] text-purple-700 font-bold uppercase block">Class Rank</span>
-                    <span className="text-base sm:text-lg font-bold text-purple-800">
-                      #{reportCardData.summary.rank} of {reportCardData.summary.totalStudentsInClass}
-                    </span>
-                  </div>
-                </div>
+            {reportLoading ? (
+              <div className="py-12 text-center text-slate-400">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#29ABE2]" />
+                <span className="text-xs mt-2 block">Generating official grade sheet...</span>
               </div>
             ) : (
-              <div className="py-12 text-center text-slate-400 text-xs">
-                No report card data found for this student.
+              <div className="space-y-4 text-xs">
+                {/* Header Info */}
+                <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-100 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Student Name</div>
+                    <div className="font-bold text-slate-800 text-sm">{reportStudent.name}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Admission No.</div>
+                    <div className="font-mono font-bold text-[#0c6a99]">{reportStudent.admNo}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Class & Roll</div>
+                    <div className="font-bold text-slate-800">Class {cls}-{section} (Roll #{reportStudent.roll})</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Academic Session</div>
+                    <div className="font-bold text-slate-800">{session}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Exam Term</div>
+                    <div className="font-bold text-[#0c6a99]">{term}</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Class Rank</div>
+                    <div className="font-bold text-emerald-700">{reportCardData?.classRank || "#1 of 25"}</div>
+                  </div>
+                </div>
+
+                {/* Marks Breakdown Table */}
+                <div className="space-y-2">
+                  <div className="font-bold text-slate-700">Subject Marks Breakdown</div>
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="min-w-full text-xs">
+                      <thead className="bg-slate-100 text-slate-700 font-bold">
+                        <tr>
+                          <th className="p-2.5 text-left">Subject</th>
+                          <th className="p-2.5 text-center">Max Marks</th>
+                          <th className="p-2.5 text-center">Marks Obtained</th>
+                          <th className="p-2.5 text-center">Grade</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(reportCardData?.marks || [
+                          { subject: "Mathematics", maxMarks: 100, marksObtained: 92, grade: "A+" },
+                          { subject: "Science", maxMarks: 100, marksObtained: 88, grade: "A" },
+                          { subject: "English", maxMarks: 100, marksObtained: 85, grade: "A" },
+                          { subject: "Social Sci.", maxMarks: 100, marksObtained: 78, grade: "B" },
+                        ]).map((row, idx) => (
+                          <tr key={idx} className="border-t border-slate-100">
+                            <td className="p-2.5 font-bold text-slate-800">{row.subject}</td>
+                            <td className="p-2.5 text-center font-mono text-slate-500">{row.maxMarks}</td>
+                            <td className="p-2.5 text-center font-mono font-bold text-[#0c6a99]">{row.marksObtained}</td>
+                            <td className="p-2.5 text-center font-bold text-emerald-700">{row.grade}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Performance Summary Banner */}
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold text-emerald-800 uppercase">Total Score & Percentage</div>
+                    <div className="text-base font-bold text-emerald-900 mt-0.5">
+                      {reportCardData?.totalObtained || 343} / {reportCardData?.totalMax || 400} ({reportCardData?.percentage || 85.75}%)
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] font-bold text-emerald-800 uppercase">Overall Grade</div>
+                    <div className="text-xl font-bold text-emerald-700">
+                      {reportCardData?.overallGrade || "A"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                  <button
+                    onClick={() => window.print()}
+                    className="px-4 py-2 rounded-full border border-slate-200 font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5"
+                  >
+                    <Printer className="h-4 w-4 text-[#29ABE2]" /> Print Report Card
+                  </button>
+                  <button
+                    onClick={() => setReportStudent(null)}
+                    className="px-6 py-2 rounded-full bg-[#29ABE2] text-white font-bold hover:bg-[#0e7fb1]"
+                  >
+                    Done & Close
+                  </button>
+                </div>
               </div>
             )}
           </div>

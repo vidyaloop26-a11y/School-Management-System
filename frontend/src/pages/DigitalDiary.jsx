@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import PageHeader from "@/components/common/PageHeader";
-import { useRole } from "@/lib/RoleContext";
+import { useAuth } from "@/lib/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { DIARY_ENTRIES } from "@/lib/stage2Data";
@@ -126,10 +126,11 @@ function FeedView() {
 }
 
 export default function DigitalDiary() {
-  const { role } = useRole();
+  const { user } = useAuth();
+  const role = user?.role;
   return (
     <div data-testid="diary-page" className="max-w-[1400px] mx-auto">
-      {role === "Teacher" ? <TeacherForm /> : <FeedView />}
+      {role === "teacher" ? <TeacherForm /> : <FeedView />}
     </div>
   );
 }
