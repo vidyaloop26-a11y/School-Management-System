@@ -1,7 +1,7 @@
 const prisma = require("../../lib/prisma");
 const { ApiError } = require("../../lib/errors");
 const authService = require("../auth/auth.service");
-const { generateTempPassword, generateUsername } = require("../../utils/credentials");
+const { generateUsername, ensureUniqueEmail } = require("../../utils/credentials");
 
 async function resolveSchoolScope(user, query = {}) {
   if (user.role === "superAdmin") {
@@ -49,10 +49,20 @@ async function createStaff({ user, data }) {
   const schoolId = user.schoolId || data.schoolId;
   if (!schoolId) throw new ApiError(400, "School ID required");
 
+  const cleanStaffId = data.staffId.trim().toUpperCase();
+
+  // Prevent duplicate staff ID within the same school
+  const existingStaff = await prisma.staff.findFirst({
+    where: { schoolId, staffId: cleanStaffId },
+  });
+  if (existingStaff) {
+    throw new ApiError(409, `A staff member with Staff ID '${cleanStaffId}' already exists in this school.`);
+  }
+
   const staff = await prisma.staff.create({
     data: {
       schoolId,
-      staffId: data.staffId,
+      staffId: cleanStaffId,
       name: data.name,
       jobTitle: data.jobTitle,
       dept: data.dept,
@@ -65,13 +75,17 @@ async function createStaff({ user, data }) {
     },
   });
 
-  if (data.jobTitle === "Teacher" || data.role === "teacher") {
-    const tempPassword = generateTempPassword();
-    const username = await generateUsername(data.staffId, prisma);
+  const isTeacher = data.jobTitle === "Teacher" || data.role === "teacher" || data.jobTitle?.includes("Teacher");
+  if (isTeacher) {
+    const tempPassword = `${cleanStaffId}@1234`;
+    const username = await generateUsername(cleanStaffId, prisma);
+    const emailBase = data.email?.toLowerCase().trim() || `${cleanStaffId.toLowerCase()}@vidyaloop.local`;
+    const email = await ensureUniqueEmail(emailBase, prisma);
+
     const teacherUser = await prisma.user.create({
       data: {
         name: data.name,
-        email: data.email?.toLowerCase().trim() || `${data.staffId.toLowerCase()}@vidyaloop.local`,
+        email,
         username,
         passwordHash: await authService.hashPassword(tempPassword),
         role: "teacher",
@@ -84,9 +98,11 @@ async function createStaff({ user, data }) {
     return {
       staff,
       credentials: {
+        name: data.name,
+        staffId: cleanStaffId,
         username: teacherUser.username,
         email: teacherUser.email,
-        tempPassword,
+        password: tempPassword,
       },
     };
   }
@@ -97,14 +113,24 @@ async function createStaff({ user, data }) {
 async function bulkCreateStaff({ user, staff }) {
   const schoolId = user.schoolId;
   let count = 0;
+  const createdCredentials = [];
+  const processedStaffIds = new Set();
+
   for (const s of staff) {
     const targetSchoolId = schoolId || s.schoolId;
-    if (!targetSchoolId) continue;
-    await prisma.staff.upsert({
-      where: { schoolId_staffId: { schoolId: targetSchoolId, staffId: s.staffId } },
+    if (!targetSchoolId || !s.staffId) continue;
+
+    const cleanStaffId = s.staffId.trim().toUpperCase();
+
+    // Prevent internal duplicate processing within the same CSV batch
+    if (processedStaffIds.has(cleanStaffId)) continue;
+    processedStaffIds.add(cleanStaffId);
+
+    const staffObj = await prisma.staff.upsert({
+      where: { schoolId_staffId: { schoolId: targetSchoolId, staffId: cleanStaffId } },
       create: {
         schoolId: targetSchoolId,
-        staffId: s.staffId,
+        staffId: cleanStaffId,
         name: s.name,
         jobTitle: s.jobTitle,
         dept: s.dept,
@@ -123,8 +149,53 @@ async function bulkCreateStaff({ user, staff }) {
       },
     });
     count++;
+
+    const isTeacher = s.jobTitle === "Teacher" || s.role === "teacher" || s.jobTitle?.includes("Teacher");
+    if (isTeacher) {
+      // Check if user account already linked to this staff record
+      const existingLinkedUser = await prisma.user.findFirst({
+        where: { staffId: staffObj.id },
+      });
+
+      if (!existingLinkedUser) {
+        const tempPassword = `${cleanStaffId}@1234`;
+        const username = await generateUsername(cleanStaffId, prisma);
+        const emailBase = s.email?.toLowerCase().trim() || `${cleanStaffId.toLowerCase()}@vidyaloop.local`;
+        const email = await ensureUniqueEmail(emailBase, prisma);
+
+        await prisma.user.create({
+          data: {
+            name: s.name,
+            email,
+            username,
+            passwordHash: await authService.hashPassword(tempPassword),
+            role: "teacher",
+            schoolId: targetSchoolId,
+            staffId: staffObj.id,
+            mustChangePassword: true,
+          },
+        });
+
+        createdCredentials.push({
+          staffId: cleanStaffId,
+          name: s.name,
+          username,
+          email,
+          password: tempPassword,
+        });
+      } else {
+        createdCredentials.push({
+          staffId: cleanStaffId,
+          name: s.name,
+          username: existingLinkedUser.username,
+          email: existingLinkedUser.email,
+          password: `${cleanStaffId}@1234`,
+        });
+      }
+    }
   }
-  return { successCount: count };
+
+  return { successCount: count, credentials: createdCredentials };
 }
 
 async function updateStaff({ user, id, data }) {
@@ -135,6 +206,17 @@ async function updateStaff({ user, id, data }) {
   if (!existing) throw new ApiError(404, "Staff member not found");
   if (user.schoolId && existing.schoolId !== user.schoolId) {
     throw new ApiError(403, "Access denied");
+  }
+
+  if (data.staffId && data.staffId.trim().toUpperCase() !== existing.staffId) {
+    const cleanStaffId = data.staffId.trim().toUpperCase();
+    const duplicate = await prisma.staff.findFirst({
+      where: { schoolId: existing.schoolId, staffId: cleanStaffId, NOT: { id } },
+    });
+    if (duplicate) {
+      throw new ApiError(409, `A staff member with Staff ID '${cleanStaffId}' already exists in this school.`);
+    }
+    data.staffId = cleanStaffId;
   }
 
   const updatedStaff = await prisma.staff.update({

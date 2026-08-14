@@ -1,0 +1,6 @@
+staffId,name,jobTitle,dept,subject,qualification,email,phone,status,joined
+VLS-801,Amit Verma,Teacher,Mathematics,Calculus,M.Sc Maths B.Ed,amit.verma@vidyaloop.in,+91 9876543210,Active,2024-04-01
+VLS-802,Priya Sundaram,Teacher,Science,Physics,M.Sc Physics B.Ed,priya.s@vidyaloop.in,+91 9876543211,Active,2024-04-01
+VLS-803,Rajesh Nambiar,Teacher,English,Literature,M.A English B.Ed,rajesh.n@vidyaloop.in,+91 9876543212,Active,2024-04-01
+VLS-804,Meenakshi Rao,Teacher,Computer Science,AI & Python,M.Tech CSE,meenakshi.r@vidyaloop.in,+91 9876543213,Active,2024-04-01
+VLS-805,Sunil Kumar,Front Office,Administration,Front Office,B.A,sunil.k@vidyaloop.in,+91 9876543214,Active,2024-04-01

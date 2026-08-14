@@ -58,11 +58,11 @@ export default function Staff() {
   });
 
   const [createdTeacherCreds, setCreatedTeacherCreds] = useState(null);
+  const [bulkCredentialsReport, setBulkCredentialsReport] = useState(null);
 
   // Bulk Import State
   const [csvRaw, setCsvRaw] = useState("");
   const [parsedRows, setParsedRows] = useState([]);
-  const [importSummary, setImportSummary] = useState(null);
 
   const fetchStaff = useCallback(async () => {
     setLoading(true);
@@ -219,6 +219,7 @@ export default function Staff() {
     reader.readAsText(file);
   };
 
+  // Handle Bulk CSV Submission: Immediately close CSV import modal window and refresh table
   const handleBulkSubmit = async () => {
     if (parsedRows.length === 0) return;
     const validRows = parsedRows.filter((r) => r.isValid);
@@ -226,8 +227,17 @@ export default function Staff() {
     try {
       const res = await api.bulkCreateStaff(validRows);
       toast.success(`Successfully imported ${res.successCount} staff members into database!`);
-      setImportSummary(res);
+      
+      // Close the bulk import window immediately
+      setShowBulkModal(false);
+      setParsedRows([]);
+      setCsvRaw("");
       fetchStaff();
+
+      // If credentials were generated, pop up clean standalone credentials summary window
+      if (res && res.credentials && res.credentials.length > 0) {
+        setBulkCredentialsReport(res.credentials);
+      }
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Failed to execute bulk staff import");
@@ -239,373 +249,292 @@ export default function Staff() {
   return (
     <div data-testid="staff-page" className="max-w-[1400px] mx-auto px-2 sm:px-4">
       <PageHeader
-        eyebrow="ACADEMICS"
-        title="Staff & Faculty"
-        subtitle={`${staffList.length} teaching & non-teaching faculty members in database.`}
+        eyebrow="SCHOOL ADMIN · STAFF DIRECTORY"
+        title="Staff & Faculty Directory"
+        subtitle="Manage teachers, administrative personnel, and system role access."
         right={
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-            <ExportButton testId="staff-export" />
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <button
-              onClick={() => {
-                setCsvRaw("");
-                setParsedRows([]);
-                setImportSummary(null);
-                setShowBulkModal(true);
-              }}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 sm:gap-2 bg-white/80 hover:bg-slate-100 border border-slate-200 transition text-slate-700 px-3.5 py-2.5 rounded-full text-xs font-semibold shadow-xs"
+              onClick={() => setShowBulkModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 transition px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm"
             >
-              <Upload className="h-4 w-4 text-[#29ABE2]" /> Bulk CSV Import
+              <Upload className="h-3.5 w-3.5 text-[#29ABE2]" /> Bulk CSV Import
             </button>
+
             <button
-              onClick={() => {
-                setCreatedTeacherCreds(null);
-                setShowSingleModal(true);
-              }}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 sm:gap-2 bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-4 py-2.5 rounded-full text-xs font-semibold shadow-xs"
+              onClick={() => setShowSingleModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-4 py-2 text-xs font-medium shadow-sm"
             >
-              <Plus className="h-4 w-4" /> Add Staff Member
+              <Plus className="h-4 w-4" /> Add Single Staff
             </button>
           </div>
         }
       />
 
-      <div className="glass rounded-2xl p-3 sm:p-5 reveal space-y-4">
-        {/* Filter Controls Bar */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2.5 shadow-xs">
-            <Search className="h-4 w-4 text-slate-400 shrink-0" />
+      {/* Filter and stats */}
+      <div className="glass rounded-2xl p-4 mb-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="relative flex-1 min-w-[260px]">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
-              data-testid="staff-search"
+              type="text"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search staff member by name or staff ID..."
-              className="w-full bg-transparent outline-none text-xs sm:text-sm placeholder:text-slate-400"
+              placeholder="Search staff name or ID..."
+              className="w-full pl-10 pr-4 py-2 rounded-full bg-white/80 border border-slate-200 text-xs outline-none focus:border-[#29ABE2]"
             />
           </div>
 
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Select value={dept} onValueChange={setDept}>
-              <SelectTrigger data-testid="filter-dept" className="w-full sm:w-[170px] rounded-full bg-white/80 text-xs">
+              <SelectTrigger className="w-[160px] h-9 text-xs rounded-full bg-white">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All departments</SelectItem>
+                <SelectItem value="all">All Departments</SelectItem>
                 {depts.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {d}
-                  </SelectItem>
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {/* Active / Inactive Status Filter */}
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger data-testid="filter-status" className="w-full sm:w-[150px] rounded-full bg-white/80 border-blue-200 text-xs">
+              <SelectTrigger className="w-[130px] h-9 text-xs rounded-full bg-white">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="Active">Active Only</SelectItem>
-                <SelectItem value="Inactive">Inactive Only</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
+
+            <ExportButton
+              data={staffList}
+              filename="staff_directory"
+              columns={[
+                { label: "Staff ID", key: "staffId" },
+                { label: "Name", key: "name" },
+                { label: "Job Title", key: "jobTitle" },
+                { label: "Department", key: "dept" },
+                { label: "Subject", key: "subject" },
+                { label: "Email", key: "email" },
+                { label: "Phone", key: "phone" },
+                { label: "Status", key: "status" },
+              ]}
+            />
           </div>
         </div>
-
-        {/* Loading State */}
-        {loading ? (
-          <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-2">
-            <Loader2 className="h-6 w-6 animate-spin text-[#29ABE2]" />
-            <span className="text-xs">Loading faculty members from database...</span>
-          </div>
-        ) : (
-          <>
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
-              <table className="min-w-full text-[13px]">
-                <thead className="bg-slate-50/80">
-                  <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                    <th className="px-5 py-3 font-semibold">Staff ID</th>
-                    <th className="px-5 py-3 font-semibold">Name</th>
-                    <th className="px-5 py-3 font-semibold">Role / Job Title</th>
-                    <th className="px-5 py-3 font-semibold">Department</th>
-                    <th className="px-5 py-3 font-semibold">Status (Click to toggle)</th>
-                    <th className="px-5 py-3 w-4"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {staffList.map((s) => (
-                    <tr
-                      key={s.id || s.staffId}
-                      data-testid={`staff-row-${s.staffId}`}
-                      onClick={() => navigate(`/staff/${s.id || s.staffId}`)}
-                      className="border-t border-slate-100 hover:bg-[#f3faff] cursor-pointer transition group"
-                    >
-                      <td className="px-5 py-3.5 font-mono text-[12px] text-slate-500">{s.staffId}</td>
-                      <td className="px-5 py-3.5 font-medium text-slate-800 group-hover:text-[#0c6a99] transition">{s.name}</td>
-                      <td className="px-5 py-3.5 text-slate-600 font-medium">{s.jobTitle || s.role}</td>
-                      <td className="px-5 py-3.5 text-slate-600">{s.dept || "General"}</td>
-                      <td className="px-5 py-3.5">
-                        <button
-                          onClick={(e) => handleToggleStatus(e, s)}
-                          title="Click to toggle Active / Inactive status"
-                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold transition cursor-pointer hover:scale-105 ${
-                            s.status === "Active"
-                              ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-                              : "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200"
-                          }`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${s.status === "Active" ? "bg-emerald-500" : "bg-rose-500"}`} />
-                          {s.status || "Active"}
-                        </button>
-                      </td>
-                      <td className="px-3 py-3.5 text-slate-400 group-hover:text-[#0c6a99] text-right">
-                        <ChevronRight className="h-4 w-4 inline" />
-                      </td>
-                    </tr>
-                  ))}
-                  {staffList.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-slate-500">
-                        No staff database records found for the selected filters.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Responsive Mobile Cards List */}
-            <div className="md:hidden space-y-3">
-              {staffList.map((s) => (
-                <div
-                  key={s.id || s.staffId}
-                  data-testid={`staff-card-${s.staffId}`}
-                  onClick={() => navigate(`/staff/${s.id || s.staffId}`)}
-                  className="glass-soft rounded-2xl p-4 cursor-pointer active:scale-[0.99] transition border border-slate-100 space-y-2.5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="font-mono text-[11px] text-slate-400">ID: {s.staffId}</div>
-                      <div className="font-bold text-slate-800 text-[15px] mt-0.5 truncate text-[#0c6a99]">
-                        {s.name}
-                      </div>
-                    </div>
-                    {/* Toggle Status Button on Mobile */}
-                    <button
-                      onClick={(e) => handleToggleStatus(e, s)}
-                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold shrink-0 ${
-                        s.status === "Active" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
-                      }`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${s.status === "Active" ? "bg-emerald-500" : "bg-rose-500"}`} />
-                      {s.status || "Active"}
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100/80 text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                        {s.jobTitle || s.role}
-                      </span>
-                      <span className="font-semibold text-[#0c6a99] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
-                        {s.dept || "General"}
-                      </span>
-                    </div>
-
-                    <div className="text-[#0c6a99] font-bold flex items-center gap-1 text-xs">
-                      View Details <ChevronRight className="h-3.5 w-3.5" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {staffList.length === 0 && (
-                <div className="py-10 text-center text-slate-400 text-xs glass-soft rounded-2xl p-4">
-                  No staff records found matching filters.
-                </div>
-              )}
-            </div>
-          </>
-        )}
       </div>
 
-      {/* 1. Add Single Staff Member Modal */}
-      {showSingleModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto thin-scroll">
-            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-[#29ABE2]" />
+        </div>
+      ) : staffList.length === 0 ? (
+        <div className="glass rounded-2xl p-12 text-center text-slate-500">
+          No staff members found matching your query.
+        </div>
+      ) : (
+        /* Staff Cards Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {staffList.map((staff) => (
+            <div
+              key={staff.id}
+              className="glass rounded-2xl p-5 hover:border-slate-300 transition-all duration-200 flex flex-col justify-between"
+            >
               <div>
-                <div className="text-[11px] font-bold text-[#0c6a99] uppercase tracking-wider">Faculty Onboarding</div>
-                <h3 className="font-bold text-base sm:text-xl text-slate-900 mt-0.5 flex items-center gap-2">
-                  <UserPlus className="h-5 w-5 text-[#29ABE2]" /> Add New Staff Member
-                </h3>
-              </div>
-              <button onClick={() => setShowSingleModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-xl">×</button>
-            </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#0c6a99] grid place-items-center text-white font-bold text-sm shadow-sm">
+                      {staff.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-display font-bold text-slate-900 text-sm leading-snug">{staff.name}</h3>
+                      <span className="font-mono text-[11px] font-semibold text-[#29ABE2]">{staff.staffId}</span>
+                    </div>
+                  </div>
 
-            {/* Created Teacher Account Credentials Banner */}
-            {createdTeacherCreds ? (
-              <div className="my-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
-                <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" /> Teacher Portal Account Generated!
+                  <button
+                    onClick={(e) => handleToggleStatus(e, staff)}
+                    className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition ${
+                      staff.status === "Active"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                        : "bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200"
+                    }`}
+                  >
+                    {staff.status || "Active"}
+                  </button>
                 </div>
-                <p className="text-xs text-emerald-900">
-                  Because this staff member's job title is <strong>Teacher</strong>, a login portal account was created automatically:
-                </p>
-                <div className="bg-white p-3 rounded-xl border border-emerald-200 text-xs font-mono space-y-1">
-                  <div><strong>Portal Username:</strong> {createdTeacherCreds.username}</div>
-                  <div><strong>Temporary Password:</strong> {createdTeacherCreds.tempPassword}</div>
+
+                <div className="mt-4 space-y-2 text-xs border-t border-slate-100 pt-3">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span className="text-slate-500">Role / Job Title:</span>
+                    <span className="font-semibold text-slate-800">{staff.jobTitle}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span className="text-slate-500">Department:</span>
+                    <span className="font-semibold text-slate-800">{staff.dept || "General"}</span>
+                  </div>
+                  {staff.subject && (
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span className="text-slate-500">Subject:</span>
+                      <span className="font-semibold text-slate-800">{staff.subject}</span>
+                    </div>
+                  )}
+                  {staff.email && (
+                    <div className="flex items-center justify-between text-slate-600 truncate">
+                      <span className="text-slate-500">Email:</span>
+                      <span className="font-mono text-slate-700 truncate max-w-[170px]">{staff.email}</span>
+                    </div>
+                  )}
                 </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Single Staff Add Modal */}
+      {showSingleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100">
+            <h3 className="font-display font-bold text-lg text-slate-900 mb-1">Add Single Staff Member</h3>
+            <p className="text-xs text-slate-500 mb-4">Fill in member details. Creating a Teacher role auto-generates portal credentials.</p>
+
+            <form onSubmit={handleSingleSubmit} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">Staff ID *</label>
+                  <input
+                    type="text"
+                    required
+                    value={singleForm.staffId}
+                    onChange={(e) => setSingleForm({ ...singleForm, staffId: e.target.value.toUpperCase() })}
+                    placeholder="e.g. VLS-106"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 uppercase font-mono outline-none focus:border-[#29ABE2]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={singleForm.name}
+                    onChange={(e) => setSingleForm({ ...singleForm, name: e.target.value })}
+                    placeholder="e.g. Anjali Sharma"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-[#29ABE2]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">Job Title *</label>
+                  <Select value={singleForm.jobTitle} onValueChange={(val) => setSingleForm({ ...singleForm, jobTitle: val })}>
+                    <SelectTrigger className="w-full h-9 text-xs rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {JOB_TITLES.map((jt) => (
+                        <SelectItem key={jt} value={jt}>{jt}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">Department</label>
+                  <Select value={singleForm.dept} onValueChange={(val) => setSingleForm({ ...singleForm, dept: val })}>
+                    <SelectTrigger className="w-full h-9 text-xs rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DEPARTMENTS.map((d) => (
+                        <SelectItem key={d} value={d}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">Subject Taught</label>
+                  <input
+                    type="text"
+                    value={singleForm.subject}
+                    onChange={(e) => setSingleForm({ ...singleForm, subject: e.target.value })}
+                    placeholder="e.g. Mathematics"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-[#29ABE2]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">Qualification</label>
+                  <input
+                    type="text"
+                    value={singleForm.qualification}
+                    onChange={(e) => setSingleForm({ ...singleForm, qualification: e.target.value })}
+                    placeholder="e.g. M.Sc, B.Ed"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-[#29ABE2]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={singleForm.email}
+                    onChange={(e) => setSingleForm({ ...singleForm, email: e.target.value })}
+                    placeholder="teacher@school.edu.in"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-[#29ABE2]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-600 font-semibold mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={singleForm.phone}
+                    onChange={(e) => setSingleForm({ ...singleForm, phone: e.target.value })}
+                    placeholder="+91 9811002233"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-[#29ABE2]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
-                  onClick={() => {
-                    setCreatedTeacherCreds(null);
-                    setShowSingleModal(false);
-                  }}
-                  className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700"
+                  type="button"
+                  onClick={() => setShowSingleModal(false)}
+                  className="px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 >
-                  Done & Close
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-6 py-2 rounded-full bg-[#29ABE2] text-white text-xs font-medium hover:bg-[#0e7fb1] disabled:opacity-50 flex items-center gap-2"
+                >
+                  {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save Staff Member
                 </button>
               </div>
-            ) : (
-              <form onSubmit={handleSingleSubmit} className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Staff ID *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. VLS-107"
-                      value={singleForm.staffId}
-                      onChange={(e) => setSingleForm({ ...singleForm, staffId: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Full Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Anjali Sharma"
-                      value={singleForm.name}
-                      onChange={(e) => setSingleForm({ ...singleForm, name: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Job Title / Role *</label>
-                    <select
-                      value={singleForm.jobTitle}
-                      onChange={(e) => setSingleForm({ ...singleForm, jobTitle: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold outline-none focus:border-[#29ABE2] bg-white text-[#0c6a99]"
-                    >
-                      {JOB_TITLES.map((j) => (
-                        <option key={j} value={j}>{j}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Department</label>
-                    <select
-                      value={singleForm.dept}
-                      onChange={(e) => setSingleForm({ ...singleForm, dept: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2] bg-white"
-                    >
-                      {DEPARTMENTS.map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Subject Specialization</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Mathematics"
-                      value={singleForm.subject}
-                      onChange={(e) => setSingleForm({ ...singleForm, subject: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Qualification</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. M.Sc Maths, B.Ed"
-                      value={singleForm.qualification}
-                      onChange={(e) => setSingleForm({ ...singleForm, qualification: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Email Address</label>
-                    <input
-                      type="email"
-                      placeholder="anjali@vidyaloop.local"
-                      value={singleForm.email}
-                      onChange={(e) => setSingleForm({ ...singleForm, email: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-1">Phone Number</label>
-                    <input
-                      type="text"
-                      placeholder="+91 9811003301"
-                      value={singleForm.phone}
-                      onChange={(e) => setSingleForm({ ...singleForm, phone: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-[#29ABE2]"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                  <button
-                    type="button"
-                    onClick={() => setShowSingleModal(false)}
-                    className="px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-6 py-2 rounded-full bg-[#29ABE2] text-white text-xs font-medium hover:bg-[#0e7fb1] disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save Staff Member
-                  </button>
-                </div>
-              </form>
-            )}
+            </form>
           </div>
         </div>
       )}
 
-      {/* 2. Bulk CSV Import Modal */}
+      {/* Bulk CSV Modal Window */}
       {showBulkModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-white rounded-3xl p-4 sm:p-8 max-w-3xl w-full shadow-2xl border border-slate-100 max-h-[92vh] overflow-y-auto thin-scroll">
-            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
-              <div>
-                <div className="text-[11px] font-bold text-[#0c6a99] uppercase tracking-wider">Faculty Data Import</div>
-                <h3 className="font-bold text-base sm:text-xl text-slate-900 mt-0.5 flex items-center gap-2">
-                  <Upload className="h-5 w-5 text-[#29ABE2]" /> Bulk Import Staff via CSV
-                </h3>
-              </div>
-              <button onClick={() => setShowBulkModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-xl">×</button>
-            </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <h3 className="font-display font-bold text-lg text-slate-900 mb-1">Bulk Import Staff via CSV</h3>
+            <p className="text-xs text-slate-500 mb-4">Upload a CSV file or paste formatted CSV content to add multiple staff members at once.</p>
 
-            <div className="space-y-4 mt-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-blue-50/70 border border-blue-100">
+            <div className="space-y-4">
+              <div className="bg-blue-50/60 border border-blue-200/60 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
-                  <FileSpreadsheet className="h-5 w-5 text-[#29ABE2] shrink-0" />
+                  <FileSpreadsheet className="h-5 w-5 text-[#0c6a99] shrink-0" />
                   <div>
                     <div className="text-xs font-bold text-slate-800">1. Download CSV Sample Template</div>
                     <div className="text-[11px] text-slate-500">Headers: staffId, name, jobTitle, dept, subject, qualification, email, phone, status</div>
@@ -681,7 +610,7 @@ export default function Staff() {
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
-                  onClick={() => setShowBulkModal(false)}
+                  onClick={() => { setShowBulkModal(false); setParsedRows([]); setCsvRaw(""); }}
                   className="px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-50"
                 >
                   Close
@@ -694,6 +623,120 @@ export default function Staff() {
                   {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Import Valid Staff to DB
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Standalone Generated Bulk Credentials Report Modal */}
+      {bulkCredentialsReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-100">
+            <div className="flex items-center gap-3 text-emerald-600 mb-2">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              <h3 className="font-display font-bold text-lg text-slate-900">Bulk Teacher Accounts & Credentials Created!</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Teacher accounts have been generated for all imported teachers. You can copy or distribute these login credentials.
+            </p>
+
+            <div className="overflow-x-auto max-h-[220px] thin-scroll rounded-xl border border-slate-200 bg-slate-50/50 mb-5">
+              <table className="min-w-full text-xs font-mono">
+                <thead className="bg-slate-100 text-slate-700 font-bold">
+                  <tr>
+                    <th className="p-2.5 text-left font-sans">Staff ID</th>
+                    <th className="p-2.5 text-left font-sans">Teacher Name</th>
+                    <th className="p-2.5 text-left font-sans">Username</th>
+                    <th className="p-2.5 text-left font-sans">Password</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkCredentialsReport.map((c, idx) => (
+                    <tr key={idx} className="border-t border-slate-200 bg-white">
+                      <td className="p-2.5 font-bold text-[#29ABE2]">{c.staffId}</td>
+                      <td className="p-2.5 font-sans font-medium text-slate-900">{c.name}</td>
+                      <td className="p-2.5 text-slate-700">{c.username}</td>
+                      <td className="p-2.5 font-bold text-slate-900">{c.password}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  const txt = bulkCredentialsReport
+                    .map((c) => `Staff ID: ${c.staffId} | Name: ${c.name} | Username: ${c.username} | Password: ${c.password}`)
+                    .join("\n");
+                  navigator.clipboard.writeText(txt);
+                  toast.success("Copied all imported teacher credentials to clipboard!");
+                }}
+                className="px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+              >
+                Copy All Credentials
+              </button>
+              <button
+                onClick={() => setBulkCredentialsReport(null)}
+                className="px-6 py-2 rounded-full bg-[#29ABE2] text-white text-xs font-medium hover:bg-[#0e7fb1] transition"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single Teacher Created Credentials Modal */}
+      {createdTeacherCreds && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <div className="flex items-center gap-3 text-emerald-600 mb-2">
+              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              <h3 className="font-display font-bold text-lg text-slate-900">Teacher Account & Credentials Created!</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              A teacher account has been auto-generated for portal access. Provide these credentials to the teacher.
+            </p>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 text-xs mb-5 font-mono">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-slate-500 font-sans">Teacher Name:</span>
+                <span className="font-bold text-slate-900 font-sans">{createdTeacherCreds.name}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-slate-500 font-sans">Staff ID / Username:</span>
+                <span className="font-bold text-[#29ABE2]">{createdTeacherCreds.username}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-slate-500 font-sans">Email:</span>
+                <span className="font-bold text-slate-800">{createdTeacherCreds.email}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 font-sans font-bold">Password:</span>
+                <span className="font-bold text-slate-900">{createdTeacherCreds.password}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`Teacher Name: ${createdTeacherCreds.name}\nUsername: ${createdTeacherCreds.username}\nEmail: ${createdTeacherCreds.email}\nPassword: ${createdTeacherCreds.password}`);
+                  toast.success("Teacher credentials copied to clipboard!");
+                }}
+                className="px-4 py-2 rounded-full border border-slate-200 text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+              >
+                Copy Credentials
+              </button>
+              <button
+                onClick={() => {
+                  setCreatedTeacherCreds(null);
+                  setShowSingleModal(false);
+                }}
+                className="px-6 py-2 rounded-full bg-[#29ABE2] text-white text-xs font-medium hover:bg-[#0e7fb1] transition"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>
