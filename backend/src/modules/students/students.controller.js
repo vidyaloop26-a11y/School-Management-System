@@ -3,8 +3,8 @@ const studentsService = require("./students.service");
 const { ROLES } = require("../../middleware/rbac");
 
 const list = catchAsync(async (req, res) => {
-  const students = await studentsService.listStudents({ user: req.user, query: req.query });
-  res.json({ success: true, students });
+  const data = await studentsService.listStudents({ user: req.user, query: req.query });
+  res.json({ success: true, ...data });
 });
 
 const get = catchAsync(async (req, res) => {
@@ -13,8 +13,8 @@ const get = catchAsync(async (req, res) => {
 });
 
 const create = catchAsync(async (req, res) => {
-  const student = await studentsService.createStudent({ user: req.user, data: req.body });
-  res.status(201).json({ success: true, student });
+  const result = await studentsService.createStudent({ user: req.user, data: req.body });
+  res.status(201).json({ success: true, ...result });
 });
 
 const update = catchAsync(async (req, res) => {

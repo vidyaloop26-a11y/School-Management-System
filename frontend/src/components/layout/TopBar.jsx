@@ -1,16 +1,37 @@
-import React from "react";
-import { Bell, Search, ChevronDown, Menu, LogOut } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Bell, Search, ChevronDown, Menu, LogOut, Building2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
-import { useAuth } from "@/lib/AuthContext";
-import { useDataStore } from "@/lib/dataStore";
+import { useRole } from "@/lib/RoleContext";
 import DemoBadge from "@/components/common/DemoBadge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import api from "@/lib/api";
 
 export default function TopBar({ onOpenPalette, onOpenSidebar }) {
-  const { user, logout } = useAuth();
-  const { schools, activeSchoolId, setActiveSchoolId } = useDataStore();
+  const { user, role, logout } = useRole();
+  const isSuperAdmin = role === "superAdmin" || user?.role === "superAdmin";
+
+  const [schoolsList, setSchoolsList] = useState([]);
+  const [activeSchoolId, setActiveSchoolIdState] = useState(() => {
+    return localStorage.getItem("vidyaloop_active_school_id") || "all";
+  });
+
+  // Load real multi-tenant schools from backend API
+  useEffect(() => {
+    api.getSchools()
+      .then((res) => {
+        const list = Array.isArray(res) ? res : (res?.schools || []);
+        setSchoolsList(list);
+      })
+      .catch(() => setSchoolsList([]));
+  }, []);
+
+  const handleSchoolChange = (id) => {
+    setActiveSchoolIdState(id);
+    localStorage.setItem("vidyaloop_active_school_id", id);
+    window.dispatchEvent(new Event("schoolScopeChanged"));
+  };
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/50 bg-white/55 backdrop-blur-xl">
@@ -43,23 +64,29 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
           </button>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* Active School Selector */}
-            <Select value={activeSchoolId} onValueChange={setActiveSchoolId}>
-              <SelectTrigger data-testid="school-scope-selector" className="h-9 px-3 text-[12px] font-semibold bg-white/80 rounded-full border-slate-200 w-[150px] md:w-[200px] text-slate-700">
-                <SelectValue placeholder="Select School" />
-              </SelectTrigger>
-              <SelectContent>
-                {schools.map((s) => (
-                  <SelectItem key={s.id} value={s.id} className="text-[12.5px]">
-                    <span className="font-mono text-[11px] font-bold text-slate-400 mr-1.5">{s.code}</span>
-                    {s.name}
+            {/* SuperAdmin Multi-Tenant School Selector */}
+            {isSuperAdmin && (
+              <Select value={activeSchoolId} onValueChange={handleSchoolChange}>
+                <SelectTrigger data-testid="school-scope-selector" className="h-9 px-3 text-[12px] font-semibold bg-white/80 rounded-full border-blue-200 w-[150px] md:w-[220px] text-[#0c6a99]">
+                  <Building2 className="h-3.5 w-3.5 text-[#29ABE2] mr-1 shrink-0" />
+                  <SelectValue placeholder="Select School" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-[12.5px] font-bold">
+                    🏢 All Schools View
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  {schoolsList.map((s) => (
+                    <SelectItem key={s.id} value={s.id} className="text-[12.5px]">
+                      <span className="font-mono text-[11px] font-bold text-slate-400 mr-1.5">{s.code}</span>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
             <DemoBadge className="hidden lg:inline-flex" />
-            
+
             <Popover>
               <PopoverTrigger asChild>
                 <button

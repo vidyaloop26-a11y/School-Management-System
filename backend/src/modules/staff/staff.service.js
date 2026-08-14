@@ -3,13 +3,25 @@ const { ApiError } = require("../../lib/errors");
 const authService = require("../auth/auth.service");
 const { generateTempPassword, generateUsername } = require("../../utils/credentials");
 
-function resolveSchoolScope(user, query = {}) {
-  if (user.role === "superAdmin") return query.schoolId || null;
+async function resolveSchoolScope(user, query = {}) {
+  if (user.role === "superAdmin") {
+    if (!query.schoolId || query.schoolId === "all") return null;
+    const cleanId = String(query.schoolId).replace(/^"|"$/g, "").trim();
+    if (!cleanId || cleanId === "all") return null;
+
+    const school = await prisma.school.findFirst({
+      where: {
+        OR: [{ id: cleanId }, { code: cleanId }],
+      },
+      select: { id: true },
+    });
+    return school ? school.id : cleanId;
+  }
   return user.schoolId;
 }
 
 async function listStaff({ user, query }) {
-  const schoolId = resolveSchoolScope(user, query);
+  const schoolId = await resolveSchoolScope(user, query);
   const where = {
     ...(schoolId ? { schoolId } : {}),
     ...(query.dept ? { dept: query.dept } : {}),
@@ -28,129 +40,124 @@ async function getStaff({ user, id }) {
   const staff = await prisma.staff.findUnique({ where: { id } });
   if (!staff) throw new ApiError(404, "Staff member not found");
   if (user.schoolId && staff.schoolId !== user.schoolId) {
-    throw new ApiError(403, "Staff member does not belong to your school");
+    throw new ApiError(403, "Access denied");
   }
   return staff;
 }
 
-// Creates a staff member. When the job title is "Teacher", a teacher portal
-// account is generated with credentials (returned once).
 async function createStaff({ user, data }) {
-  const schoolId = user.role === "superAdmin" ? data.schoolId : user.schoolId;
-  if (!schoolId) throw new ApiError(400, "A school is required to add staff");
+  const schoolId = user.schoolId || data.schoolId;
+  if (!schoolId) throw new ApiError(400, "School ID required");
 
-  const school = await prisma.school.findUnique({ where: { id: schoolId } });
-  if (!school) throw new ApiError(404, "School not found");
-
-  const existing = await prisma.staff.findUnique({
-    where: { schoolId_staffId: { schoolId, staffId: data.staffId } },
+  const staff = await prisma.staff.create({
+    data: {
+      schoolId,
+      staffId: data.staffId,
+      name: data.name,
+      jobTitle: data.jobTitle,
+      dept: data.dept,
+      subject: data.subject,
+      qualification: data.qualification,
+      email: data.email,
+      phone: data.phone,
+      status: data.status || "Active",
+      joined: data.joined,
+    },
   });
-  if (existing) throw new ApiError(409, "Staff member with this ID already exists");
 
-  if (data.email) {
-    const emailTaken = await prisma.user.findUnique({ where: { email: data.email.toLowerCase() } });
-    if (emailTaken) throw new ApiError(409, "A user with that email already exists");
-  }
-
-  const isTeacher = data.jobTitle.toLowerCase() === "teacher";
-
-  const result = await prisma.$transaction(async (tx) => {
-    const staff = await tx.staff.create({
+  if (data.jobTitle === "Teacher" || data.role === "teacher") {
+    const tempPassword = generateTempPassword();
+    const username = await generateUsername(data.staffId, prisma);
+    const teacherUser = await prisma.user.create({
       data: {
-        schoolId,
-        staffId: data.staffId,
         name: data.name,
-        jobTitle: data.jobTitle,
-        dept: data.dept,
-        subject: data.subject,
-        qualification: data.qualification,
-        phone: data.phone,
-        email: data.email || null,
-        joined: data.joined,
-        status: data.status || "Active",
+        email: data.email?.toLowerCase().trim() || `${data.staffId.toLowerCase()}@vidyaloop.local`,
+        username,
+        passwordHash: await authService.hashPassword(tempPassword),
+        role: "teacher",
+        schoolId,
+        staffId: staff.id,
+        mustChangePassword: true,
       },
     });
 
-    let credentials = null;
-    if (isTeacher) {
-      const tempPassword = generateTempPassword();
-      const username = await generateUsername(data.staffId, tx);
-      const syntheticEmail = data.email
-        ? data.email.toLowerCase()
-        : `${data.staffId.toLowerCase()}@vidyaloop.local`;
+    return {
+      staff,
+      credentials: {
+        username: teacherUser.username,
+        email: teacherUser.email,
+        tempPassword,
+      },
+    };
+  }
 
-      await tx.user.create({
-        data: {
-          name: data.name,
-          email: syntheticEmail,
-          username,
-          passwordHash: await authService.hashPassword(tempPassword),
-          role: "teacher",
-          schoolId,
-          staffId: staff.id,
-          mustChangePassword: true,
-        },
-      });
+  return { staff };
+}
 
-      credentials = {
-        username,
-        email: data.email || null,
-        password: tempPassword,
-        note: "Teacher portal login — ask them to change the password on first login.",
-      };
-    }
-
-    return { staff, credentials };
-  });
-
-  return { ...result.staff, credentials: result.credentials };
+async function bulkCreateStaff({ user, staff }) {
+  const schoolId = user.schoolId;
+  let count = 0;
+  for (const s of staff) {
+    const targetSchoolId = schoolId || s.schoolId;
+    if (!targetSchoolId) continue;
+    await prisma.staff.upsert({
+      where: { schoolId_staffId: { schoolId: targetSchoolId, staffId: s.staffId } },
+      create: {
+        schoolId: targetSchoolId,
+        staffId: s.staffId,
+        name: s.name,
+        jobTitle: s.jobTitle,
+        dept: s.dept,
+        subject: s.subject,
+        qualification: s.qualification,
+        email: s.email,
+        phone: s.phone,
+        status: s.status || "Active",
+        joined: s.joined,
+      },
+      update: {
+        name: s.name,
+        jobTitle: s.jobTitle,
+        dept: s.dept,
+        subject: s.subject,
+      },
+    });
+    count++;
+  }
+  return { successCount: count };
 }
 
 async function updateStaff({ user, id, data }) {
-  const existing = await prisma.staff.findUnique({ where: { id } });
+  const existing = await prisma.staff.findUnique({
+    where: { id },
+    include: { user: true },
+  });
   if (!existing) throw new ApiError(404, "Staff member not found");
   if (user.schoolId && existing.schoolId !== user.schoolId) {
-    throw new ApiError(403, "Staff member does not belong to your school");
-  }
-  const staff = await prisma.staff.update({ where: { id }, data });
-  return staff;
-}
-
-async function deleteStaff({ user, id }) {
-  const existing = await prisma.staff.findUnique({ where: { id } });
-  if (!existing) throw new ApiError(404, "Staff member not found");
-  if (user.schoolId && existing.schoolId !== user.schoolId) {
-    throw new ApiError(403, "Staff member does not belong to your school");
-  }
-  await prisma.staff.delete({ where: { id } });
-  return existing;
-}
-
-// Regenerates the login for a staff member (school admin).
-async function resetStaffPassword({ user, id }) {
-  const staff = await prisma.staff.findUnique({ where: { id } });
-  if (!staff) throw new ApiError(404, "Staff member not found");
-  if (user.schoolId && staff.schoolId !== user.schoolId) {
-    throw new ApiError(403, "Staff member does not belong to your school");
+    throw new ApiError(403, "Access denied");
   }
 
-  const staffUser = await prisma.user.findFirst({ where: { staffId: staff.id } });
-  if (!staffUser) throw new ApiError(404, "No portal account linked to this staff member");
-
-  const tempPassword = generateTempPassword();
-  await prisma.user.update({
-    where: { id: staffUser.id },
-    data: { passwordHash: await authService.hashPassword(tempPassword), mustChangePassword: true },
+  const updatedStaff = await prisma.staff.update({
+    where: { id },
+    data,
   });
 
-  return { staffId: staff.id, username: staffUser.username, password: tempPassword };
+  if (data.status && existing.user) {
+    const isActive = data.status === "Active";
+    await prisma.user.update({
+      where: { id: existing.user.id },
+      data: { isActive },
+    });
+  }
+
+  return updatedStaff;
 }
 
 module.exports = {
   listStaff,
   getStaff,
   createStaff,
+  bulkCreateStaff,
   updateStaff,
-  deleteStaff,
-  resetStaffPassword,
+  resolveSchoolScope,
 };

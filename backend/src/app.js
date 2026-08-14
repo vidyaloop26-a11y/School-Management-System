@@ -16,6 +16,7 @@ const staffRoutes = require("./modules/staff/staff.routes");
 const timetableRoutes = require("./modules/timetable/timetable.routes");
 const attendanceRoutes = require("./modules/attendance/attendance.routes");
 const dashboardRoutes = require("./modules/dashboard/dashboard.routes");
+const examinationRoutes = require("./modules/examination/examination.routes");
 
 const app = express();
 const api = express.Router();
@@ -47,6 +48,7 @@ api.use("/staff", staffRoutes);
 api.use("/timetable", timetableRoutes);
 api.use("/attendance", attendanceRoutes);
 api.use("/dashboard", dashboardRoutes);
+api.use("/examination", examinationRoutes);
 
 app.use("/api", api);
 app.use(notFound);
