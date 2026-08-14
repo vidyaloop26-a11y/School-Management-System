@@ -2,8 +2,14 @@
 // (rs0) that Prisma requires when running against MongoDB.
 // Usage: node scripts/init-replica-set.js
 const { MongoClient } = require("mongodb");
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-const uri = process.env.MONGO_URI || "mongodb://127.0.0.1:27018";
+const rawUri = process.env.MONGO_URI || process.env.DATABASE_URL || "mongodb://127.0.0.1:27017";
+// Strip database path and query params for admin connection
+const hostMatch = rawUri.match(/mongodb:\/\/(127\.0\.0\.1|localhost)(:\d+)?/);
+const host = hostMatch ? hostMatch[0].replace("mongodb://", "") : "127.0.0.1:27017";
+const uri = `mongodb://${host}`;
 
 (async () => {
   const client = new MongoClient(uri, { directConnection: true });
@@ -16,13 +22,13 @@ const uri = process.env.MONGO_URI || "mongodb://127.0.0.1:27018";
       return;
     }
     await admin.command({
-      replSetInitiate: { _id: "rs0", members: [{ _id: 0, host: "127.0.0.1:27018" }] },
+      replSetInitiate: { _id: "rs0", members: [{ _id: 0, host }] },
     });
-    console.log("Replica set rs0 initialised on 127.0.0.1:27018");
+    console.log(`Replica set rs0 initialised on ${host}`);
   } finally {
     await client.close();
   }
 })().catch((err) => {
   console.error("Failed to initialise replica set:", err.message);
   process.exitCode = 1;
-});
+});

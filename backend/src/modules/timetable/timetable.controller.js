@@ -11,11 +11,12 @@ const getClass = catchAsync(async (req, res) => {
 });
 
 const getByTeacher = catchAsync(async (req, res) => {
-  const entries = await timetableService.getStaffTimetable({
+  const staffId = req.query.staffId || req.user.staffId;
+  const data = await timetableService.getStaffTimetable({
     user: req.user,
-    staffId: req.query.staffId,
+    staffId,
   });
-  res.json({ success: true, entries });
+  res.json({ success: true, ...data });
 });
 
 const upsertClass = catchAsync(async (req, res) => {

@@ -17,6 +17,11 @@ const create = catchAsync(async (req, res) => {
   res.status(201).json({ success: true, student });
 });
 
+const bulkCreate = catchAsync(async (req, res) => {
+  const result = await studentsService.bulkCreateStudents({ user: req.user, students: req.body.students });
+  res.status(201).json({ success: true, ...result });
+});
+
 const update = catchAsync(async (req, res) => {
   const isTeacherCorrection = req.user.role === ROLES.TEACHER;
   if (req.user.role === ROLES.PARENT) {
@@ -41,4 +46,4 @@ const resetParent = catchAsync(async (req, res) => {
   res.json({ success: true, ...result });
 });
 
-module.exports = { list, get, create, update, remove, resetParent };
+module.exports = { list, get, create, bulkCreate, update, remove, resetParent };

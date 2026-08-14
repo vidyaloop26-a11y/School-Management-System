@@ -37,9 +37,9 @@ async function schoolAdminDashboard(schoolId) {
     where: { schoolId, status: "Active" },
   });
 
-  const today = new Date();
+  const todayUtc = attendanceService.toUtcDate(todayKey());
   const markedToday = await prisma.attendanceRecord.count({
-    where: { schoolId, date: today },
+    where: { schoolId, date: todayUtc },
   });
   const activeStudents = await prisma.student.count({
     where: { schoolId, status: "Active" },
@@ -68,9 +68,9 @@ async function teacherDashboard(user) {
   });
   const classesList = classGroups.map((c) => `${c.cls}-${c.section}`);
 
-  const today = new Date();
+  const todayUtc = attendanceService.toUtcDate(todayKey());
   const markedToday = await prisma.attendanceRecord.count({
-    where: { schoolId: staff.schoolId, date: today, markedById: user.id },
+    where: { schoolId: staff.schoolId, date: todayUtc, markedById: user.id },
   });
 
   return {

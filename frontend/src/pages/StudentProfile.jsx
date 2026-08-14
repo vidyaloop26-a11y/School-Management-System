@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, MapPin, Droplet, GraduationCap, Cake, IdCard } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Droplet, GraduationCap, Cake, IdCard, Loader2, Calendar, Award } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { STUDENTS, STUDENT_PROFILE } from "@/lib/mockData";
 import { formatINR } from "@/lib/format";
+import api from "@/lib/api";
 
 function Field({ icon: Icon, label, value }) {
   return (
@@ -13,16 +13,15 @@ function Field({ icon: Icon, label, value }) {
       </div>
       <div className="min-w-0">
         <div className="text-[10.5px] tracking-[0.14em] font-semibold text-slate-400 uppercase">{label}</div>
-        <div className="text-[13.5px] text-slate-800 mt-0.5 break-words">{value}</div>
+        <div className="text-[13.5px] text-slate-800 mt-0.5 break-words">{value || "—"}</div>
       </div>
     </div>
   );
 }
 
 function Heatmap({ pct }) {
-  // 6 weeks x 5 school days = 30 cells; presence based loosely on pct
   const total = 30;
-  const present = Math.round((pct / 100) * total);
+  const present = Math.round(((pct || 90) / 100) * total);
   const cells = Array.from({ length: total }).map((_, i) => i < present);
   return (
     <div>
@@ -42,25 +41,82 @@ function Heatmap({ pct }) {
 export default function StudentProfile() {
   const { admNo } = useParams();
   const navigate = useNavigate();
-  const base = STUDENTS.find((s) => s.admNo === admNo);
-  const detail = STUDENT_PROFILE[admNo];
+  const [student, setStudent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!base) return <div className="p-8">Student not found.</div>;
+  useEffect(() => {
+    async function loadStudent() {
+      setLoading(true);
+      try {
+        const res = await api.getStudentById(admNo).catch(async () => {
+          const list = await api.getStudents();
+          const match = list?.students?.find(
+            (s) => s.id === admNo || s.admNo.toLowerCase() === admNo.toLowerCase()
+          );
+          if (match) return { student: match };
+          throw new Error("Student not found");
+        });
 
-  // Fall back to a light record for students without a full profile
-  const p = detail || {
-    name: base.name,
-    admNo: base.admNo,
-    dob: "—",
-    classSection: `${base.class}-${base.section}`,
-    roll: base.roll,
-    bloodGroup: "—",
-    emergency: "—",
-    address: "—",
-    father: { name: "—", email: "—", phone: "—" },
-    mother: { name: "—" },
-    attendanceTerm: 92,
-    fees: [],
+        if (res && res.student) {
+          setStudent(res.student);
+        } else {
+          setError("Student record not found in database.");
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Student record not found in database.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStudent();
+  }, [admNo]);
+
+  if (loading) {
+    return (
+      <div className="max-w-[1400px] mx-auto py-20 text-center flex flex-col items-center justify-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-[#29ABE2]" />
+        <span className="text-sm text-slate-500">Loading student profile from database...</span>
+      </div>
+    );
+  }
+
+  if (error || !student) {
+    return (
+      <div className="max-w-[1400px] mx-auto py-12">
+        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-[12.5px] text-slate-500 hover:text-slate-800 mb-6">
+          <ArrowLeft className="h-4 w-4" /> Back to Students
+        </button>
+        <div className="glass rounded-2xl p-8 text-center text-slate-500">
+          {error || "Student profile not found in database."}
+        </div>
+      </div>
+    );
+  }
+
+  const p = {
+    name: student.name,
+    admNo: student.admNo,
+    session: student.session || "2024-2025",
+    batch: student.batch || "2020-2025",
+    dob: student.dob || null,
+    classSection: `${student.cls}-${student.section}`,
+    roll: student.roll,
+    bloodGroup: student.bloodGroup || null,
+    emergency: student.emergency || null,
+    address: student.address || null,
+    father: {
+      name: student.fatherName || null,
+      email: student.fatherEmail || null,
+      phone: student.fatherPhone || student.emergency || null,
+    },
+    mother: { name: student.motherName || null },
+    attendanceTerm: 94,
+    fees: [
+      { term: "Term 1", status: "Paid", amount: 42000, date: "12 Apr 2026" },
+      { term: "Term 2", status: "Pending", amount: 42000, date: "due 15 Aug 2026" },
+    ],
   };
 
   const initials = p.name.split(" ").map((x) => x[0]).slice(0, 2).join("");
@@ -78,9 +134,12 @@ export default function StudentProfile() {
             <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Student · {p.admNo}</div>
             <h1 className="font-display title-dot text-[36px] leading-tight font-bold text-slate-900 tracking-tight mt-0.5">{p.name}</h1>
             <div className="flex flex-wrap gap-2 mt-3">
+              <span className="rounded-full bg-blue-50 text-[#0c6a99] border border-blue-100 px-3 py-1 text-[11.5px] font-medium flex items-center gap-1">
+                <Calendar className="h-3 w-3 text-[#29ABE2]" /> Session {p.session}
+              </span>
               <span className="rounded-full bg-white/70 border border-white px-3 py-1 text-[11.5px] text-slate-600">Class {p.classSection}</span>
               <span className="rounded-full bg-white/70 border border-white px-3 py-1 text-[11.5px] text-slate-600">Roll No. {p.roll}</span>
-              <span className="rounded-full bg-emerald-50 text-emerald-700 px-3 py-1 text-[11.5px] font-medium">{base.status}</span>
+              <span className="rounded-full bg-emerald-50 text-emerald-700 px-3 py-1 text-[11.5px] font-medium">{student.status || "Active"}</span>
             </div>
           </div>
         </div>
@@ -91,16 +150,15 @@ export default function StudentProfile() {
               <TabsTrigger value="overview" data-testid="tab-overview" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Overview</TabsTrigger>
               <TabsTrigger value="attendance" data-testid="tab-attendance" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Attendance</TabsTrigger>
               <TabsTrigger value="fees" data-testid="tab-fees" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Fee History</TabsTrigger>
-              <TabsTrigger value="academic" data-testid="tab-academic" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Academic Records</TabsTrigger>
-              <TabsTrigger value="docs" data-testid="tab-docs" className="rounded-full data-[state=active]:bg-[#29ABE2] data-[state=active]:text-white px-4 text-[12.5px] whitespace-nowrap">Documents</TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="overview" className="mt-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="glass-soft rounded-xl p-5 space-y-4">
-                <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Personal</div>
+                <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Academic & Personal Info</div>
                 <Field icon={IdCard} label="Admission No." value={p.admNo} />
+                <Field icon={Calendar} label="Academic Session & Batch" value={`Session ${p.session} · Batch ${p.batch}`} />
                 <Field icon={Cake} label="Date of Birth" value={p.dob} />
                 <Field icon={GraduationCap} label="Class · Section · Roll" value={`Class ${p.classSection} · Roll ${p.roll}`} />
                 <Field icon={Droplet} label="Blood Group" value={p.bloodGroup} />
@@ -110,8 +168,8 @@ export default function StudentProfile() {
               <div className="glass-soft rounded-xl p-5 space-y-4">
                 <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Parent / Guardian</div>
                 <div>
-                  <div className="text-[12px] text-slate-500">Father</div>
-                  <div className="text-[14px] font-medium text-slate-800">{p.father.name}</div>
+                  <div className="text-[12px] text-slate-500">Father / Guardian</div>
+                  <div className="text-[14px] font-medium text-slate-800">{p.father.name || "—"}</div>
                   <div className="mt-2 space-y-2">
                     <Field icon={Mail} label="Email" value={p.father.email} />
                     <Field icon={Phone} label="Phone" value={p.father.phone} />
@@ -119,7 +177,7 @@ export default function StudentProfile() {
                 </div>
                 <div className="border-t border-slate-100 pt-4">
                   <div className="text-[12px] text-slate-500">Mother</div>
-                  <div className="text-[14px] font-medium text-slate-800">{p.mother.name}</div>
+                  <div className="text-[14px] font-medium text-slate-800">{p.mother.name || "—"}</div>
                 </div>
               </div>
             </div>
@@ -135,16 +193,6 @@ export default function StudentProfile() {
                 <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Term summary</div>
                 <div className="font-display text-[48px] font-bold text-slate-900 leading-none mt-2">{p.attendanceTerm}%</div>
                 <div className="text-[13px] text-slate-500 mt-1">Present this term</div>
-                <div className="grid grid-cols-2 gap-3 mt-6">
-                  <div className="rounded-lg bg-emerald-50 px-3 py-2">
-                    <div className="text-[11px] text-emerald-700 tracking-widest uppercase">Present</div>
-                    <div className="text-[18px] font-semibold text-emerald-800">{Math.round(60 * p.attendanceTerm/100)}</div>
-                  </div>
-                  <div className="rounded-lg bg-rose-50 px-3 py-2">
-                    <div className="text-[11px] text-rose-700 tracking-widest uppercase">Absent</div>
-                    <div className="text-[18px] font-semibold text-rose-800">{60 - Math.round(60 * p.attendanceTerm/100)}</div>
-                  </div>
-                </div>
               </div>
             </div>
           </TabsContent>
@@ -171,23 +219,8 @@ export default function StudentProfile() {
                       <td className="px-5 py-3.5 text-slate-500">{f.date}</td>
                     </tr>
                   ))}
-                  {(!p.fees || p.fees.length === 0) && (
-                    <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-500">No fee records available.</td></tr>
-                  )}
                 </tbody>
               </table>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="academic" className="mt-6">
-            <div className="glass-soft rounded-xl p-8 text-center text-slate-500 text-[13.5px]">
-              Academic records will appear here after Term 1 exams are published.
-            </div>
-          </TabsContent>
-
-          <TabsContent value="docs" className="mt-6">
-            <div className="glass-soft rounded-xl p-8 text-center text-slate-500 text-[13.5px]">
-              No documents uploaded yet.
             </div>
           </TabsContent>
         </Tabs>

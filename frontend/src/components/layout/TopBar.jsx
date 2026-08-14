@@ -1,13 +1,32 @@
 import React from "react";
-import { Bell, Search, ChevronDown, Menu } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Bell, Search, Menu, LogOut, User } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
 import { useRole } from "@/lib/RoleContext";
 import DemoBadge from "@/components/common/DemoBadge";
+import { toast } from "@/components/ui/sonner";
 
 export default function TopBar({ onOpenPalette, onOpenSidebar }) {
-  const { role, setRole } = useRole();
+  const navigate = useNavigate();
+  const { user, role, logout } = useRole();
+
+  const handleLogout = () => {
+    logout();
+    toast.success("Logged out successfully");
+    navigate("/login");
+  };
+
+  const getInitials = (name) => {
+    if (!name) return "VD";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .substring(0, 2)
+      .toUpperCase();
+  };
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/50 bg-white/55 backdrop-blur-xl">
@@ -41,26 +60,10 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
 
           <div className="ml-auto flex items-center gap-2">
             <DemoBadge className="hidden lg:inline-flex" />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  data-testid="role-switcher"
-                  className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition px-3 py-2 text-[12.5px] text-slate-600"
-                >
-                  <span className="hidden md:inline text-slate-400">Viewing as:</span>
-                  <span className="font-medium text-slate-800">{role}</span>
-                  <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[160px]">
-                {["Admin","Teacher","Parent"].map((r) => (
-                  <DropdownMenuItem key={r} onClick={() => setRole(r)} data-testid={`role-option-${r.toLowerCase()}`}>
-                    {r}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
 
+
+
+            {/* Notifications */}
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -76,9 +79,39 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
               </PopoverContent>
             </Popover>
 
-            <div data-testid="user-avatar" className="h-10 w-10 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-[12px] font-semibold shadow-sm border border-white">
-              RD
-            </div>
+            {/* User Profile & Logout Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  data-testid="user-avatar-btn"
+                  className="h-10 w-10 rounded-full bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-[12px] font-semibold shadow-sm border border-white cursor-pointer hover:scale-105 transition"
+                >
+                  {getInitials(user?.name)}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl shadow-xl border-slate-200">
+                <div className="px-3 py-2 border-b border-slate-100 mb-1">
+                  <div className="font-semibold text-slate-800 text-sm truncate">{user?.name || "User"}</div>
+                  <div className="text-[11px] text-slate-500 truncate">{user?.email || "user@vidyaloop.in"}</div>
+                  <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium border border-blue-200">
+                    {role}
+                  </span>
+                </div>
+
+                <DropdownMenuItem onClick={() => navigate("/login")} className="rounded-xl text-xs py-2 text-slate-700 cursor-pointer">
+                  <User className="h-4 w-4 mr-2 text-slate-500" /> Switch Account
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="rounded-xl text-xs py-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50 cursor-pointer font-medium"
+                >
+                  <LogOut className="h-4 w-4 mr-2" /> Log Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
