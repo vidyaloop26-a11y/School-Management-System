@@ -15,13 +15,20 @@ router.use(authenticate);
 router.get("/", validateQuery(listQuerySchema), staffController.list);
 router.get("/:id", validateQuery(staffIdParam, "params"), staffController.get);
 
-// Create / delete / reset password — school admin only (teachers cannot add users).
+// Create single or bulk staff
 router.post(
   "/",
   requireRole(ROLES.SCHOOL_ADMIN),
   validate(createStaffSchema),
   staffController.create
 );
+
+router.post(
+  "/bulk",
+  requireRole(ROLES.SCHOOL_ADMIN),
+  staffController.bulkCreate
+);
+
 router.put(
   "/:id",
   validateQuery(staffIdParam, "params"),
@@ -29,12 +36,14 @@ router.put(
   validate(updateStaffSchema),
   staffController.update
 );
+
 router.delete(
   "/:id",
   validateQuery(staffIdParam, "params"),
   requireRole(ROLES.SCHOOL_ADMIN),
   staffController.remove
 );
+
 router.post(
   "/:id/reset-password",
   validateQuery(staffIdParam, "params"),

@@ -12,8 +12,14 @@ const get = catchAsync(async (req, res) => {
 });
 
 const create = catchAsync(async (req, res) => {
-  const member = await staffService.createStaff({ user: req.user, data: req.body });
-  res.status(201).json({ success: true, staff: member });
+  const result = await staffService.createStaff({ user: req.user, data: req.body });
+  res.status(201).json({ success: true, ...result });
+});
+
+const bulkCreate = catchAsync(async (req, res) => {
+  const staffMembers = req.body.staff || req.body.staffMembers || [];
+  const result = await staffService.bulkCreateStaff({ user: req.user, staff: staffMembers });
+  res.status(201).json({ success: true, ...result });
 });
 
 const update = catchAsync(async (req, res) => {
@@ -31,4 +37,4 @@ const resetPassword = catchAsync(async (req, res) => {
   res.json({ success: true, ...result });
 });
 
-module.exports = { list, get, create, update, remove, resetPassword };
+module.exports = { list, get, create, bulkCreate, update, remove, resetPassword };

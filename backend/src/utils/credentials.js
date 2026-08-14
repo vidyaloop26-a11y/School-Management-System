@@ -1,6 +1,5 @@
 const env = require("../config/env");
 const prisma = require("../lib/prisma");
-const { ApiError, catchAsync } = require("../lib/errors");
 
 // Generates a random temporary password for generated credentials.
 function generateTempPassword(len = 10) {
@@ -12,16 +11,33 @@ function generateTempPassword(len = 10) {
   return buf.join("");
 }
 
-// Builds a deterministic-ish unique username for a credential holder.
+// Builds a deterministic unique username for a user, guaranteeing no duplicates.
 async function generateUsername(base, prisma) {
-  let candidate = base.toLowerCase().replace(/[^a-z0-9]/g, "");
+  let candidate = (base || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   if (!candidate) candidate = "user";
+  let finalUsername = candidate;
   let suffix = 0;
-  while (await prisma.user.findUnique({ where: { username: candidate } })) {
+  while (await prisma.user.findUnique({ where: { username: finalUsername } })) {
     suffix += 1;
-    candidate = `${base.toLowerCase().replace(/[^a-z0-9]/g, "")}${suffix}`;
+    finalUsername = `${candidate}${suffix}`;
   }
-  return candidate;
+  return finalUsername;
 }
 
-module.exports = { generateTempPassword, generateUsername };
+// Guarantees that an email address is unique in the User collection.
+async function ensureUniqueEmail(emailBase, prisma) {
+  let candidate = (emailBase || "").toLowerCase().trim();
+  if (!candidate || !candidate.includes("@")) {
+    candidate = "user@vidyaloop.local";
+  }
+  let [local, domain] = candidate.split("@");
+  let finalEmail = candidate;
+  let counter = 0;
+  while (await prisma.user.findUnique({ where: { email: finalEmail } })) {
+    counter++;
+    finalEmail = `${local}${counter}@${domain}`;
+  }
+  return finalEmail;
+}
+
+module.exports = { generateTempPassword, generateUsername, ensureUniqueEmail };

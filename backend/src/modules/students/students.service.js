@@ -1,7 +1,7 @@
 const prisma = require("../../lib/prisma");
 const { ApiError } = require("../../lib/errors");
 const authService = require("../auth/auth.service");
-const { generateTempPassword, generateUsername } = require("../../utils/credentials");
+const { generateTempPassword, generateUsername, ensureUniqueEmail } = require("../../utils/credentials");
 
 async function resolveSchoolScope(user, query = {}) {
   if (user.role === "superAdmin") {
@@ -22,16 +22,14 @@ async function resolveSchoolScope(user, query = {}) {
 
 async function listStudents({ user, query }) {
   const schoolId = await resolveSchoolScope(user, query);
+
   const where = {
     ...(schoolId ? { schoolId } : {}),
     ...(query.cls ? { cls: query.cls } : {}),
     ...(query.section ? { section: query.section } : {}),
+    ...(query.session ? { session: query.session } : {}),
     ...(query.status ? { status: query.status } : {}),
   };
-
-  if (user.role === "parent") {
-    where.id = user.studentId || "000000000000000000000000";
-  }
 
   if (query.search) {
     where.OR = [
@@ -65,14 +63,24 @@ async function createStudent({ user, data }) {
   const schoolId = user.schoolId || data.schoolId;
   if (!schoolId) throw new ApiError(400, "School ID required");
 
+  const cleanAdmNo = data.admNo.trim().toUpperCase();
+
+  // Prevent duplicate admission number within the same school
+  const existingStudent = await prisma.student.findFirst({
+    where: { schoolId, admNo: cleanAdmNo },
+  });
+  if (existingStudent) {
+    throw new ApiError(409, `A student with Admission No. '${cleanAdmNo}' already exists in this school.`);
+  }
+
   const student = await prisma.student.create({
     data: {
       schoolId,
-      admNo: data.admNo,
+      admNo: cleanAdmNo,
       name: data.name,
       cls: data.cls,
       section: data.section,
-      roll: data.roll || 1,
+      roll: data.roll ? parseInt(data.roll, 10) : 1,
       session: data.session || "2024-2025",
       batch: data.batch || "2020-2025",
       dob: data.dob,
@@ -89,11 +97,13 @@ async function createStudent({ user, data }) {
 
   if (data.parentEmail) {
     const tempPassword = generateTempPassword();
-    const username = await generateUsername(`${data.admNo}-parent`, prisma);
+    const username = await generateUsername(`${cleanAdmNo}-parent`, prisma);
+    const email = await ensureUniqueEmail(data.parentEmail, prisma);
+
     const parentUser = await prisma.user.create({
       data: {
         name: data.fatherName || `Parent of ${data.name}`,
-        email: data.parentEmail.toLowerCase().trim(),
+        email,
         username,
         passwordHash: await authService.hashPassword(tempPassword),
         role: "parent",
@@ -121,18 +131,27 @@ async function bulkCreateStudents({ user, students }) {
   if (!schoolId && user.role !== "superAdmin") throw new ApiError(400, "School ID required");
 
   let count = 0;
+  const processedAdmNos = new Set();
+
   for (const s of students) {
     const targetSchoolId = schoolId || s.schoolId;
-    if (!targetSchoolId) continue;
+    if (!targetSchoolId || !s.admNo) continue;
+
+    const cleanAdmNo = s.admNo.trim().toUpperCase();
+
+    // Deduplicate within the same batch
+    if (processedAdmNos.has(cleanAdmNo)) continue;
+    processedAdmNos.add(cleanAdmNo);
+
     await prisma.student.upsert({
-      where: { schoolId_admNo: { schoolId: targetSchoolId, admNo: s.admNo } },
+      where: { schoolId_admNo: { schoolId: targetSchoolId, admNo: cleanAdmNo } },
       create: {
         schoolId: targetSchoolId,
-        admNo: s.admNo,
+        admNo: cleanAdmNo,
         name: s.name,
         cls: s.cls,
         section: s.section,
-        roll: s.roll || 1,
+        roll: s.roll ? parseInt(s.roll, 10) : 1,
         session: s.session || "2024-2025",
         batch: s.batch || "2020-2025",
         dob: s.dob,
@@ -149,7 +168,7 @@ async function bulkCreateStudents({ user, students }) {
         name: s.name,
         cls: s.cls,
         section: s.section,
-        roll: s.roll || 1,
+        roll: s.roll ? parseInt(s.roll, 10) : 1,
         session: s.session || "2024-2025",
         batch: s.batch || "2020-2025",
       },
@@ -164,7 +183,18 @@ async function updateStudent({ user, id, data }) {
   const existing = await prisma.student.findUnique({ where: { id } });
   if (!existing) throw new ApiError(404, "Student not found");
   if (user.schoolId && existing.schoolId !== user.schoolId) {
-    throw new ApiError(403, "Access denied");
+    throw new ApiError(403, "Access denied to other school's student");
+  }
+
+  if (data.admNo && data.admNo.trim().toUpperCase() !== existing.admNo) {
+    const cleanAdmNo = data.admNo.trim().toUpperCase();
+    const duplicate = await prisma.student.findFirst({
+      where: { schoolId: existing.schoolId, admNo: cleanAdmNo, NOT: { id } },
+    });
+    if (duplicate) {
+      throw new ApiError(409, `A student with Admission No. '${cleanAdmNo}' already exists in this school.`);
+    }
+    data.admNo = cleanAdmNo;
   }
 
   return prisma.student.update({
