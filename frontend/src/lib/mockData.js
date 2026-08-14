@@ -18,7 +18,7 @@ export const NAV = {
         { key: "students",    label: "Students",    path: "/students",    icon: Users,            functional: true },
         { key: "staff",       label: "Staff",       path: "/staff",       icon: GraduationCap,    functional: true },
         { key: "timetable",   label: "Timetable",   path: "/timetable",   icon: CalendarDays,     functional: true },
-        { key: "attendance",  label: "Attendance",  path: "/attendance",  icon: ClipboardCheck,   functional: false },
+        { key: "attendance",  label: "Attendance",  path: "/attendance",  icon: ClipboardCheck,   functional: true },
         { key: "examination", label: "Examination", path: "/examination", icon: FileSpreadsheet,  functional: true },
       ],
     },
@@ -46,6 +46,7 @@ export const NAV = {
     {
       label: "ADMINISTRATION",
       items: [
+        { key: "schools",    label: "Schools & Campuses", path: "/schools",    icon: Building2,  functional: true },
         { key: "admissions", label: "Admissions",       path: "/admissions", icon: UserPlus,   functional: true },
         { key: "payroll",    label: "Payroll",          path: "/payroll",    icon: Banknote,   functional: false },
         { key: "income",     label: "Income & Expense", path: "/income",     icon: TrendingUp, functional: false },

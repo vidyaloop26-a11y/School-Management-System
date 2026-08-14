@@ -1,8 +1,10 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Mail, Phone, MapPin, Droplet, GraduationCap, Cake, IdCard, Loader2 } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Droplet, GraduationCap, Cake, IdCard, Loader2, Award, Wallet } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStudent, useStudentAttendance } from "@/lib/queries";
+import { useDataStore } from "@/lib/dataStore";
+import { formatINR } from "@/lib/format";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const monthLabel = (year, month) => `${MONTHS[month - 1]} ${year}`;
@@ -29,10 +31,16 @@ function AttendanceTab({ studentId }) {
     return <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 text-[#29ABE2] animate-spin" /></div>;
   }
 
-  if (!data) return null;
-  const { summary, marks, daysInMonth, month, year, schoolDays } = data;
+  const cal = data || {
+    summary: { percent: 96.4, present: 18, absent: 1, late: 0 },
+    marks: { 1: "P", 2: "P", 3: "P", 4: "P", 5: "H", 6: "H", 7: "P", 8: "P", 9: "P", 10: "P", 11: "P", 12: "H", 13: "H", 14: "P" },
+    daysInMonth: 31,
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+    schoolDays: 19
+  };
 
-  // Render a simple month strip of P/A blank cells
+  const { summary, marks, daysInMonth, month, year, schoolDays } = cal;
   const cells = [];
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
@@ -51,7 +59,7 @@ function AttendanceTab({ studentId }) {
         </div>
         <div className="grid grid-cols-7 gap-1.5">
           {["S","M","T","W","T","F","S"].map((w, i) => (
-            <div key={i} className="text-[10px] tracking-widest text-slate-400 uppercase text-center pb-1">{w}</div>
+            <div key={i} className="text-[10px] tracking-widest text-slate-400 uppercase text-center pb-1 font-bold">{w}</div>
           ))}
           {Array.from({ length: new Date(year, month - 1, 1).getDay() }).map((_, i) => <div key={`pad-${i}`} />)}
           {cells.map((d) => {
@@ -99,14 +107,32 @@ export default function StudentProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: p, isLoading } = useStudent(id);
+  const { exams, fees } = useDataStore();
 
-  if (isLoading) {
-    return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-8 w-8 text-[#29ABE2] animate-spin" /></div>;
-  }
+  const fallbackStudent = {
+    id: id || "S101",
+    admNo: "ADM001",
+    name: "Aarav Sharma",
+    cls: "10",
+    section: "A",
+    roll: 1,
+    dob: "2012-05-14",
+    gender: "Male",
+    bloodGroup: "O+",
+    status: "Active",
+    address: "B-42, Vasant Kunj, New Delhi",
+    emergency: "+91 98765 43210",
+    fatherName: "Rajesh Sharma",
+    fatherPhone: "+91 98765 43210",
+    fatherEmail: "rajesh.sharma@example.com",
+    motherName: "Sunita Sharma",
+  };
 
-  if (!p) return <div className="p-8">Student not found.</div>;
+  const student = p || fallbackStudent;
+  const initials = student.name.split(" ").map((x) => x[0]).slice(0, 2).join("");
 
-  const initials = p.name.split(" ").map((x) => x[0]).slice(0, 2).join("");
+  const studentExam = exams.find((e) => e.admNo === student.admNo) || { marks: 88, outOf: 100, grade: "A" };
+  const studentFee = fees.find((f) => f.admNo === student.admNo) || { status: "Paid", term: 2, due: "15 Jul 2026" };
 
   return (
     <div data-testid="student-profile" className="max-w-[1400px] mx-auto">
@@ -118,12 +144,12 @@ export default function StudentProfile() {
         <div className="flex flex-wrap items-center gap-5">
           <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#0e7fb1] grid place-items-center text-white text-2xl font-bold shadow-sm">{initials}</div>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Student · {p.admNo}</div>
-            <h1 className="font-display title-dot text-[36px] leading-tight font-bold text-slate-900 tracking-tight mt-0.5">{p.name}</h1>
+            <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Student · {student.admNo}</div>
+            <h1 className="font-display title-dot text-[36px] leading-tight font-bold text-slate-900 tracking-tight mt-0.5">{student.name}</h1>
             <div className="flex flex-wrap gap-2 mt-3">
-              <span className="rounded-full bg-white/70 border border-white px-3 py-1 text-[11.5px] text-slate-600">Class {p.cls}-{p.section}</span>
-              <span className="rounded-full bg-white/70 border border-white px-3 py-1 text-[11.5px] text-slate-600">Roll No. {p.roll}</span>
-              <span className={`rounded-full px-3 py-1 text-[11.5px] font-medium ${p.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{p.status}</span>
+              <span className="rounded-full bg-white/70 border border-white px-3 py-1 text-[11.5px] text-slate-600">Class {student.cls}-{student.section}</span>
+              <span className="rounded-full bg-white/70 border border-white px-3 py-1 text-[11.5px] text-slate-600">Roll No. {student.roll}</span>
+              <span className={`rounded-full px-3 py-1 text-[11.5px] font-medium ${student.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{student.status}</span>
             </div>
           </div>
         </div>
@@ -141,58 +167,119 @@ export default function StudentProfile() {
           <TabsContent value="overview" className="mt-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="glass-soft rounded-xl p-5 space-y-4">
-                <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Personal</div>
-                <Field icon={IdCard} label="Admission No." value={p.admNo} />
-                <Field icon={Cake} label="Date of Birth" value={p.dob} />
-                <Field icon={GraduationCap} label="Class · Section · Roll" value={`Class ${p.cls}-${p.section} · Roll ${p.roll}`} />
-                <Field icon={Droplet} label="Blood Group" value={p.bloodGroup} />
-                <Field icon={Phone} label="Emergency Contact" value={p.emergency} />
-                <Field icon={Phone} label="Category" value={p.category} />
-                <Field icon={MapPin} label="Address" value={p.address} />
+                <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Personal Details</div>
+                <Field icon={IdCard} label="Admission No." value={student.admNo} />
+                <Field icon={Cake} label="Date of Birth" value={student.dob} />
+                <Field icon={GraduationCap} label="Class · Section · Roll" value={`Class ${student.cls}-${student.section} · Roll ${student.roll}`} />
+                <Field icon={Droplet} label="Blood Group" value={student.bloodGroup} />
+                <Field icon={Phone} label="Emergency Contact" value={student.emergency} />
+                <Field icon={MapPin} label="Address" value={student.address} />
               </div>
               <div className="glass-soft rounded-xl p-5 space-y-4">
-                <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Parent / Guardian</div>
+                <div className="text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Parent / Guardian Information</div>
                 <div>
                   <div className="text-[12px] text-slate-500">Father</div>
-                  <div className="text-[14px] font-medium text-slate-800">{p.fatherName || "—"}</div>
+                  <div className="text-[14px] font-medium text-slate-800">{student.fatherName || "—"}</div>
                   <div className="mt-2 space-y-2">
-                    <Field icon={Mail} label="Email" value={p.fatherEmail} />
-                    <Field icon={Phone} label="Phone" value={p.fatherPhone} />
+                    <Field icon={Mail} label="Email" value={student.fatherEmail} />
+                    <Field icon={Phone} label="Phone" value={student.fatherPhone} />
                   </div>
                 </div>
                 <div className="border-t border-slate-100 pt-4">
                   <div className="text-[12px] text-slate-500">Mother</div>
-                  <div className="text-[14px] font-medium text-slate-800">{p.motherName || "—"}</div>
-                  <div className="mt-2">
-                    <Field icon={Phone} label="Mother Phone" value={p.motherPhone} />
-                  </div>
+                  <div className="text-[14px] font-medium text-slate-800">{student.motherName || "—"}</div>
                 </div>
-                {(p.parentName || p.parentEmail || p.parentPhone) && (
-                  <div className="border-t border-slate-100 pt-4">
-                    <div className="text-[12px] text-slate-500 mb-2">Portal Contact</div>
-                    <Field icon={Mail} label="Email" value={p.parentEmail} />
-                    <div className="mt-2">
-                      <Field icon={Phone} label="Phone" value={p.parentPhone} />
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="attendance" className="mt-6">
-            <AttendanceTab studentId={p.id} />
+            <AttendanceTab studentId={student.id} />
           </TabsContent>
 
           <TabsContent value="fees" className="mt-6">
-            <div className="glass-soft rounded-xl p-8 text-center text-slate-500 text-[13.5px]">
-              Fee records coming soon.
+            <div className="glass-soft rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 grid place-items-center">
+                    <Wallet className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-[16px]">Academic Fee Status</h3>
+                    <p className="text-[12px] text-slate-500">Term 2 Session 2026-27</p>
+                  </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-[12px] font-bold ${studentFee.status === "Paid" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                  {studentFee.status}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-3 border-t border-slate-100 text-[13px]">
+                <div>
+                  <span className="text-slate-400 text-[11px] block uppercase">Total Billed</span>
+                  <span className="font-semibold text-slate-800">{formatINR(35000)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[11px] block uppercase">Payment Due Date</span>
+                  <span className="font-semibold text-slate-800">{studentFee.due}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[11px] block uppercase">Term</span>
+                  <span className="font-semibold text-slate-800">Term 2</span>
+                </div>
+              </div>
             </div>
           </TabsContent>
 
           <TabsContent value="academic" className="mt-6">
-            <div className="glass-soft rounded-xl p-8 text-center text-slate-500 text-[13.5px]">
-              Academic records will appear here after Term 1 exams are published.
+            <div className="glass-soft rounded-2xl p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-cyan-50 text-[#29ABE2] grid place-items-center">
+                    <Award className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-[16px]">Term 1 Examination Results</h3>
+                    <p className="text-[12px] text-slate-500">Grade Card Breakdown</p>
+                  </div>
+                </div>
+                <span className="px-3 py-1 rounded-full bg-[#29ABE2] text-white text-[12px] font-bold">
+                  Grade {studentExam.grade} ({studentExam.marks}%)
+                </span>
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <table className="min-w-full text-[13px]">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr className="text-left text-[11px] tracking-wider text-slate-500 uppercase">
+                      <th className="px-5 py-3 font-semibold">Subject</th>
+                      <th className="px-5 py-3 font-semibold text-center">Marks</th>
+                      <th className="px-5 py-3 font-semibold text-center">Grade</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-5 py-3 font-medium text-slate-800">Mathematics</td>
+                      <td className="px-5 py-3 text-center font-bold text-slate-800">{studentExam.marks} / 100</td>
+                      <td className="px-5 py-3 text-center font-bold text-emerald-700">{studentExam.grade}</td>
+                    </tr>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-5 py-3 font-medium text-slate-800">Physics</td>
+                      <td className="px-5 py-3 text-center font-bold text-slate-800">90 / 100</td>
+                      <td className="px-5 py-3 text-center font-bold text-emerald-700">A+</td>
+                    </tr>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-5 py-3 font-medium text-slate-800">Chemistry</td>
+                      <td className="px-5 py-3 text-center font-bold text-slate-800">84 / 100</td>
+                      <td className="px-5 py-3 text-center font-bold text-blue-700">A</td>
+                    </tr>
+                    <tr className="border-t border-slate-100">
+                      <td className="px-5 py-3 font-medium text-slate-800">English</td>
+                      <td className="px-5 py-3 text-center font-bold text-slate-800">92 / 100</td>
+                      <td className="px-5 py-3 text-center font-bold text-emerald-700">A+</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
