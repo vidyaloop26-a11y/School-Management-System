@@ -1,6 +1,5 @@
-// Simple JSON Web Token wrapper around `jsonwebtoken`.
-
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const env = require("../config/env");
 
 function signAccessToken(user) {
@@ -25,9 +24,14 @@ function verifyRefreshToken(token) {
   return jwt.verify(token, env.refreshSecret);
 }
 
+function hashToken(raw) {
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
 module.exports = {
   signAccessToken,
   signRefreshToken,
   verifyAccessToken,
   verifyRefreshToken,
+  hashToken,
 };
