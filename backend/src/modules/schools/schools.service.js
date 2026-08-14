@@ -2,35 +2,39 @@ const prisma = require("../../lib/prisma");
 const { ApiError } = require("../../lib/errors");
 const authService = require("../auth/auth.service");
 
-// Creates a School and, in the same transaction, the schoolAdmin login.
-// Returns the admin credentials once — they are never stored in plaintext.
+// Creates a School and, in the same transaction, auto-generates the schoolAdmin login credentials.
 async function createSchool(data) {
-  const existing = await prisma.school.findUnique({ where: { code: data.code } });
-  if (existing) throw new ApiError(409, "A school with that code already exists");
-  if (await authService.findUserByEmail(data.adminEmail)) {
-    throw new ApiError(409, "A user with that email already exists");
+  const code = data.code.toUpperCase().trim();
+  const existing = await prisma.school.findUnique({ where: { code } });
+  if (existing) throw new ApiError(409, `A school with code '${code}' already exists`);
+
+  const adminName = data.adminName || `${data.name} Admin`;
+  const adminEmail = (data.adminEmail || `admin.${code.toLowerCase()}@vidyaloop.in`).toLowerCase().trim();
+  const adminUsername = (data.adminUsername || adminEmail).toLowerCase().trim();
+
+  if (await authService.findUserByEmail(adminEmail)) {
+    throw new ApiError(409, `User with email '${adminEmail}' already exists`);
   }
 
-  const adminPasswordHash = await authService.hashPassword(data.adminPassword);
+  const generatedPassword = data.adminPassword || `${code}@Admin2026`;
+  const adminPasswordHash = await authService.hashPassword(generatedPassword);
 
   const school = await prisma.$transaction(async (tx) => {
     const created = await tx.school.create({
       data: {
         name: data.name,
-        code: data.code.toUpperCase(),
-        board: data.board,
-        address: data.address,
-        phone: data.phone,
-        email: data.email,
-        session: data.session,
+        code,
+        board: data.board || "CBSE",
+        address: data.address || data.city || "India",
+        session: data.session || "2024-2025",
       },
     });
 
     await tx.user.create({
       data: {
-        name: data.adminName,
-        email: data.adminEmail.toLowerCase().trim(),
-        username: data.adminEmail.toLowerCase().trim(), // MongoDB unique index requires non-null username
+        name: adminName,
+        email: adminEmail,
+        username: adminUsername,
         passwordHash: adminPasswordHash,
         role: "schoolAdmin",
         schoolId: created.id,
@@ -44,10 +48,12 @@ async function createSchool(data) {
   return {
     school,
     credentials: {
-      name: data.adminName,
-      email: data.adminEmail,
-      password: data.adminPassword,
-      username: data.adminEmail,
+      schoolName: school.name,
+      schoolCode: school.code,
+      adminName,
+      email: adminEmail,
+      username: adminUsername,
+      password: generatedPassword,
     },
   };
 }

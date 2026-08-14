@@ -12,10 +12,9 @@ const createSchoolSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal("").transform(() => undefined)),
   session: z.string().optional(),
-  // school admin account created alongside the school
-  adminName: z.string().min(1, "Admin name is required"),
-  adminEmail: z.string().email("Admin email is required"),
-  adminPassword: z.string().min(8, "Admin password must be at least 8 characters"),
+  adminName: z.string().optional().or(z.literal("").transform(() => undefined)),
+  adminEmail: z.string().email().optional().or(z.literal("").transform(() => undefined)),
+  adminPassword: z.string().min(6).optional().or(z.literal("").transform(() => undefined)),
 });
 
 const updateSchoolSchema = createSchoolSchema
