@@ -31,6 +31,31 @@ async function listStudents({ user, query }) {
     ...(query.status ? { status: query.status } : {}),
   };
 
+  // Class Isolation for Teacher Role:
+  // A teacher can ONLY view students belonging to their assigned Class and Section (as designated by School Admin).
+  if (user && user.role === "teacher") {
+    let assignedClass = null;
+    let assignedSection = null;
+
+    if (user.staffId) {
+      const staff = await prisma.staff.findUnique({
+        where: { id: user.staffId },
+        select: { assignedClass: true, assignedSection: true },
+      });
+      if (staff) {
+        assignedClass = staff.assignedClass;
+        assignedSection = staff.assignedSection;
+      }
+    }
+
+    if (assignedClass) {
+      where.cls = assignedClass;
+      if (assignedSection) {
+        where.section = assignedSection;
+      }
+    }
+  }
+
   if (query.search) {
     where.OR = [
       { name: { contains: query.search, mode: "insensitive" } },
@@ -56,6 +81,18 @@ async function getStudent({ user, id }) {
   if (user.schoolId && student.schoolId !== user.schoolId) {
     throw new ApiError(403, "Access denied to other school's student");
   }
+
+  // Teacher Class Isolation for single student access
+  if (user && user.role === "teacher" && user.staffId) {
+    const staff = await prisma.staff.findUnique({
+      where: { id: user.staffId },
+      select: { assignedClass: true, assignedSection: true },
+    });
+    if (staff && staff.assignedClass && student.cls !== staff.assignedClass) {
+      throw new ApiError(403, `Access denied. You are only authorized to view students in Class ${staff.assignedClass}.`);
+    }
+  }
+
   return student;
 }
 
@@ -139,7 +176,6 @@ async function bulkCreateStudents({ user, students }) {
 
     const cleanAdmNo = s.admNo.trim().toUpperCase();
 
-    // Deduplicate within the same batch
     if (processedAdmNos.has(cleanAdmNo)) continue;
     processedAdmNos.add(cleanAdmNo);
 

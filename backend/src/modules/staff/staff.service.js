@@ -70,6 +70,8 @@ async function createStaff({ user, data }) {
       qualification: data.qualification,
       email: data.email,
       phone: data.phone,
+      assignedClass: data.assignedClass || null,
+      assignedSection: data.assignedSection || null,
       status: data.status || "Active",
       joined: data.joined,
     },
@@ -103,6 +105,8 @@ async function createStaff({ user, data }) {
         username: teacherUser.username,
         email: teacherUser.email,
         password: tempPassword,
+        assignedClass: data.assignedClass,
+        assignedSection: data.assignedSection,
       },
     };
   }
@@ -122,7 +126,6 @@ async function bulkCreateStaff({ user, staff }) {
 
     const cleanStaffId = s.staffId.trim().toUpperCase();
 
-    // Prevent internal duplicate processing within the same CSV batch
     if (processedStaffIds.has(cleanStaffId)) continue;
     processedStaffIds.add(cleanStaffId);
 
@@ -138,6 +141,8 @@ async function bulkCreateStaff({ user, staff }) {
         qualification: s.qualification,
         email: s.email,
         phone: s.phone,
+        assignedClass: s.assignedClass || s.cls || null,
+        assignedSection: s.assignedSection || s.section || null,
         status: s.status || "Active",
         joined: s.joined,
       },
@@ -146,13 +151,14 @@ async function bulkCreateStaff({ user, staff }) {
         jobTitle: s.jobTitle,
         dept: s.dept,
         subject: s.subject,
+        assignedClass: s.assignedClass || s.cls || undefined,
+        assignedSection: s.assignedSection || s.section || undefined,
       },
     });
     count++;
 
     const isTeacher = s.jobTitle === "Teacher" || s.role === "teacher" || s.jobTitle?.includes("Teacher");
     if (isTeacher) {
-      // Check if user account already linked to this staff record
       const existingLinkedUser = await prisma.user.findFirst({
         where: { staffId: staffObj.id },
       });

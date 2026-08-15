@@ -9,6 +9,8 @@ const staffBase = {
   qualification: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal("")).optional(),
+  assignedClass: z.string().optional().or(z.literal("")).optional(),
+  assignedSection: z.string().optional().or(z.literal("")).optional(),
   joined: z.string().optional(),
   status: z.enum(["Active", "Inactive"]).optional(),
   schoolId: z.string().optional(),
