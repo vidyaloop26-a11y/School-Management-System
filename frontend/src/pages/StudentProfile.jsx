@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Mail, Phone, MapPin, Droplet, GraduationCap, Cake, IdCard, Loader2, Award, Wallet } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStudent, useStudentAttendance } from "@/lib/queries";
 import { useDataStore } from "@/lib/dataStore";
 import { formatINR } from "@/lib/format";
+import api from "@/lib/api";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const monthLabel = (year, month) => `${MONTHS[month - 1]} ${year}`;
@@ -103,11 +105,137 @@ function AttendanceTab({ studentId }) {
   );
 }
 
+function AcademicTab({ studentId }) {
+  const [reportCard, setReportCard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [session, setSession] = useState("2024-2025");
+  const [term, setTerm] = useState("Mid-Term");
+
+  const fetchReport = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.getStudentReportCard({ studentId, session, term });
+      setReportCard(res);
+    } catch (err) {
+      console.error("Failed to load live academic records:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [studentId, session, term]);
+
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-2">
+        <Loader2 className="h-6 w-6 text-[#29ABE2] animate-spin" />
+        <span className="text-xs">Loading live academic exam records...</span>
+      </div>
+    );
+  }
+
+  const subjects = reportCard?.subjects || [];
+
+  return (
+    <div className="glass-soft rounded-2xl p-6 space-y-5">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-cyan-50 text-[#29ABE2] grid place-items-center">
+            <Award className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-900 text-[16px]">{term} Examination Results</h3>
+            <p className="text-[12px] text-slate-500">Live Database Academic Grade Card · Session {session}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <Select value={session} onValueChange={setSession}>
+            <SelectTrigger className="h-8 text-[11px] font-bold rounded-full bg-white border-blue-200 text-[#0c6a99] w-[110px]">
+              <SelectValue placeholder="Session" />
+            </SelectTrigger>
+            <SelectContent>
+              {["2024-2025", "2023-2024", "2022-2023"].map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={term} onValueChange={setTerm}>
+            <SelectTrigger className="h-8 text-[11px] font-semibold rounded-full bg-white border-slate-200 w-[110px]">
+              <SelectValue placeholder="Term" />
+            </SelectTrigger>
+            <SelectContent>
+              {["Mid-Term", "Final Exam", "Unit Test 1", "Unit Test 2"].map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {reportCard && (
+            <span className="px-3.5 py-1 rounded-full bg-[#29ABE2] text-white text-[12px] font-bold shadow-xs shrink-0">
+              Overall: {reportCard.overallGrade} ({reportCard.percentage}%)
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <table className="min-w-full text-[13px]">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr className="text-left text-[11px] tracking-wider text-slate-500 uppercase">
+              <th className="px-5 py-3 font-semibold">Subject</th>
+              <th className="px-5 py-3 font-semibold text-center">Marks Obtained</th>
+              <th className="px-5 py-3 font-semibold text-center">Max Marks</th>
+              <th className="px-5 py-3 font-semibold text-center">Grade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {subjects.map((sub, idx) => (
+              <tr key={idx} className="border-t border-slate-100">
+                <td className="px-5 py-3 font-bold text-slate-800">{sub.subject}</td>
+                <td className="px-5 py-3 text-center font-mono font-bold text-[#0c6a99]">
+                  {sub.isEntered ? sub.marksObtained : "—"}
+                </td>
+                <td className="px-5 py-3 text-center font-mono text-slate-500">{sub.maxMarks}</td>
+                <td className="px-5 py-3 text-center">
+                  <span className={`inline-block px-2.5 py-0.5 rounded-full font-mono text-xs font-bold ${
+                    sub.grade === "A+" || sub.grade === "A"
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : sub.grade === "B+" || sub.grade === "B"
+                      ? "bg-blue-50 text-blue-700 border border-blue-200"
+                      : sub.grade === "C" || sub.grade === "D"
+                      ? "bg-amber-50 text-amber-700 border border-amber-200"
+                      : sub.grade === "F"
+                      ? "bg-rose-50 text-rose-700 border border-rose-200"
+                      : "bg-slate-100 text-slate-500 border border-slate-200"
+                  }`}>
+                    {sub.grade}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {subjects.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-5 py-8 text-center text-slate-500 text-xs">
+                  No academic exam records found for session {session}.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function StudentProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: p, isLoading } = useStudent(id);
-  const { exams, fees } = useDataStore();
+  const { fees } = useDataStore();
 
   const fallbackStudent = {
     id: id || "S101",
@@ -130,8 +258,6 @@ export default function StudentProfile() {
 
   const student = p || fallbackStudent;
   const initials = student.name.split(" ").map((x) => x[0]).slice(0, 2).join("");
-
-  const studentExam = exams.find((e) => e.admNo === student.admNo) || { marks: 88, outOf: 100, grade: "A" };
   const studentFee = fees.find((f) => f.admNo === student.admNo) || { status: "Paid", term: 2, due: "15 Jul 2026" };
 
   return (
@@ -231,56 +357,7 @@ export default function StudentProfile() {
           </TabsContent>
 
           <TabsContent value="academic" className="mt-6">
-            <div className="glass-soft rounded-2xl p-6 space-y-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-cyan-50 text-[#29ABE2] grid place-items-center">
-                    <Award className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-[16px]">Term 1 Examination Results</h3>
-                    <p className="text-[12px] text-slate-500">Grade Card Breakdown</p>
-                  </div>
-                </div>
-                <span className="px-3 py-1 rounded-full bg-[#29ABE2] text-white text-[12px] font-bold">
-                  Grade {studentExam.grade} ({studentExam.marks}%)
-                </span>
-              </div>
-
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                <table className="min-w-full text-[13px]">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr className="text-left text-[11px] tracking-wider text-slate-500 uppercase">
-                      <th className="px-5 py-3 font-semibold">Subject</th>
-                      <th className="px-5 py-3 font-semibold text-center">Marks</th>
-                      <th className="px-5 py-3 font-semibold text-center">Grade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t border-slate-100">
-                      <td className="px-5 py-3 font-medium text-slate-800">Mathematics</td>
-                      <td className="px-5 py-3 text-center font-bold text-slate-800">{studentExam.marks} / 100</td>
-                      <td className="px-5 py-3 text-center font-bold text-emerald-700">{studentExam.grade}</td>
-                    </tr>
-                    <tr className="border-t border-slate-100">
-                      <td className="px-5 py-3 font-medium text-slate-800">Physics</td>
-                      <td className="px-5 py-3 text-center font-bold text-slate-800">90 / 100</td>
-                      <td className="px-5 py-3 text-center font-bold text-emerald-700">A+</td>
-                    </tr>
-                    <tr className="border-t border-slate-100">
-                      <td className="px-5 py-3 font-medium text-slate-800">Chemistry</td>
-                      <td className="px-5 py-3 text-center font-bold text-slate-800">84 / 100</td>
-                      <td className="px-5 py-3 text-center font-bold text-blue-700">A</td>
-                    </tr>
-                    <tr className="border-t border-slate-100">
-                      <td className="px-5 py-3 font-medium text-slate-800">English</td>
-                      <td className="px-5 py-3 text-center font-bold text-slate-800">92 / 100</td>
-                      <td className="px-5 py-3 text-center font-bold text-emerald-700">A+</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <AcademicTab studentId={student.id} />
           </TabsContent>
         </Tabs>
       </div>
