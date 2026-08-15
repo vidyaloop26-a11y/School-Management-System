@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/common/PageHeader";
-import { Search, Plus, ChevronRight, Loader2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, UserPlus, KeyRound, Briefcase, GraduationCap, Phone, Mail, UserCheck } from "lucide-react";
+import { Search, Plus, ChevronRight, Loader2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, UserPlus, KeyRound, Briefcase, GraduationCap, Phone, Mail, UserCheck, Shield } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ExportButton from "@/components/common/ExportButton";
 import { toast } from "@/components/ui/sonner";
@@ -53,6 +53,8 @@ export default function Staff() {
     qualification: "M.Sc, B.Ed",
     email: "",
     phone: "",
+    assignedClass: "8",
+    assignedSection: "A",
     status: "Active",
     joined: new Date().toISOString().slice(0, 10),
   });
@@ -135,6 +137,8 @@ export default function Staff() {
         qualification: "M.Sc, B.Ed",
         email: "",
         phone: "",
+        assignedClass: "8",
+        assignedSection: "A",
         status: "Active",
         joined: new Date().toISOString().slice(0, 10),
       });
@@ -149,10 +153,10 @@ export default function Staff() {
   // CSV Template Downloader
   const downloadSampleCsv = () => {
     const csvContent =
-      "staffId,name,jobTitle,dept,subject,qualification,email,phone,status,joined\n" +
-      "VLS-107,Anjali Sharma,Teacher,Mathematics,Mathematics,M.Sc Maths B.Ed,anjali.sharma@vidyaloop.local,+91 9811003301,Active,2024-04-15\n" +
-      "VLS-108,Rohan Sen,Teacher,Science,Physics,M.Sc Physics B.Ed,rohan.sen@vidyaloop.local,+91 9811003302,Active,2024-04-15\n" +
-      "VLS-109,Sunita Kulkarni,Front Office,Administration,Front Office,B.A,sunita.k@vidyaloop.local,+91 9811003303,Inactive,2023-06-01";
+      "staffId,name,jobTitle,dept,subject,qualification,email,assignedClass,assignedSection,phone,status\n" +
+      "VLS-107,Anjali Sharma,Teacher,Mathematics,Mathematics,M.Sc Maths B.Ed,anjali.sharma@vidyaloop.local,8,A,+91 9811003301,Active\n" +
+      "VLS-108,Rohan Sen,Teacher,Science,Physics,M.Sc Physics B.Ed,rohan.sen@vidyaloop.local,10,B,+91 9811003302,Active\n" +
+      "VLS-109,Sunita Kulkarni,Front Office,Administration,Front Office,B.A,sunita.k@vidyaloop.local,,,+91 9811003303,Inactive";
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -201,6 +205,8 @@ export default function Staff() {
         qualification: rowObj.qualification || undefined,
         email: rowObj.email || undefined,
         phone: rowObj.phone || undefined,
+        assignedClass: rowObj.assignedClass || rowObj.cls || undefined,
+        assignedSection: rowObj.assignedSection || rowObj.section || undefined,
         status: rowObj.status || "Active",
         joined: rowObj.joined || new Date().toISOString().slice(0, 10),
         isValid,
@@ -251,7 +257,7 @@ export default function Staff() {
       <PageHeader
         eyebrow="SCHOOL ADMIN · STAFF DIRECTORY"
         title="Staff & Faculty Directory"
-        subtitle="Manage teachers, administrative personnel, and system role access."
+        subtitle="Manage teachers, Class Teacher assignments, administrative personnel, and system roles."
         right={
           <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <button
@@ -318,8 +324,9 @@ export default function Staff() {
                 { label: "Job Title", key: "jobTitle" },
                 { label: "Department", key: "dept" },
                 { label: "Subject", key: "subject" },
+                { label: "Assigned Class", key: "assignedClass" },
+                { label: "Assigned Section", key: "assignedSection" },
                 { label: "Email", key: "email" },
-                { label: "Phone", key: "phone" },
                 { label: "Status", key: "status" },
               ]}
             />
@@ -382,8 +389,20 @@ export default function Staff() {
                       <span className="font-semibold text-slate-800">{staff.subject}</span>
                     </div>
                   )}
+
+                  {staff.assignedClass && (
+                    <div className="flex items-center justify-between text-slate-600 pt-1">
+                      <span className="text-slate-500 flex items-center gap-1 font-semibold">
+                        <Shield className="h-3.5 w-3.5 text-[#29ABE2]" /> Class Teacher:
+                      </span>
+                      <span className="font-bold text-[#0c6a99] bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded-full text-[11px]">
+                        Class {staff.assignedClass}-{staff.assignedSection || "A"}
+                      </span>
+                    </div>
+                  )}
+
                   {staff.email && (
-                    <div className="flex items-center justify-between text-slate-600 truncate">
+                    <div className="flex items-center justify-between text-slate-600 truncate pt-1">
                       <span className="text-slate-500">Email:</span>
                       <span className="font-mono text-slate-700 truncate max-w-[170px]">{staff.email}</span>
                     </div>
@@ -400,7 +419,7 @@ export default function Staff() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-100">
             <h3 className="font-display font-bold text-lg text-slate-900 mb-1">Add Single Staff Member</h3>
-            <p className="text-xs text-slate-500 mb-4">Fill in member details. Creating a Teacher role auto-generates portal credentials.</p>
+            <p className="text-xs text-slate-500 mb-4">Fill in member details. Assigning Class Teacher role isolates student access to that class.</p>
 
             <form onSubmit={handleSingleSubmit} className="space-y-3.5 text-xs">
               <div className="grid grid-cols-2 gap-3">
@@ -456,6 +475,45 @@ export default function Staff() {
                   </Select>
                 </div>
               </div>
+
+              {/* Class Teacher Assignment Section */}
+              {singleForm.jobTitle === "Teacher" && (
+                <div className="grid grid-cols-2 gap-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Class Teacher Assignment (Class)</label>
+                    <Select
+                      value={singleForm.assignedClass || "none"}
+                      onValueChange={(val) => setSingleForm({ ...singleForm, assignedClass: val === "none" ? "" : val })}
+                    >
+                      <SelectTrigger className="w-full h-9 text-xs rounded-xl bg-white">
+                        <SelectValue placeholder="Select Class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None (General Subject Teacher)</SelectItem>
+                        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"].map((c) => (
+                          <SelectItem key={c} value={c}>Class {c}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-bold mb-1">Section</label>
+                    <Select
+                      value={singleForm.assignedSection || "A"}
+                      onValueChange={(val) => setSingleForm({ ...singleForm, assignedSection: val })}
+                    >
+                      <SelectTrigger className="w-full h-9 text-xs rounded-xl bg-white">
+                        <SelectValue placeholder="Select Section" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["A", "B", "C", "D", "E"].map((s) => (
+                          <SelectItem key={s} value={s}>Section {s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -537,7 +595,7 @@ export default function Staff() {
                   <FileSpreadsheet className="h-5 w-5 text-[#0c6a99] shrink-0" />
                   <div>
                     <div className="text-xs font-bold text-slate-800">1. Download CSV Sample Template</div>
-                    <div className="text-[11px] text-slate-500">Headers: staffId, name, jobTitle, dept, subject, qualification, email, phone, status</div>
+                    <div className="text-[11px] text-slate-500">Headers: staffId, name, jobTitle, dept, subject, qualification, email, assignedClass, assignedSection</div>
                   </div>
                 </div>
                 <button
@@ -582,7 +640,7 @@ export default function Staff() {
                           <th className="p-2 text-left">Staff ID</th>
                           <th className="p-2 text-left">Name</th>
                           <th className="p-2 text-left">Job Title</th>
-                          <th className="p-2 text-left">Dept</th>
+                          <th className="p-2 text-left">Assigned Class</th>
                           <th className="p-2 text-left">Status</th>
                         </tr>
                       </thead>
@@ -592,7 +650,7 @@ export default function Staff() {
                             <td className="p-2 font-mono">{r.staffId || "—"}</td>
                             <td className="p-2 font-medium">{r.name || "—"}</td>
                             <td className="p-2 font-semibold text-[#0c6a99]">{r.jobTitle}</td>
-                            <td className="p-2">{r.dept}</td>
+                            <td className="p-2 font-mono">{r.assignedClass ? `${r.assignedClass}-${r.assignedSection || "A"}` : "—"}</td>
                             <td className="p-2">
                               {r.isValid ? (
                                 <span className="text-emerald-700 font-bold flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Valid</span>
@@ -711,6 +769,12 @@ export default function Staff() {
               <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                 <span className="text-slate-500 font-sans">Email:</span>
                 <span className="font-bold text-slate-800">{createdTeacherCreds.email}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                <span className="text-slate-500 font-sans font-bold">Class Teacher Scope:</span>
+                <span className="font-bold text-[#0c6a99] font-sans">
+                  {createdTeacherCreds.assignedClass ? `Class ${createdTeacherCreds.assignedClass}-${createdTeacherCreds.assignedSection || "A"}` : "None"}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-slate-500 font-sans font-bold">Password:</span>

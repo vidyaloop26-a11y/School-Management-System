@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/common/PageHeader";
-import { Search, Plus, ChevronRight, Loader2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, UserPlus, Calendar, User, Phone, Mail, MapPin, Hash } from "lucide-react";
+import { Search, Plus, ChevronRight, Loader2, Upload, Download, FileSpreadsheet, CheckCircle2, AlertTriangle, UserPlus, Calendar, User, Phone, Mail, MapPin, Hash, Shield } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import ExportButton from "@/components/common/ExportButton";
 import { toast } from "@/components/ui/sonner";
@@ -241,6 +241,9 @@ export default function Students() {
     }
   };
 
+  const currentUser = JSON.parse(localStorage.getItem("vidyaloop_user") || "{}");
+  const isTeacherRole = currentUser?.role === "teacher";
+
   return (
     <div data-testid="students-page" className="max-w-[1400px] mx-auto px-2 sm:px-4">
       <PageHeader
@@ -271,6 +274,15 @@ export default function Students() {
           </div>
         }
       />
+
+      {isTeacherRole && (
+        <div className="bg-cyan-50/80 border border-cyan-200 rounded-2xl p-3.5 mb-5 flex items-center gap-3 text-xs text-[#0c6a99] font-medium shadow-sm">
+          <Shield className="h-4 w-4 text-[#29ABE2] shrink-0" />
+          <span>
+            <strong className="font-bold">Class Teacher Scope Active:</strong> You are authorized to view students belonging to your assigned Class & Section as designated by your School Admin.
+          </span>
+        </div>
+      )}
 
       <div className="glass rounded-2xl p-3 sm:p-5 reveal space-y-4">
         {/* Filter Controls Bar */}
