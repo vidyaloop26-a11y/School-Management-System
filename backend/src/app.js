@@ -17,6 +17,8 @@ const timetableRoutes = require("./modules/timetable/timetable.routes");
 const attendanceRoutes = require("./modules/attendance/attendance.routes");
 const dashboardRoutes = require("./modules/dashboard/dashboard.routes");
 const examinationRoutes = require("./modules/examination/examination.routes");
+const admissionsRoutes = require("./modules/admissions/admissions.routes");
+const communicationRoutes = require("./modules/communication/communication.routes");
 
 const app = express();
 const api = express.Router();
@@ -40,7 +42,15 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-api.get("/health", (req, res) => res.json({ success: true, message: "Vidyaloop API up" }));
+const prisma = require("./lib/prisma");
+api.get("/health", async (req, res) => {
+  try {
+    await prisma.$runCommandRaw({ ping: 1 });
+    res.json({ success: true, database: "connected", message: "Vidyaloop API up" });
+  } catch (err) {
+    res.status(500).json({ success: false, database: "disconnected", error: err.message });
+  }
+});
 api.use("/auth", authLimiter, authRoutes);
 api.use("/schools", schoolsRoutes);
 api.use("/students", studentsRoutes);
@@ -49,6 +59,9 @@ api.use("/timetable", timetableRoutes);
 api.use("/attendance", attendanceRoutes);
 api.use("/dashboard", dashboardRoutes);
 api.use("/examination", examinationRoutes);
+api.use("/admissions", admissionsRoutes);
+api.use("/communication", communicationRoutes);
+api.use("/notices", communicationRoutes);
 
 app.use("/api", api);
 app.use(notFound);

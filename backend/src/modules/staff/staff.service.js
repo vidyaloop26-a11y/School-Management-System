@@ -241,11 +241,32 @@ async function updateStaff({ user, id, data }) {
   return updatedStaff;
 }
 
+async function deleteStaff({ user, id }) {
+  const staff = await prisma.staff.findUnique({
+    where: { id },
+    include: { user: true },
+  });
+  if (!staff) throw new ApiError(404, "Staff member not found");
+  if (user.schoolId && staff.schoolId !== user.schoolId) {
+    throw new ApiError(403, "Access denied");
+  }
+
+  if (staff.user) {
+    await prisma.user.update({
+      where: { id: staff.user.id },
+      data: { isActive: false },
+    });
+  }
+
+  return prisma.staff.delete({ where: { id } });
+}
+
 module.exports = {
   listStaff,
   getStaff,
   createStaff,
   bulkCreateStaff,
   updateStaff,
+  deleteStaff,
   resolveSchoolScope,
 };

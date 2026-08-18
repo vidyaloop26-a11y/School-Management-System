@@ -50,7 +50,7 @@ async function main() {
     },
   });
   check("superadmin creates school + school admin creds", school.status === 201 && school.json.credentials, school.json);
-  const admin2 = await login("admin2@vidyaloop.in", "Admin@5678");
+  const admin2 = await login(`admin2.${stamp}@vidyaloop.in`, "Admin@5678");
   check("new school admin can login", admin2.status === 200);
 
   // 3. School admin (Vidyaloop) logins
@@ -62,7 +62,7 @@ async function main() {
   check("school admin lists students", list.status === 200 && list.json.students.length >= 4);
   const firstStudent = list.json.students[0];
   const one = await api("GET", `/students/${firstStudent ? firstStudent.id : ""}`, { token: adm.json.accessToken });
-  check("get single student", one.status === 200 && one.json.student.classSection);
+  check("get single student", one.status === 200 && one.json.student.cls && one.json.student.section);
 
   // 5. Create a student -> parent creds generated
   const newStu = await api("POST", "/students", {
@@ -77,10 +77,10 @@ async function main() {
       parentEmail: `test.parent.${stamp}@email.com`,
     },
   });
-  check("school admin adds student + parent creds", newStu.status === 201 && newStu.json.student.credentials && newStu.json.student.credentials.username, newStu.json.message);
+  check("school admin adds student + parent creds", newStu.status === 201 && newStu.json.parentAccount && newStu.json.parentAccount.username, newStu.json.message);
 
   // 6. Teacher login & RBAC
-  const teacher = await login("vls101", "XNqQqafxUY");
+  const teacher = await login("vls-101", "VLS-101@1234");
   check("teacher login", teacher.status === 200 && teacher.json.user.role === "teacher");
 
   const deniedCreate = await api("POST", "/students", {
@@ -104,7 +104,7 @@ async function main() {
   // 7. Teacher mark attendance + view
   const mark = await api("POST", "/attendance/mark", {
     token: teacher.json.accessToken,
-    body: { cls: "8", section: "A", date: "2026-08-08", marks: [{ studentId: firstStudent.id, status: "P" }] },
+    body: { cls: "8", section: "A", date: "2026-08-08", attendance: [{ studentId: firstStudent.id, status: "P" }] },
   });
   check("teacher marks attendance", mark.status === 200 && mark.json.summary.present === 1, mark.json);
   const roster = await api("GET", "/attendance?cls=8&section=A&date=2026-08-08", { token: teacher.json.accessToken });
@@ -117,7 +117,7 @@ async function main() {
   check("teacher timetable query exists", ttStaff.status === 422 || ttStaff.status === 200);
 
   // 9. Parent view own child
-  const seededParent = await login("vl2024001parent", "a2Urae5AhU");
+  const seededParent = await login("vl2024001-parent", "VL2024001@1234");
   check("parent login", seededParent.status === 200 && seededParent.json.user.role === "parent", seededParent.json.message);
   const kids = await api("GET", "/students", { token: seededParent.json.accessToken });
   check("parent lists (contains own child)", kids.status === 200 && kids.json.students.length === 1 && kids.json.students[0].admNo === "VL2024001", kids.json.message);

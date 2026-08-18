@@ -36,9 +36,15 @@ const remove = catchAsync(async (req, res) => {
   res.json({ success: true, deleted: student });
 });
 
+const bulkDelete = catchAsync(async (req, res) => {
+  const ids = req.body.ids || [];
+  const result = await studentsService.bulkDeleteStudents({ user: req.user, ids });
+  res.json({ success: true, ...result });
+});
+
 const resetParent = catchAsync(async (req, res) => {
   const result = await studentsService.resetParentPassword({ user: req.user, id: req.params.id });
   res.json({ success: true, ...result });
 });
 
-module.exports = { list, get, create, update, remove, resetParent };
+module.exports = { list, get, create, update, remove, bulkDelete, resetParent };

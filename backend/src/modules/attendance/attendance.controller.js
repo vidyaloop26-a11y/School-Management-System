@@ -19,6 +19,7 @@ const mark = catchAsync(async (req, res) => {
 
 const getForStudent = catchAsync(async (req, res) => {
   const data = await attendanceService.studentSummary({
+    user: req.user,
     studentId: req.query.studentId,
     month: req.query.month ? parseInt(req.query.month, 10) : undefined,
     year: req.query.year ? parseInt(req.query.year, 10) : undefined,
@@ -26,4 +27,14 @@ const getForStudent = catchAsync(async (req, res) => {
   res.json({ success: true, ...data });
 });
 
-module.exports = { getByClass, mark, getForStudent };
+const markers = catchAsync(async (req, res) => {
+  const data = await attendanceService.auditMarkers({ user: req.user, query: req.query });
+  res.json({ success: true, ...data });
+});
+
+const clear = catchAsync(async (req, res) => {
+  const data = await attendanceService.clearDayAttendance({ user: req.user, query: req.query });
+  res.json({ success: true, ...data });
+});
+
+module.exports = { getByClass, mark, getForStudent, markers, clear };

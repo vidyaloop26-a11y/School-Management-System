@@ -1,0 +1,36 @@
+# Render Blueprint for the Vidyaloop API backend.
+# Deploy on Render: New -> Blueprint -> select this repo.
+# MongoDB is NOT provided by Render — create a free cluster on MongoDB Atlas
+# and paste its connection string into DATABASE_URL when prompted.
+services:
+  - type: web
+    name: vidyaloop-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate
+    startCommand: node src/server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_TTL
+        value: 15m
+      - key: REFRESH_TOKEN_TTL_DAYS
+        value: 7
+      # Comma-separated list of allowed origins, e.g. https://your-app.vercel.app
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false

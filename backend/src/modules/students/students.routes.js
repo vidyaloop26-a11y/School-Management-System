@@ -9,6 +9,7 @@ const {
   teacherCorrectSchema,
   listQuerySchema,
   studentIdParam,
+  bulkDeleteSchema,
 } = require("./students.schema");
 
 // Every authenticated user can read students (parents see only their own child,
@@ -39,6 +40,12 @@ router.put(
 );
 
 // Delete + password reset — school admin only.
+router.delete(
+  "/",
+  requireRole(ROLES.SCHOOL_ADMIN),
+  validate(bulkDeleteSchema),
+  studentsController.bulkDelete
+);
 router.delete(
   "/:id",
   validateQuery(studentIdParam, "params"),

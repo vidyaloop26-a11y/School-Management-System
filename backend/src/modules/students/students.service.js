@@ -56,6 +56,12 @@ async function listStudents({ user, query }) {
     }
   }
 
+  // Parent isolation: a parent can ONLY ever see their own linked child.
+  if (user && user.role === "parent") {
+    if (!user.studentId) return { students: [] };
+    where.id = user.studentId;
+  }
+
   if (query.search) {
     where.OR = [
       { name: { contains: query.search, mode: "insensitive" } },
@@ -78,6 +84,15 @@ async function getStudent({ user, id }) {
     include: { school: { select: { name: true, code: true } } },
   });
   if (!student) throw new ApiError(404, "Student not found");
+
+  // Parent isolation: a parent can ONLY view their own linked child.
+  if (user && user.role === "parent") {
+    if (student.id !== user.studentId) {
+      throw new ApiError(403, "Access denied. Parents can only view their own child.");
+    }
+    return student;
+  }
+
   if (user.schoolId && student.schoolId !== user.schoolId) {
     throw new ApiError(403, "Access denied to other school's student");
   }
@@ -170,49 +185,50 @@ async function bulkCreateStudents({ user, students }) {
   let count = 0;
   const processedAdmNos = new Set();
 
-  for (const s of students) {
-    const targetSchoolId = schoolId || s.schoolId;
-    if (!targetSchoolId || !s.admNo) continue;
+  return prisma.$transaction(async (tx) => {
+    for (const s of students) {
+      const targetSchoolId = schoolId || s.schoolId;
+      if (!targetSchoolId || !s.admNo) continue;
 
-    const cleanAdmNo = s.admNo.trim().toUpperCase();
+      const cleanAdmNo = s.admNo.trim().toUpperCase();
 
-    if (processedAdmNos.has(cleanAdmNo)) continue;
-    processedAdmNos.add(cleanAdmNo);
+      if (processedAdmNos.has(cleanAdmNo)) continue;
+      processedAdmNos.add(cleanAdmNo);
 
-    await prisma.student.upsert({
-      where: { schoolId_admNo: { schoolId: targetSchoolId, admNo: cleanAdmNo } },
-      create: {
-        schoolId: targetSchoolId,
-        admNo: cleanAdmNo,
-        name: s.name,
-        cls: s.cls,
-        section: s.section,
-        roll: s.roll ? parseInt(s.roll, 10) : 1,
-        session: s.session || "2024-2025",
-        batch: s.batch || "2020-2025",
-        dob: s.dob,
-        bloodGroup: s.bloodGroup,
-        fatherName: s.fatherName,
-        fatherPhone: s.fatherPhone,
-        fatherEmail: s.fatherEmail,
-        motherName: s.motherName,
-        emergency: s.emergency,
-        address: s.address,
-        status: s.status || "Active",
-      },
-      update: {
-        name: s.name,
-        cls: s.cls,
-        section: s.section,
-        roll: s.roll ? parseInt(s.roll, 10) : 1,
-        session: s.session || "2024-2025",
-        batch: s.batch || "2020-2025",
-      },
-    });
-    count++;
-  }
-
-  return { successCount: count };
+      await tx.student.upsert({
+        where: { schoolId_admNo: { schoolId: targetSchoolId, admNo: cleanAdmNo } },
+        create: {
+          schoolId: targetSchoolId,
+          admNo: cleanAdmNo,
+          name: s.name,
+          cls: s.cls,
+          section: s.section,
+          roll: s.roll ? parseInt(s.roll, 10) : 1,
+          session: s.session || "2024-2025",
+          batch: s.batch || "2020-2025",
+          dob: s.dob,
+          bloodGroup: s.bloodGroup,
+          fatherName: s.fatherName,
+          fatherPhone: s.fatherPhone,
+          fatherEmail: s.fatherEmail,
+          motherName: s.motherName,
+          emergency: s.emergency,
+          address: s.address,
+          status: s.status || "Active",
+        },
+        update: {
+          name: s.name,
+          cls: s.cls,
+          section: s.section,
+          roll: s.roll ? parseInt(s.roll, 10) : 1,
+          session: s.session || "2024-2025",
+          batch: s.batch || "2020-2025",
+        },
+      });
+      count++;
+    }
+    return { successCount: count };
+  });
 }
 
 async function updateStudent({ user, id, data }) {
@@ -248,6 +264,54 @@ async function deleteStudent({ user, id }) {
   return prisma.student.delete({ where: { id } });
 }
 
+async function bulkDeleteStudents({ user, ids }) {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new ApiError(400, "Student IDs array required");
+  }
+  const where = {
+    id: { in: ids },
+  };
+  if (user.schoolId) {
+    where.schoolId = user.schoolId;
+  }
+  const result = await prisma.student.deleteMany({ where });
+  return { count: result.count };
+}
+
+async function resetParentPassword({ user, id }) {
+  const student = await prisma.student.findUnique({ where: { id } });
+  if (!student) throw new ApiError(404, "Student not found");
+  if (user.schoolId && student.schoolId !== user.schoolId) {
+    throw new ApiError(403, "Access denied");
+  }
+
+  const parentUser = await prisma.user.findFirst({
+    where: { studentId: id, role: "parent" },
+  });
+
+  if (!parentUser) {
+    throw new ApiError(404, "Parent account not found for this student");
+  }
+
+  const tempPassword = generateTempPassword();
+  const passwordHash = await authService.hashPassword(tempPassword);
+
+  await prisma.user.update({
+    where: { id: parentUser.id },
+    data: {
+      passwordHash,
+      mustChangePassword: true,
+    },
+  });
+
+  return {
+    success: true,
+    username: parentUser.username,
+    email: parentUser.email,
+    tempPassword,
+  };
+}
+
 module.exports = {
   listStudents,
   getStudent,
@@ -255,5 +319,7 @@ module.exports = {
   bulkCreateStudents,
   updateStudent,
   deleteStudent,
+  bulkDeleteStudents,
+  resetParentPassword,
   resolveSchoolScope,
 };

@@ -1,5 +1,6 @@
 const prisma = require("../../lib/prisma");
 const { ApiError } = require("../../lib/errors");
+const { ROLES } = require("../../middleware/rbac");
 
 const toUtcDate = (s) => {
   const [y, m, d] = s.split("-").map(Number);
@@ -57,10 +58,30 @@ async function markClassAttendance({ user, data }) {
   const schoolId = user.schoolId || data.schoolId;
   if (!schoolId) throw new ApiError(400, "School ID required");
 
+  // Class-teacher scoping: only the teacher appointed to this class/section may mark.
+  if (user.role === ROLES.TEACHER && user.staffId) {
+    const staff = await prisma.staff.findUnique({
+      where: { id: user.staffId },
+      select: { assignedClass: true, assignedSection: true },
+    });
+    if (!staff || staff.assignedClass !== data.cls || staff.assignedSection !== data.section) {
+      throw new ApiError(403, "Only the appointed class teacher may mark attendance for this class");
+    }
+  }
+
   const dateObj = toUtcDate(data.date);
 
+  let marks = data.attendance || data.marks || null;
+  if (!marks || marks.length === 0) {
+    const activeStudents = await prisma.student.findMany({
+      where: { schoolId, cls: data.cls, section: data.section, status: "Active" },
+      select: { id: true },
+    });
+    marks = activeStudents.map((s) => ({ studentId: s.id, status: "P" }));
+  }
+
   await prisma.$transaction(
-    data.attendance.map((a) =>
+    marks.map((a) =>
       prisma.attendanceRecord.upsert({
         where: { studentId_date: { studentId: a.studentId, date: dateObj } },
         create: {
@@ -80,12 +101,21 @@ async function markClassAttendance({ user, data }) {
     )
   );
 
-  return { success: true, count: data.attendance.length };
+  return { success: true, count: marks.length };
 }
 
-async function studentSummary({ studentId, month, year }) {
+async function studentSummary({ user, studentId, month, year }) {
   const student = await prisma.student.findUnique({ where: { id: studentId } });
   if (!student) throw new ApiError(404, "Student not found");
+
+  // Parent isolation: a parent can ONLY view their own child's attendance.
+  if (user && user.role === "parent") {
+    if (student.id !== user.studentId) {
+      throw new ApiError(403, "Access denied. Parents can only view their own child.");
+    }
+  } else if (user && user.role !== "superAdmin" && student.schoolId !== user.schoolId) {
+    throw new ApiError(403, "Access denied to other school's student attendance");
+  }
 
   const where = { studentId };
 
@@ -122,9 +152,62 @@ async function studentSummary({ studentId, month, year }) {
       late,
       holiday,
       percentage,
+      percent: percentage,
     },
     records,
   };
+}
+
+async function auditMarkers({ user, query }) {
+  const schoolId = await resolveSchoolScope(user, query);
+  if (!schoolId) throw new ApiError(403, "No school scope found");
+
+  const { cls, section, date } = query;
+  const where = { schoolId, ...(cls ? { cls } : {}), ...(section ? { section } : {}) };
+  if (date) where.date = toUtcDate(date);
+
+  const grouped = await prisma.attendanceRecord.groupBy({
+    by: ["markedById"],
+    where,
+    _count: { _all: true },
+  });
+
+  const markers = await Promise.all(
+    grouped.map(async (g) => {
+      const teacher = g.markedById
+        ? await prisma.user.findUnique({ where: { id: g.markedById }, select: { name: true, email: true } })
+        : null;
+      return {
+        markedById: g.markedById,
+        teacher: teacher ? { name: teacher.name, email: teacher.email } : null,
+        recordsMarked: g._count._all,
+      };
+    })
+  );
+
+  const latest = await prisma.attendanceRecord.findFirst({
+    where,
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true, markedById: true },
+  });
+
+  return { cls, section, date: date || null, markers, lastMarked: latest };
+}
+
+async function clearDayAttendance({ user, query }) {
+  const schoolId = await resolveSchoolScope(user, query);
+  if (!schoolId) throw new ApiError(403, "No school scope found");
+
+  const { cls, section, date } = query;
+  if (!cls || !section || !date) {
+    throw new ApiError(400, "Class, section and date are required to clear a day's attendance");
+  }
+
+  const result = await prisma.attendanceRecord.deleteMany({
+    where: { schoolId, cls, section, date: toUtcDate(date) },
+  });
+
+  return { success: true, deleted: result.count };
 }
 
 module.exports = {
@@ -134,4 +217,6 @@ module.exports = {
   markClassAttendance,
   studentSummary,
   resolveSchoolScope,
+  auditMarkers,
+  clearDayAttendance,
 };

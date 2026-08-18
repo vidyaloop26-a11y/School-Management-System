@@ -30,6 +30,12 @@ function calculateGrade(percentage) {
 }
 
 async function listClassExamRoster({ user, query }) {
+  // Parents never get the class-wide marks roster; they use the report card
+  // endpoint which is scoped to their own child.
+  if (user && user.role === "parent") {
+    throw new ApiError(403, "Access denied. Parents cannot view the class examination roster.");
+  }
+
   const schoolId = await resolveSchoolScope(user, query);
   const cls = query.cls || "8";
   const section = query.section || "A";
@@ -169,6 +175,15 @@ async function generateReportCard({ user, query }) {
 
   if (!student) throw new ApiError(404, "Student not found in database");
 
+  // Parent isolation: a parent can ONLY view their own child's report card.
+  if (user && user.role === "parent") {
+    if (student.id !== user.studentId) {
+      throw new ApiError(403, "Access denied. Parents can only view their own child.");
+    }
+  } else if (user && user.role !== "superAdmin" && student.schoolId !== user.schoolId) {
+    throw new ApiError(403, "Access denied to other school's student");
+  }
+
   const savedMarks = await prisma.examMark.findMany({
     where: { studentId, session, term },
   });
@@ -200,6 +215,34 @@ async function generateReportCard({ user, query }) {
   const percentage = Math.round((totalObtained / totalMax) * 100 * 100) / 100;
   const overallGrade = calculateGrade(percentage);
 
+  // Calculate the actual class rank
+  const classmates = await prisma.student.findMany({
+    where: { schoolId: student.schoolId, cls: student.cls, section: student.section, status: "Active" },
+    select: { id: true },
+  });
+
+  const classmatesMarks = await prisma.examMark.findMany({
+    where: {
+      studentId: { in: classmates.map((c) => c.id) },
+      session,
+      term,
+    },
+  });
+
+  const studentScores = classmates.map((cm) => {
+    const cmMarks = classmatesMarks.filter((m) => m.studentId === cm.id);
+    const totalObt = cmMarks.reduce((sum, m) => {
+      const val = typeof m.marksObtained === "number" ? m.marksObtained : parseFloat(m.marksObtained) || 0;
+      return sum + val;
+    }, 0);
+    return { studentId: cm.id, totalObt };
+  });
+
+  studentScores.sort((a, b) => b.totalObt - a.totalObt);
+  const rankIndex = studentScores.findIndex((s) => s.studentId === student.id);
+  const rankNumber = rankIndex !== -1 ? rankIndex + 1 : 1;
+  const classRank = `#${rankNumber} of ${classmates.length}`;
+
   return {
     studentName: student.name,
     admNo: student.admNo,
@@ -225,7 +268,7 @@ async function generateReportCard({ user, query }) {
     percentage,
     overallGrade: enteredSubjects.length === 0 ? "Pending" : overallGrade,
     status: enteredSubjects.length === 0 ? "GRADES PENDING" : (percentage >= 33 ? "PASSED" : "NEEDS IMPROVEMENT"),
-    classRank: "#1 of 25",
+    classRank,
   };
 }
 
