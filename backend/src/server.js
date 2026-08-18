@@ -27,3 +27,13 @@ process.on("SIGTERM", async () => {
   await prisma.$disconnect();
   process.exit(0);
 });
+process.on("unhandledRejection", async (reason) => {
+  console.error("💥 Unhandled Rejection at Promise:", reason);
+  await prisma.$disconnect();
+  process.exit(1);
+});
+process.on("uncaughtException", async (err) => {
+  console.error("💥 Uncaught Exception thrown:", err);
+  await prisma.$disconnect();
+  process.exit(1);
+});

@@ -55,6 +55,11 @@ async function login({ identifier, password }) {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) throw new ApiError(401, "Invalid credentials");
 
+  // Prune expired refresh tokens database-wide to keep the collection clean
+  await prisma.refreshToken.deleteMany({
+    where: { expiresAt: { lt: new Date() } },
+  });
+
   const refreshToken = signRefreshToken(user);
   await prisma.refreshToken.create({
     data: {
@@ -86,6 +91,11 @@ async function refresh(refreshToken) {
   if (!stored || stored.expiresAt < new Date()) {
     throw new ApiError(401, "Refresh token revoked or expired");
   }
+
+  // Prune expired refresh tokens
+  await prisma.refreshToken.deleteMany({
+    where: { expiresAt: { lt: new Date() } },
+  });
 
   const newRefreshToken = signRefreshToken(stored.user);
   await prisma.refreshToken.update({

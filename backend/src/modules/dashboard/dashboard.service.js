@@ -37,7 +37,7 @@ async function superAdminDashboard() {
 }
 
 async function schoolAdminDashboard(schoolId) {
-  const studentCount = await prisma.student.count({ where: { schoolId } });
+  const studentCount = await prisma.student.count({ where: { schoolId, status: "Active" } });
   const staffCount = await prisma.staff.count({ where: { schoolId } });
   const teacherCount = await prisma.staff.count({
     where: {
@@ -47,6 +47,20 @@ async function schoolAdminDashboard(schoolId) {
   });
 
   const todayDate = toUtcDate(todayKey());
+
+  const activeClassSections = await prisma.student.groupBy({
+    by: ['cls', 'section'],
+    where: { schoolId, status: "Active" },
+  });
+  const classCount = activeClassSections.length;
+
+  const markedClassesGroup = await prisma.attendanceRecord.groupBy({
+    by: ['cls', 'section'],
+    where: { schoolId, date: todayDate },
+  });
+  const attendanceMarkedToday = markedClassesGroup.length;
+  const attendancePending = Math.max(0, classCount - attendanceMarkedToday);
+
   const todayAttendance = await prisma.attendanceRecord.findMany({
     where: { schoolId, date: todayDate },
   });
@@ -60,6 +74,9 @@ async function schoolAdminDashboard(schoolId) {
       staff: staffCount,
       teachers: teacherCount,
       todayPresent: presentCount,
+      classes: classCount,
+      attendanceMarkedToday,
+      attendancePending,
     },
   };
 }
@@ -90,6 +107,11 @@ async function teacherDashboard(user) {
   return {
     role: "teacher",
     staff,
+    stats: {
+      classes: uniqueClasses.length,
+      classesList: uniqueClasses,
+      attendanceMarkedToday: todayAttendance.length,
+    },
     assignedClassesCount: uniqueClasses.length,
     assignedClasses: uniqueClasses,
     todayAttendanceMarkedCount: todayAttendance.length,
@@ -114,6 +136,11 @@ async function parentDashboard(user) {
     select: { name: true, session: true },
   });
 
+  const attSummary = attendance.summary ? {
+    ...attendance.summary,
+    percent: attendance.summary.percentage,
+  } : {};
+
   return {
     role: "parent",
     child: {
@@ -123,7 +150,7 @@ async function parentDashboard(user) {
       classSection: `${student.cls}-${student.section}`,
     },
     school,
-    attendance: attendance.summary,
+    attendance: attSummary,
   };
 }
 

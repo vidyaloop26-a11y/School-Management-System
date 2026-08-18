@@ -241,7 +241,7 @@ export default function Students() {
     }
   };
 
-  const currentUser = JSON.parse(localStorage.getItem("vidyaloop_user") || "{}");
+  const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
   const isTeacherRole = currentUser?.role === "teacher";
 
   return (

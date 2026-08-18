@@ -69,6 +69,10 @@ const listQuerySchema = z.object({
 
 const studentIdParam = z.object({ id: z.string().min(1) });
 
+const bulkDeleteSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "At least one student ID is required"),
+});
+
 module.exports = {
   createStudentSchema,
   updateStudentSchema,
@@ -76,4 +80,5 @@ module.exports = {
   TEACHER_EDITABLE,
   listQuerySchema,
   studentIdParam,
+  bulkDeleteSchema,
 };

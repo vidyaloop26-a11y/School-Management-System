@@ -2,14 +2,49 @@ import React, { useState } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { NOTICES } from "@/lib/stage2Data";
 import { Megaphone, Send } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import { useNotices, useCreateNotice } from "@/lib/queries";
+
+const fmtDate = (d) =>
+  d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Today";
 
 function AdminForm() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [audience, setAudience] = useState("All");
+  const [audience, setAudience] = useState("all");
+  const [cls, setCls] = useState("");
+  const [section, setSection] = useState("");
+  const createMutation = useCreateNotice();
+
+  const handleSend = async () => {
+    if (!title || !body) {
+      toast.error("Title and message are required");
+      return;
+    }
+    if (audience === "class" && (!cls || !section)) {
+      toast.error("Class and section are required for class-scoped notice");
+      return;
+    }
+    try {
+      await createMutation.mutateAsync({
+        title,
+        body,
+        audience: audience === "class" ? "class" : "all",
+        ...(audience === "class" ? { cls, section } : {}),
+      });
+      toast.success("Notice published");
+      setTitle("");
+      setBody("");
+      setCls("");
+      setSection("");
+      setAudience("all");
+    } catch (err) {
+      toast.error(err?.message || "Could not publish notice");
+    }
+  };
+
+  const label = audience === "all" ? "All" : audience === "class" ? "Specific Class" : "Specific Class";
 
   return (
     <div>
@@ -45,16 +80,46 @@ function AdminForm() {
             <div className="min-w-[220px]">
               <label className="text-[11px] tracking-[0.14em] font-semibold text-slate-500 uppercase">Audience</label>
               <Select value={audience} onValueChange={setAudience}>
-                <SelectTrigger data-testid="notice-audience" className="mt-2 rounded-xl bg-white/80"><SelectValue /></SelectTrigger>
+                <SelectTrigger data-testid="notice-audience" className="mt-2 rounded-xl bg-white/80">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="Specific Class">Specific Class</SelectItem>
-                  <SelectItem value="Specific Staff">Specific Staff</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="class">Specific Class</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <button data-testid="notice-send" onClick={() => toast(`Notice sent to ${audience}`)} className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-6 py-2.5 text-[13px] font-medium shadow-sm">
-              <Send className="h-4 w-4" /> Send
+            {audience === "class" && (
+              <div className="flex items-end gap-2">
+                <div className="min-w-[120px]">
+                  <label className="text-[11px] tracking-[0.14em] font-semibold text-slate-500 uppercase">Class</label>
+                  <input
+                    data-testid="notice-cls"
+                    value={cls}
+                    onChange={(e) => setCls(e.target.value)}
+                    placeholder="e.g. 8"
+                    className="mt-1.5 w-full rounded-xl bg-white/80 border border-slate-200 focus:border-[#29ABE2] outline-none px-3 py-2 text-[13px]"
+                  />
+                </div>
+                <div className="min-w-[100px]">
+                  <label className="text-[11px] tracking-[0.14em] font-semibold text-slate-500 uppercase">Section</label>
+                  <input
+                    data-testid="notice-section"
+                    value={section}
+                    onChange={(e) => setSection(e.target.value)}
+                    placeholder="e.g. A"
+                    className="mt-1.5 w-full rounded-xl bg-white/80 border border-slate-200 focus:border-[#29ABE2] outline-none px-3 py-2 text-[13px]"
+                  />
+                </div>
+              </div>
+            )}
+            <button
+              data-testid="notice-send"
+              onClick={handleSend}
+              disabled={createMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-6 py-2.5 text-[13px] font-medium shadow-sm disabled:opacity-50"
+            >
+              <Send className="h-4 w-4" /> {createMutation.isPending ? "Publishing…" : "Send"}
             </button>
           </div>
         </div>
@@ -71,9 +136,9 @@ function AdminForm() {
                   <div className="text-[13.5px] font-semibold text-slate-800 leading-snug min-h-[18px]">
                     {title || <span className="text-slate-400 font-normal">Notice title</span>}
                   </div>
-                  <span className="text-[11px] text-slate-400 shrink-0">Today</span>
+                  <span className="text-[11px] text-slate-400 shrink-0">{fmtDate(new Date())}</span>
                 </div>
-                <div className="text-[11.5px] text-slate-500 mt-0.5">Audience · {audience}</div>
+                <div className="text-[11.5px] text-slate-500 mt-0.5">Audience · {label}</div>
                 <div className="text-[13px] text-slate-700 mt-2 leading-relaxed min-h-[40px]">
                   {body || <span className="text-slate-400">Your message will appear here…</span>}
                 </div>
@@ -87,6 +152,25 @@ function AdminForm() {
 }
 
 function NoticeBoard() {
+  const { data: notices = [], isLoading, isError } = useNotices();
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader eyebrow="COMMUNICATION" title="Notice Board" subtitle="Loading notices…" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div>
+        <PageHeader eyebrow="COMMUNICATION" title="Notice Board" subtitle="Announcements from the school administration." />
+        <p className="text-sm text-red-500 mt-6">Could not load notices.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -95,23 +179,33 @@ function NoticeBoard() {
         subtitle="Announcements from the school administration."
       />
       <ul className="space-y-4 max-w-3xl">
-        {NOTICES.map((n, i) => (
-          <li key={n.id} data-testid={`notice-${n.id}`} className={`glass rounded-2xl p-6 reveal d${Math.min(i + 1, 5)} flex items-start gap-4`}>
-            <div className="h-11 w-11 rounded-xl bg-[#e6f4fb] text-[#0c6a99] grid place-items-center shrink-0">
-              <Megaphone className="h-5 w-5" strokeWidth={1.8} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <div className="font-display text-[18px] font-bold text-slate-900 tracking-tight leading-snug">{n.title}</div>
-                <span className="text-[11.5px] text-slate-400 shrink-0">{n.date}</span>
+        {notices.length === 0 ? (
+          <li className="text-sm text-slate-400">No notices have been posted.</li>
+        ) : (
+          notices.map((n, i) => (
+            <li
+              key={n.id}
+              data-testid={`notice-${n.id}`}
+              className={`glass rounded-2xl p-6 reveal d${Math.min(i + 1, 5)} flex items-start gap-4`}
+            >
+              <div className="h-11 w-11 rounded-xl bg-[#e6f4fb] text-[#0c6a99] grid place-items-center shrink-0">
+                <Megaphone className="h-5 w-5" strokeWidth={1.8} />
               </div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="inline-flex items-center rounded-full bg-white/70 border border-white px-2 py-0.5 text-[11px] font-medium text-slate-600">Audience · {n.audience}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="font-display text-[18px] font-bold text-slate-900 tracking-tight leading-snug">{n.title}</div>
+                  <span className="text-[11.5px] text-slate-400 shrink-0">{fmtDate(n.createdAt)}</span>
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="inline-flex items-center rounded-full bg-white/70 border border-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                    Audience · {n.audience === "class" && n.cls ? `${n.cls}-${n.section || ""}` : n.audience === "all" ? "All" : "All"}
+                  </span>
+                </div>
+                <div className="text-[13.5px] text-slate-700 leading-relaxed">{n.body}</div>
               </div>
-              <div className="text-[13.5px] text-slate-700 leading-relaxed">{n.body}</div>
-            </div>
-          </li>
-        ))}
+            </li>
+          ))
+        )}
       </ul>
     </div>
   );

@@ -23,6 +23,13 @@ const QUERY_KEYS = {
     class: (cls, section, date) => ["attendance", "class", cls, section, date],
     student: (studentId, month, year) => ["attendance", "student", studentId, month, year],
   },
+  admissions: {
+    list: ["admissions"],
+    detail: (id) => ["admissions", id],
+  },
+  communication: {
+    list: ["communication", "notices"],
+  },
 };
 
 export const useAuth = () => {
@@ -371,6 +378,91 @@ export const useStudentAttendance = (studentId, month, year) => {
       return response.data;
     },
     enabled: !!studentId,
+  });
+};
+
+export const useInquiries = (params = {}) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.admissions.list,
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          searchParams.append(key, value);
+        }
+      });
+      const response = await api.get(`/admissions?${searchParams.toString()}`);
+      return response.data.inquiries;
+    },
+  });
+};
+
+export const useCreateInquiry = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await api.post("/admissions", data);
+      return response.data.inquiry;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.admissions.list });
+    },
+  });
+};
+
+export const useUpdateInquiry = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.put(`/admissions/${id}`, data);
+      return response.data.inquiry;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.admissions.list });
+    },
+  });
+};
+
+export const useEnrollInquiry = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }) => {
+      const response = await api.post(`/admissions/${id}/enroll`, data);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.admissions.list });
+      queryClient.invalidateQueries({ queryKey: ["students", "list"] });
+    },
+  });
+};
+
+export const useNotices = (params = {}) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.communication.list,
+    queryFn: async () => {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          searchParams.append(key, value);
+        }
+      });
+      const response = await api.get(`/communication?${searchParams.toString()}`);
+      return response.data.notices;
+    },
+  });
+};
+
+export const useCreateNotice = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await api.post("/communication", data);
+      return response.data.notice;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.communication.list });
+    },
   });
 };
 

@@ -56,7 +56,9 @@ model School {
   payments          Payment[]
   timetableEntries  TimetableEntry[]
   attendanceRecords AttendanceRecord[]
-  examMarks         ExamMark[]
+   examMarks         ExamMark[]
+   admissionInquiries AdmissionInquiry[]
+   notices            Notice[]
 }
 
 model SchoolSettings {
@@ -105,6 +107,63 @@ model ExamConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Admissions (Inquiry pipeline, linked to enrollment)
+// ---------------------------------------------------------------------------
+
+enum AdmissionStage {
+  inquiry
+  docs
+  interaction
+  enrolled
+  rejected
+}
+
+model AdmissionInquiry {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId     String        @db.ObjectId
+  school       School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name         String
+  classApplied String
+  parentName   String
+  phone        String
+  email        String?
+  prevSchool   String?
+  stage        AdmissionStage @default(inquiry)
+  status       String        @default("Active")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([schoolId, stage])
+  @@index([schoolId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Communication (Notice board — school/class scoped)
+// ---------------------------------------------------------------------------
+
+enum NoticeAudience {
+  all
+  class
+}
+
+model Notice {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String        @db.ObjectId
+  school      School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title       String
+  body        String
+  audience    NoticeAudience @default(all)
+  cls         String?
+  section     String?
+  createdById String?       @db.ObjectId
+  createdBy   User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([schoolId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
 // Identity & Access Control (User, Role, Refresh Tokens)
 // ---------------------------------------------------------------------------
 
@@ -128,6 +187,7 @@ model User {
   staff              Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
 
   refreshTokens      RefreshToken[]
+  notices            Notice[]
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
