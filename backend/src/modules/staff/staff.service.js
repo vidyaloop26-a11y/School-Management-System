@@ -4,20 +4,23 @@ const authService = require("../auth/auth.service");
 const { generateUsername, ensureUniqueEmail } = require("../../utils/credentials");
 
 async function resolveSchoolScope(user, query = {}) {
-  if (user.role === "superAdmin") {
-    if (!query.schoolId || query.schoolId === "all") return null;
-    const cleanId = String(query.schoolId).replace(/^"|"$/g, "").trim();
-    if (!cleanId || cleanId === "all") return null;
+  const scopeInput = (user.role === "superAdmin")
+    ? (query.schoolId !== "all" ? query.schoolId : null)
+    : (user.schoolId || (query.schoolId !== "all" ? query.schoolId : null));
 
+  if (!scopeInput || scopeInput === "all") return null;
+  const cleanId = String(scopeInput).replace(/^"|"$/g, "").trim();
+  if (!cleanId || cleanId === "all") return null;
+
+  try {
     const school = await prisma.school.findFirst({
-      where: {
-        OR: [{ id: cleanId }, { code: cleanId }],
-      },
+      where: { OR: [{ id: cleanId }, { code: cleanId }] },
       select: { id: true },
     });
     return school ? school.id : cleanId;
+  } catch (e) {
+    return cleanId;
   }
-  return user.schoolId;
 }
 
 async function listStaff({ user, query }) {

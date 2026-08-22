@@ -59,6 +59,10 @@ model School {
    examMarks         ExamMark[]
    admissionInquiries AdmissionInquiry[]
    notices            Notice[]
+   payrollRecords     PayrollRecord[]
+   incomeExpenseRecords IncomeExpenseRecord[]
+   certificateRecords CertificateRecord[]
+   leaveRequests      LeaveRequest[]
 }
 
 model SchoolSettings {
@@ -399,3 +403,97 @@ model ExamMark {
   @@unique([studentId, session, term, subject])
   @@index([schoolId, cls, section, session, term])
 }
+
+// ---------------------------------------------------------------------------
+// Administration: Payroll, Finance, Certificates, Leave
+// ---------------------------------------------------------------------------
+
+model PayrollRecord {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String   @db.ObjectId
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  staffId     String
+  staffName   String
+  role        String
+  month       String   // e.g. "August 2026"
+  basicSalary Float
+  allowances  Float    @default(0)
+  deductions  Float    @default(0)
+  netSalary   Float
+  status      String   @default("PAID") // PAID | PENDING | PROCESSING
+  paymentDate DateTime @default(now())
+  paymentMode String   @default("BANK_TRANSFER")
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([schoolId, month])
+  @@index([schoolId, staffId])
+}
+
+model IncomeExpenseRecord {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String   @db.ObjectId
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  type          String   // INCOME | EXPENSE
+  category      String   // Tuition Fees, Maintenance, Utilities, Salaries, Events, Grants
+  title         String
+  amount        Float
+  date          DateTime @default(now())
+  voucherNo     String
+  paymentMethod String   @default("BANK_TRANSFER") // CASH | BANK_TRANSFER | UPI | CHEQUE
+  recordedBy    String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([schoolId, type])
+  @@index([schoolId, category])
+}
+
+model CertificateRecord {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String   @db.ObjectId
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId     String
+  studentName   String
+  cls           String
+  section       String
+  type          String   // Transfer Certificate | Character Certificate | Bonafide Certificate | Merit Certificate
+  certificateNo String
+  issueDate     DateTime @default(now())
+  status        String   @default("ISSUED") // REQUESTED | DRAFT | ISSUED | REJECTED
+  reason        String?
+  conduct       String?  @default("Good")
+  remarks       String?
+  issuedBy      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([schoolId, studentId])
+  @@index([schoolId, type])
+}
+
+model LeaveRequest {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String   @db.ObjectId
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  applicantType String   // STAFF | STUDENT
+  applicantId   String
+  applicantName String
+  roleOrClass   String   // e.g. "Teacher" or "8-A"
+  leaveType     String   // Casual, Sick, Privilege, Maternity, Emergency
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Int
+  reason        String
+  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  actionBy      String?
+  actionComment String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([schoolId, applicantType])
+  @@index([schoolId, status])
+}
+

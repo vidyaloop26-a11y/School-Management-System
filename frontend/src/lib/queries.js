@@ -382,17 +382,22 @@ export const useStudentAttendance = (studentId, month, year) => {
 };
 
 export const useInquiries = (params = {}) => {
+  const activeSchoolId = params.schoolId !== undefined ? params.schoolId : (localStorage.getItem("vidyaloop_active_school_id") || "all");
   return useQuery({
-    queryKey: QUERY_KEYS.admissions.list,
+    queryKey: ["admissions", "list", activeSchoolId, params],
     queryFn: async () => {
       const searchParams = new URLSearchParams();
+      if (activeSchoolId && activeSchoolId !== "all") {
+        searchParams.append("schoolId", activeSchoolId);
+      }
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
+        if (value !== undefined && value !== null && value !== "" && key !== "schoolId") {
           searchParams.append(key, value);
         }
       });
-      const response = await api.get(`/admissions?${searchParams.toString()}`);
-      return response.data.inquiries;
+      const qStr = searchParams.toString();
+      const response = await api.get(`/admissions${qStr ? `?${qStr}` : ""}`);
+      return response.data?.inquiries || [];
     },
   });
 };
