@@ -66,17 +66,19 @@ function Group({ label, items, defaultOpen = true, onClose }) {
 const ROLE_VISIBILITY = {
   [ROLES.SUPER_ADMIN]: new Set([
     "dashboard", "schools", "students", "staff", "timetable", "attendance",
-    "examination", "fees",
+    "examination", "fees", "admissions", "payroll", "income", "certificates", "leave",
   ]),
   [ROLES.SCHOOL_ADMIN]: new Set([
     "dashboard", "students", "staff", "timetable", "attendance",
-    "examination", "fees",
+    "examination", "fees", "admissions", "payroll", "income", "certificates", "leave",
   ]),
   [ROLES.TEACHER]: new Set([
     "dashboard", "students", "timetable", "attendance", "examination",
+    "certificates", "leave",
   ]),
   [ROLES.PARENT]: new Set([
     "dashboard", "timetable", "attendance", "fees", "examination",
+    "certificates", "leave",
   ]),
 };
 
@@ -102,7 +104,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
         aria-hidden
         className={`md:hidden fixed inset-0 z-40 bg-slate-900/40 transition-opacity ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
       />
-      <aside className={`fixed md:sticky left-0 top-0 z-50 md:z-auto w-[280px] md:w-[260px] h-screen shrink-0 flex flex-col border-r border-white/60 bg-white/95 md:bg-white/50 backdrop-blur-xl transform transition-transform duration-300 ease-out ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
+      <aside className={`fixed md:relative left-0 top-0 md:top-auto md:left-auto z-50 md:z-auto w-[280px] md:w-[260px] h-screen shrink-0 flex flex-col border-r border-white/60 bg-white/95 md:bg-white/50 backdrop-blur-xl transform transition-transform duration-300 ease-out ${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
         <div className="px-4 pt-5 pb-4 border-b border-slate-100/80">
           <BrandMark />
         </div>

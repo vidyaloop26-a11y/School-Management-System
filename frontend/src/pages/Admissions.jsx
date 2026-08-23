@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import TrendPill from "@/components/common/TrendPill";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -145,9 +145,34 @@ function NewInquiryDialog() {
 }
 
 export default function Admissions() {
-  const { data: inquiries = [], isLoading, isError } = useInquiries();
+  const [activeSchoolId, setActiveSchoolId] = useState(() => {
+    return localStorage.getItem("vidyaloop_active_school_id") || "all";
+  });
+
+  useEffect(() => {
+    const handleScopeChange = () => {
+      setActiveSchoolId(localStorage.getItem("vidyaloop_active_school_id") || "all");
+    };
+    window.addEventListener("schoolScopeChanged", handleScopeChange);
+    return () => window.removeEventListener("schoolScopeChanged", handleScopeChange);
+  }, []);
+
+  const { data: rawInquiries = [], isLoading, isError } = useInquiries({ schoolId: activeSchoolId });
   const enrollMutation = useEnrollInquiry();
   const [activeStage, setActiveStage] = useState(KANBAN_STAGES[0].key);
+
+  const inquiries = useMemo(() => {
+    if (!activeSchoolId || activeSchoolId === "all") return rawInquiries;
+    return rawInquiries.filter((a) => {
+      if (!a.schoolId && !a.schoolCode) return true;
+      return (
+        a.schoolId === activeSchoolId ||
+        a.schoolCode === activeSchoolId ||
+        a.school?.id === activeSchoolId ||
+        a.school?.code === activeSchoolId
+      );
+    });
+  }, [rawInquiries, activeSchoolId]);
 
   const byStage = useMemo(() => {
     const m = {};
@@ -213,7 +238,7 @@ export default function Admissions() {
       <PageHeader
         eyebrow="ADMINISTRATION"
         title="Admissions"
-        subtitle="Inquiries, verifications, interactions & enrolments in one board."
+        subtitle={activeSchoolId === "all" ? "Inquiries, verifications & enrolments across All Schools." : `Inquiries, verifications & enrolments scoped to: ${activeSchoolId}`}
         right={<NewInquiryDialog />}
       />
 

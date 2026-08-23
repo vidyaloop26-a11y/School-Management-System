@@ -35,9 +35,9 @@ export default function Layout() {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <Sidebar mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col h-screen overflow-y-auto">
         <TopBar onOpenPalette={() => setPaletteOpen(true)} onOpenSidebar={() => setSidebarOpen(true)} />
         <main className="flex-1 min-w-0 px-4 py-6 md:px-8 md:py-8 xl:px-12">
           {loading ? <RouteSkeleton /> : <Outlet />}

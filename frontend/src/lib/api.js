@@ -284,6 +284,78 @@ api.deleteSchool = async (id) => {
   return res.data;
 };
 
+// Payroll
+api.getPayroll = async (params = {}) => {
+  const query = new URLSearchParams();
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+  if (params.month) query.append("month", params.month);
+  if (params.status) query.append("status", params.status);
+  const qStr = query.toString();
+  const res = await api.get(`/payroll${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+api.processPayroll = async (payrollData) => {
+  const res = await api.post("/payroll/process", payrollData);
+  return res.data;
+};
+
+// Finance / Income-Expense
+api.getFinanceRecords = async (params = {}) => {
+  const query = new URLSearchParams();
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+  if (params.type) query.append("type", params.type);
+  if (params.category) query.append("category", params.category);
+  const qStr = query.toString();
+  const res = await api.get(`/finance${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+api.createFinanceRecord = async (recordData) => {
+  const res = await api.post("/finance", recordData);
+  return res.data;
+};
+
+// Leave Applications
+api.getLeaveRequests = async (params = {}) => {
+  const query = new URLSearchParams();
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+  if (params.applicantType) query.append("applicantType", params.applicantType);
+  if (params.status) query.append("status", params.status);
+  const qStr = query.toString();
+  const res = await api.get(`/leave${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+api.applyLeave = async (leaveData) => {
+  try {
+    const res = await api.post("/leave", leaveData);
+    return res.data;
+  } catch (err) {
+    if (err.response?.status === 404) {
+      const resFallback = await api.post("/leave/apply", leaveData);
+      return resFallback.data;
+    }
+    throw err;
+  }
+};
+
+api.updateLeaveStatus = async (id, statusData) => {
+  try {
+    const res = await api.put(`/leave/${id}/status`, statusData);
+    return res.data;
+  } catch (err) {
+    if (err.response?.status === 404) {
+      const resFallback = await api.patch(`/leave/${id}/status`, statusData);
+      return resFallback.data;
+    }
+    throw err;
+  }
+};
+
 export const setAuthToken = (token) => {
   if (token) {
     api.defaults.headers.common.Authorization = `Bearer ${token}`;

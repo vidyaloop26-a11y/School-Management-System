@@ -20,6 +20,10 @@ import Fees from "@/pages/Fees";
 import Communication from "@/pages/Communication";
 import Admissions from "@/pages/Admissions";
 import Examination from "@/pages/Examination";
+import Payroll from "@/pages/Payroll";
+import IncomeExpense from "@/pages/IncomeExpense";
+import Certificates from "@/pages/Certificates";
+import Leave from "@/pages/Leave";
 import IDCard from "@/pages/IDCard";
 import Events from "@/pages/Events";
 import Login from "@/pages/Login";
@@ -79,6 +83,10 @@ function AppRoutes() {
         <Route path="/communication" element={<Communication />} />
         <Route path="/admissions" element={<Admissions />} />
         <Route path="/examination" element={<Examination />} />
+        <Route path="/payroll" element={<Payroll />} />
+        <Route path="/income" element={<IncomeExpense />} />
+        <Route path="/certificates" element={<Certificates />} />
+        <Route path="/leave" element={<Leave />} />
         <Route path="/id-card" element={<IDCard />} />
         <Route path="/events" element={<Events />} />
         {placeholderRoutes.map((p) => (
