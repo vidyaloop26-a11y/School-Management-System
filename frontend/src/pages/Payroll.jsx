@@ -142,6 +142,7 @@ export default function Payroll() {
     window.addEventListener("schoolScopeChanged", handleScopeChange);
     return () => window.removeEventListener("schoolScopeChanged", handleScopeChange);
   }, [activeSchoolId, user]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const filteredRecords = useMemo(() => {
     return records.filter((r) => {

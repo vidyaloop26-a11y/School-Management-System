@@ -48,6 +48,7 @@ export default function Leave() {
       setForm((prev) => ({ ...prev, applicantName: user.name }));
     }
   }, [user]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const fetchLeaveRequests = async () => {
     setLoading(true);
@@ -78,6 +79,7 @@ export default function Leave() {
     window.addEventListener("schoolScopeChanged", handleScopeChange);
     return () => window.removeEventListener("schoolScopeChanged", handleScopeChange);
   }, [activeSchoolId, user]);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   const filteredRequests = useMemo(() => {
     return leaveRequests.filter((r) => {

@@ -31,7 +31,10 @@ app.disable("x-powered-by");
 app.use(helmet());
 app.use(
   cors({
-    origin: env.corsOrigins,
+    origin: (origin, cb) =>
+      env.isAllowedOrigin(origin)
+        ? cb(null, true)
+        : cb(new Error(`Origin not allowed by CORS: ${origin}`)),
     credentials: true,
   })
 );
