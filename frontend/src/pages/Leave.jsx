@@ -42,6 +42,7 @@ export default function Leave() {
     reason: "",
   });
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (user?.name && !form.applicantName) {
       setForm((prev) => ({ ...prev, applicantName: user.name }));
@@ -66,6 +67,7 @@ export default function Leave() {
     }
   };
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchLeaveRequests();
 

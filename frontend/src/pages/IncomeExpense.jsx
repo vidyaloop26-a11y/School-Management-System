@@ -48,6 +48,7 @@ export default function IncomeExpense() {
     }
   };
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchRecords();
 

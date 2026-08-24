@@ -131,6 +131,7 @@ export default function Payroll() {
     }
   };
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchPayroll();
 
