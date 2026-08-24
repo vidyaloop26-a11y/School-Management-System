@@ -172,7 +172,7 @@ export const useCreateStudent = () => {
   return useMutation({
     mutationFn: async (data) => {
       const response = await api.post("/students", data);
-      return response.data.student;
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students", "list"] });

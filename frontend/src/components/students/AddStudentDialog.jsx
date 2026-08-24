@@ -40,7 +40,7 @@ export default function AddStudentDialog({ open, onOpenChange }) {
     try {
       const payload = { ...form, roll: Number(form.roll) };
       const result = await createMutation.mutateAsync(payload);
-      if (result.credentials) {
+      if (result.parentAccount) {
         toast.success("Student added with parent portal credentials!");
       } else {
         toast.success("Student added successfully");

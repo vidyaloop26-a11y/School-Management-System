@@ -36,6 +36,12 @@ const remove = catchAsync(async (req, res) => {
   res.json({ success: true, deleted: student });
 });
 
+const bulkCreate = catchAsync(async (req, res) => {
+  const students = req.body.students || req.body.studentList || [];
+  const result = await studentsService.bulkCreateStudents({ user: req.user, students });
+  res.status(201).json({ success: true, ...result });
+});
+
 const bulkDelete = catchAsync(async (req, res) => {
   const ids = req.body.ids || [];
   const result = await studentsService.bulkDeleteStudents({ user: req.user, ids });
@@ -47,4 +53,4 @@ const resetParent = catchAsync(async (req, res) => {
   res.json({ success: true, ...result });
 });
 
-module.exports = { list, get, create, update, remove, bulkDelete, resetParent };
+module.exports = { list, get, create, bulkCreate, update, remove, bulkDelete, resetParent };

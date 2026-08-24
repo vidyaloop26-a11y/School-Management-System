@@ -27,6 +27,13 @@ router.post(
   studentsController.create
 );
 
+// Bulk import — school admin only.
+router.post(
+  "/bulk",
+  requireRole(ROLES.SCHOOL_ADMIN),
+  studentsController.bulkCreate
+);
+
 // Update — school admin full update; teacher correction-only.
 router.put(
   "/:id",
