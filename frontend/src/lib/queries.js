@@ -382,7 +382,6 @@ export const useStudentAttendance = (studentId, month, year) => {
 };
 
 export const useInquiries = (params = {}) => {
-<<<<<<< HEAD
   return useQuery({
     queryKey: QUERY_KEYS.admissions.list,
     queryFn: async () => {
@@ -394,24 +393,6 @@ export const useInquiries = (params = {}) => {
       });
       const response = await api.get(`/admissions?${searchParams.toString()}`);
       return response.data.inquiries;
-=======
-  const activeSchoolId = params.schoolId !== undefined ? params.schoolId : (localStorage.getItem("vidyaloop_active_school_id") || "all");
-  return useQuery({
-    queryKey: ["admissions", "list", activeSchoolId, params],
-    queryFn: async () => {
-      const searchParams = new URLSearchParams();
-      if (activeSchoolId && activeSchoolId !== "all") {
-        searchParams.append("schoolId", activeSchoolId);
-      }
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "" && key !== "schoolId") {
-          searchParams.append(key, value);
-        }
-      });
-      const qStr = searchParams.toString();
-      const response = await api.get(`/admissions${qStr ? `?${qStr}` : ""}`);
-      return response.data?.inquiries || [];
->>>>>>> 4e8884a3168d0c2240e23dc427bf32ce65a52539
     },
   });
 };
