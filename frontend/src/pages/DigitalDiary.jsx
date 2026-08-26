@@ -130,7 +130,7 @@ export default function DigitalDiary() {
   const role = user?.role;
   return (
     <div data-testid="diary-page" className="max-w-[1400px] mx-auto">
-      {role === "teacher" ? <TeacherForm /> : <FeedView />}
+      {role === "staff" && (user?.duties || []).includes("teacher") ? <TeacherForm /> : <FeedView />}
     </div>
   );
 }

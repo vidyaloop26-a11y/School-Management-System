@@ -3,7 +3,7 @@ import {
   BookOpen, PencilLine, MessageSquare, Images, PartyPopper,
   Wallet, Bus, Library, Boxes, Building2, BedDouble,
   UserPlus, Banknote, TrendingUp, ScrollText, PlaneTakeoff, CheckSquare,
-  IdCard, Settings, Megaphone
+  IdCard, Settings, Megaphone, Shield
 } from "lucide-react";
 
 // Sidebar structure
@@ -59,6 +59,7 @@ export const NAV = {
   ],
   bottom: [
     { key: "idcard",   label: "ID Card Generator", path: "/id-card", icon: IdCard,   functional: true },
+    { key: "support",  label: "Support Console",   path: "/support", icon: Shield,  functional: true },
     { key: "settings", label: "Settings",          path: "/settings",icon: Settings, functional: false },
   ],
 };

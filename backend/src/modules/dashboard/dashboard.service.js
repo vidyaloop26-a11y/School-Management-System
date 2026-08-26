@@ -2,6 +2,7 @@ const prisma = require("../../lib/prisma");
 const attendanceService = require("../attendance/attendance.service");
 const { ROLES } = require("../../middleware/rbac");
 const { toUtcDate } = require("../attendance/attendance.service");
+const { ApiError } = require("../../lib/errors");
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -21,7 +22,8 @@ async function superAdminDashboard() {
   const schoolCount = await prisma.school.count();
   const studentCount = await prisma.student.count();
   const staffCount = await prisma.staff.count();
-  const teacherUserCount = await prisma.user.count({ where: { role: "teacher" } });
+  // Aggregates only — never per-school private data.
+  const staffAccounts = await prisma.user.count({ where: { role: "staff" } });
   const parentUserCount = await prisma.user.count({ where: { role: "parent" } });
 
   return {
@@ -30,7 +32,7 @@ async function superAdminDashboard() {
       schools: schoolCount,
       students: studentCount,
       staff: staffCount,
-      teacherAccounts: teacherUserCount,
+      staffAccounts,
       parentAccounts: parentUserCount,
     },
   };
@@ -81,7 +83,17 @@ async function schoolAdminDashboard(schoolId) {
   };
 }
 
-async function teacherDashboard(user) {
+async function staffDashboard(user) {
+  // Teaching staff see their classes; non-teaching duty holders get a
+  // lightweight view until their domain dashboards exist.
+  if (!user.staffId) {
+    return {
+      role: "staff",
+      duties: user.duties || [],
+      stats: { classes: 0, attendanceMarkedToday: 0 },
+    };
+  }
+
   const staff = await prisma.staff.findUnique({ where: { id: user.staffId } });
   const schoolId = user.schoolId;
 
@@ -105,7 +117,8 @@ async function teacherDashboard(user) {
   });
 
   return {
-    role: "teacher",
+    role: "staff",
+    duties: user.duties || [],
     staff,
     stats: {
       classes: uniqueClasses.length,
@@ -124,7 +137,7 @@ async function parentDashboard(user) {
   });
 
   if (!student) {
-    throw new Error("Associated student record not found");
+    throw new ApiError(404, "Associated student record not found");
   }
 
   const attendance = await attendanceService.studentSummary({
@@ -156,17 +169,14 @@ async function parentDashboard(user) {
 
 async function dashboardFor(user, query = {}) {
   switch (user.role) {
-    case ROLES.SUPER_ADMIN: {
-      const resolvedSchoolId = await resolveSchoolScope(query);
-      if (resolvedSchoolId) {
-        return schoolAdminDashboard(resolvedSchoolId);
-      }
+    case ROLES.SUPER_ADMIN:
+      // Privacy wall: providers get platform aggregates only — never a
+      // school's operational dashboard, regardless of ?schoolId.
       return superAdminDashboard();
-    }
     case ROLES.SCHOOL_ADMIN:
       return schoolAdminDashboard(user.schoolId);
-    case ROLES.TEACHER:
-      return teacherDashboard(user);
+    case ROLES.STAFF:
+      return staffDashboard(user);
     case ROLES.PARENT:
       return parentDashboard(user);
     default:

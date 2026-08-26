@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const { validate, validateQuery } = require("../../middleware/validate");
 const { authenticate } = require("../../middleware/auth");
-const { requireRole, ROLES } = require("../../middleware/rbac");
+const { requireRole, requireDuty, ROLES } = require("../../middleware/rbac");
 const attendanceController = require("./attendance.controller");
 const { bulkSchema, classQuerySchema, studentQuerySchema, dayQuerySchema } = require("./attendance.schema");
 
@@ -15,10 +15,10 @@ router.get(
   attendanceController.getForStudent
 );
 
-// Marking attendance: school admin or teacher.
+// Marking attendance: class teachers (admins pass via duty override).
 router.post(
   "/mark",
-  requireRole(ROLES.SCHOOL_ADMIN, ROLES.TEACHER),
+  requireDuty("teacher"),
   validate(bulkSchema),
   attendanceController.mark
 );
@@ -26,15 +26,16 @@ router.post(
 // Attendance audit — which teacher marked which class and when.
 router.get(
   "/markers",
-  requireRole(ROLES.SCHOOL_ADMIN, ROLES.TEACHER),
+  requireDuty("teacher"),
   validateQuery(dayQuerySchema),
   attendanceController.markers
 );
 
-// Clear a day's attendance (delete records for a specific class/section/date).
+// Clear a day's attendance — destructive, so admins only (teachers use /mark
+// to correct individual students; wholesale wipes are audited admin actions).
 router.delete(
   "/clear",
-  requireRole(ROLES.SCHOOL_ADMIN, ROLES.TEACHER),
+  requireRole(ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN),
   validateQuery(dayQuerySchema),
   attendanceController.clear
 );

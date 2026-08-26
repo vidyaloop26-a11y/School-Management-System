@@ -31,54 +31,13 @@ async function listPayroll({ user, query = {} }) {
     ...(query.status ? { status: query.status } : {}),
   };
 
-  let records = [];
-  try {
-    if (prisma.payrollRecord?.findMany) {
-      records = await prisma.payrollRecord.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-      });
-    }
-  } catch (err) {
-    console.warn("Payroll DB query warning:", err.message);
-  }
+  // Real records only — an empty result means no payroll has been processed
+  // for this scope yet. We never synthesize rows from the staff list.
+  const records = await prisma.payrollRecord.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+  });
 
-  // If no DB payroll records exist yet for this school scope, check if actual staff exist in database for this school
-  if (records.length === 0 && schoolId) {
-    try {
-      const staffList = await prisma.staff.findMany({
-        where: { schoolId },
-        select: { id: true, staffId: true, name: true, jobTitle: true, salary: true },
-      });
-
-      if (staffList.length > 0) {
-        records = staffList.map((s, idx) => {
-          const basic = Number(s.salary) || (45000 + (idx * 5000));
-          const allowances = Math.round(basic * 0.12);
-          const deductions = Math.round(basic * 0.05);
-          return {
-            id: `pay-${s.id}`,
-            schoolId,
-            staffId: s.staffId || `STF-${100 + idx}`,
-            staffName: s.name,
-            role: s.jobTitle || "Staff",
-            month: query.month || "August 2026",
-            basicSalary: basic,
-            allowances,
-            deductions,
-            netSalary: basic + allowances - deductions,
-            status: "PENDING",
-            paymentDate: "-",
-            paymentMode: "Direct Bank Transfer",
-          };
-        });
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  // If no staff members or payroll records exist in the database for this school scope, return empty array []
   return { records };
 }
 
@@ -87,40 +46,45 @@ async function processPayroll({ user, data }) {
   const schoolId = schoolObj?.id || user.schoolId || data.schoolId;
   if (!schoolId) throw new ApiError(400, "School ID is required to process payroll");
 
-  const month = data.month || "August 2026";
+  const month = data.month;
+  if (!month) throw new ApiError(400, "Payroll month is required (e.g. 'August 2026')");
+
   const staffMembers = data.staffMembers || [];
+  if (!Array.isArray(staffMembers) || staffMembers.length === 0) {
+    throw new ApiError(400, "staffMembers array with at least one entry is required");
+  }
 
   const createdRecords = [];
-  for (const s of staffMembers) {
-    const basic = Number(s.basicSalary) || 45000;
-    const allow = Number(s.allowances) || 5000;
-    const ded = Number(s.deductions) || 2500;
-    const net = basic + allow - ded;
-
-    try {
-      if (prisma.payrollRecord?.create) {
-        const rec = await prisma.payrollRecord.create({
-          data: {
-            schoolId,
-            staffId: s.staffId || s.id,
-            staffName: s.staffName || s.name,
-            role: s.role || s.jobTitle || "Staff",
-            month,
-            basicSalary: basic,
-            allowances: allow,
-            deductions: ded,
-            netSalary: net,
-            status: "PAID",
-            paymentDate: new Date(),
-            paymentMode: data.paymentMode || "BANK_TRANSFER",
-            remarks: data.remarks || "Monthly Salary Payout",
-          },
-        });
-        createdRecords.push(rec);
-      }
-    } catch (e) {
-      createdRecords.push({ id: Date.now().toString(), staffName: s.staffName || s.name, month, netSalary: net, status: "PAID" });
+  for (const [idx, s] of staffMembers.entries()) {
+    const label = s.staffName || s.name || `entry #${idx + 1}`;
+    const basic = Number(s.basicSalary);
+    if (!Number.isFinite(basic) || basic <= 0) {
+      throw new ApiError(400, `${label}: basicSalary must be a positive number`);
     }
+    if (!s.staffId && !s.id) {
+      throw new ApiError(400, `${label}: staffId is required`);
+    }
+    const allow = Number.isFinite(Number(s.allowances)) ? Number(s.allowances) : 0;
+    const ded = Number.isFinite(Number(s.deductions)) ? Number(s.deductions) : 0;
+
+    const rec = await prisma.payrollRecord.create({
+      data: {
+        schoolId,
+        staffId: s.staffId || s.id,
+        staffName: s.staffName || s.name || "Staff",
+        role: s.role || s.jobTitle || "Staff",
+        month,
+        basicSalary: basic,
+        allowances: allow,
+        deductions: ded,
+        netSalary: basic + allow - ded,
+        status: data.markPaid === false ? "PENDING" : "PAID",
+        paymentDate: new Date(),
+        paymentMode: data.paymentMode || "BANK_TRANSFER",
+        remarks: data.remarks || "Monthly Salary Payout",
+      },
+    });
+    createdRecords.push(rec);
   }
 
   return { processedCount: createdRecords.length, records: createdRecords };

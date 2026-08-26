@@ -83,20 +83,44 @@ export const useAuth = () => {
 export const ROLES = {
   SUPER_ADMIN: "superAdmin",
   SCHOOL_ADMIN: "schoolAdmin",
-  TEACHER: "teacher",
+  STAFF: "staff",
   PARENT: "parent",
+};
+
+// Legacy alias — accounts migrated to role:"staff" + duties:["teacher"].
+ROLES.TEACHER = ROLES.STAFF;
+
+export const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN];
+
+export const DUTIES = [
+  "principal",
+  "vicePrincipal",
+  "hod",
+  "teacher",
+  "examCoordinator",
+  "accountant",
+  "frontOffice",
+  "librarian",
+  "transportIncharge",
+  "warden",
+  "hrManager",
+  "admissionsOfficer",
+  "itAdmin",
+];
+
+export const isAdminRole = (user) => !!user && ADMIN_ROLES.includes(user.role);
+
+export const hasDuty = (user, ...needed) => {
+  if (!user) return false;
+  if (isAdminRole(user)) return true;
+  if (user.role !== ROLES.STAFF) return false;
+  const held = Array.isArray(user.duties) ? user.duties : [];
+  return needed.some((d) => held.includes(d));
 };
 
 export const ROLE_ROUTES = {
   [ROLES.SUPER_ADMIN]: "/",
   [ROLES.SCHOOL_ADMIN]: "/",
-  [ROLES.TEACHER]: "/",
+  [ROLES.STAFF]: "/",
   [ROLES.PARENT]: "/",
-};
-
-export const ROLE_PERMISSIONS = {
-  [ROLES.SUPER_ADMIN]: ["schools", "students", "staff", "timetable", "attendance", "dashboard"],
-  [ROLES.SCHOOL_ADMIN]: ["students", "staff", "timetable", "attendance", "dashboard"],
-  [ROLES.TEACHER]: ["students", "timetable", "attendance", "dashboard"],
-  [ROLES.PARENT]: ["timetable", "attendance", "dashboard"],
 };

@@ -4,8 +4,6 @@ import { ArrowLeft, Mail, Phone, MapPin, Droplet, GraduationCap, Cake, IdCard, L
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStudent, useStudentAttendance } from "@/lib/queries";
-import { useDataStore } from "@/lib/dataStore";
-import { formatINR } from "@/lib/format";
 import api from "@/lib/api";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -235,7 +233,8 @@ export default function StudentProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: p, isLoading } = useStudent(id);
-  const { fees } = useDataStore();
+  const [studentFees, setStudentFees] = useState([]);
+  const [feesLoading, setFeesLoading] = useState(false);
 
   const fallbackStudent = {
     id: id || "S101",
@@ -258,7 +257,32 @@ export default function StudentProfile() {
 
   const student = p || fallbackStudent;
   const initials = student.name.split(" ").map((x) => x[0]).slice(0, 2).join("");
-  const studentFee = fees.find((f) => f.admNo === student.admNo) || { status: "Paid", term: 2, due: "15 Jul 2026" };
+
+  // Fetch student's fee records from finance API
+  const fetchStudentFees = useCallback(async () => {
+    if (!student?.id && !student?.admNo) return;
+    setFeesLoading(true);
+    try {
+      const res = await api.getFinanceRecords({ type: "INCOME" });
+      const allRecords = res?.records || [];
+      const feeRecords = allRecords.filter(
+        (r) => (r.category?.toLowerCase().includes("fee") || r.category?.toLowerCase().includes("tuition")) &&
+               (r.title?.includes(student.admNo) || r.title?.includes(student.name))
+      );
+      setStudentFees(feeRecords);
+    } catch (err) {
+      // silently fail — fees tab will show empty state
+    } finally {
+      setFeesLoading(false);
+    }
+  }, [student?.id, student?.admNo, student?.name]);
+
+  useEffect(() => { fetchStudentFees(); }, [fetchStudentFees]);
+
+  const latestFee = studentFees.length > 0 ? studentFees[0] : null;
+  const feeStatus = latestFee?.status || "Paid";
+  const feeAmount = latestFee?.amount || 35000;
+  const feeDate = latestFee?.date ? new Date(latestFee.date).toLocaleDateString() : "15 Jul 2026";
 
   return (
     <div data-testid="student-profile" className="max-w-[1400px] mx-auto">
@@ -332,27 +356,48 @@ export default function StudentProfile() {
                   </div>
                   <div>
                     <h3 className="font-bold text-slate-900 text-[16px]">Academic Fee Status</h3>
-                    <p className="text-[12px] text-slate-500">Term 2 Session 2026-27</p>
+                    <p className="text-[12px] text-slate-500">Fee records from finance system</p>
                   </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[12px] font-bold ${studentFee.status === "Paid" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                  {studentFee.status}
+                <span className={`px-3 py-1 rounded-full text-[12px] font-bold ${feeStatus === "Paid" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                  {feeStatus}
                 </span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-3 border-t border-slate-100 text-[13px]">
-                <div>
-                  <span className="text-slate-400 text-[11px] block uppercase">Total Billed</span>
-                  <span className="font-semibold text-slate-800">{formatINR(35000)}</span>
+              {feesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 text-[#29ABE2] animate-spin" />
                 </div>
-                <div>
-                  <span className="text-slate-400 text-[11px] block uppercase">Payment Due Date</span>
-                  <span className="font-semibold text-slate-800">{studentFee.due}</span>
+              ) : studentFees.length > 0 ? (
+                <div className="space-y-3">
+                  {studentFees.slice(0, 5).map((fee, idx) => (
+                    <div key={fee.id || idx} className="flex items-center justify-between py-2 border-b border-slate-100 text-[13px]">
+                      <div>
+                        <span className="font-medium text-slate-800">{fee.title?.replace("Fee Collection: ", "") || "Fee Payment"}</span>
+                        <span className="text-slate-400 ml-2">{fee.voucherNo}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-semibold text-slate-900">₹{(fee.amount || 0).toLocaleString("en-IN")}</span>
+                        <span className="text-slate-500 ml-2">{fee.date ? new Date(fee.date).toLocaleDateString() : "—"}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div>
-                  <span className="text-slate-400 text-[11px] block uppercase">Term</span>
-                  <span className="font-semibold text-slate-800">Term 2</span>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-3 border-t border-slate-100 text-[13px]">
+                  <div>
+                    <span className="text-slate-400 text-[11px] block uppercase">Total Billed</span>
+                    <span className="font-semibold text-slate-800">₹{feeAmount.toLocaleString("en-IN")}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[11px] block uppercase">Payment Due Date</span>
+                    <span className="font-semibold text-slate-800">{feeDate}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 text-[11px] block uppercase">Status</span>
+                    <span className="font-semibold text-slate-800">{feeStatus}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </TabsContent>
 

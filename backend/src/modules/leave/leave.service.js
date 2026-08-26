@@ -23,77 +23,90 @@ async function resolveSchoolScope(user, query = {}) {
 
 async function listLeaves({ user, query = {} }) {
   const schoolId = await resolveSchoolScope(user, query);
+  if (!schoolId && user.role !== "superAdmin") {
+    throw new ApiError(400, "School ID required");
+  }
+
+  // Parents may only ever see their own applications.
   const where = {
     ...(schoolId ? { schoolId } : {}),
+    ...(user.role === "parent" ? { applicantId: user.id } : {}),
     ...(query.applicantType ? { applicantType: query.applicantType } : {}),
     ...(query.status ? { status: query.status } : {}),
   };
 
-  let records = [];
-  try {
-    if (prisma.leaveRequest?.findMany) {
-      records = await prisma.leaveRequest.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-      });
-    }
-  } catch (err) {
-    console.warn("Leave DB query warning:", err.message);
-  }
+  const records = await prisma.leaveRequest.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+  });
 
   return { records };
+}
+
+function countInclusiveDays(start, end) {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const s = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const e = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+  return Math.floor((e - s) / msPerDay) + 1;
 }
 
 async function applyLeave({ user, data }) {
   let schoolId = await resolveSchoolScope(user, data);
   if (!schoolId) schoolId = user.schoolId || data.schoolId;
-  if (!schoolId) {
-    const firstSchool = await prisma.school.findFirst();
-    schoolId = firstSchool ? firstSchool.id : null;
-  }
   if (!schoolId) throw new ApiError(400, "School ID required");
 
   const start = new Date(data.startDate || Date.now());
   const end = new Date(data.endDate || Date.now());
-  const diffTime = Math.abs(end - start);
-  const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
-
-  if (prisma.leaveRequest?.create) {
-    const req = await prisma.leaveRequest.create({
-      data: {
-        schoolId,
-        applicantType: data.applicantType || (user.role === "parent" || user.role === "student" ? "STUDENT" : "STAFF"),
-        applicantId: data.applicantId || user.id || "app-user",
-        applicantName: data.applicantName || user.name || "Applicant",
-        roleOrClass: data.roleOrClass || user.role || "Staff",
-        leaveType: data.leaveType || "Casual",
-        startDate: start,
-        endDate: end,
-        totalDays: diffDays,
-        reason: data.reason || "Personal work",
-        status: "PENDING",
-      },
-    });
-    return req;
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new ApiError(400, "startDate/endDate must be valid dates");
   }
+  if (end < start) throw new ApiError(400, "endDate cannot be before startDate");
 
-  throw new ApiError(500, "Database unavailable");
+  const totalDays = Math.max(1, countInclusiveDays(start, end));
+
+  const req = await prisma.leaveRequest.create({
+    data: {
+      schoolId,
+      applicantType: data.applicantType || (user.role === "parent" ? "STUDENT" : "STAFF"),
+      applicantId: data.applicantId || user.id,
+      applicantName: data.applicantName || user.name || "Applicant",
+      roleOrClass: data.roleOrClass || user.role || "Staff",
+      leaveType: data.leaveType || "Casual",
+      startDate: start,
+      endDate: end,
+      totalDays,
+      reason: data.reason || "Personal work",
+      status: "PENDING",
+    },
+  });
+  return req;
 }
 
 async function updateStatus({ user, id, data }) {
-  if (prisma.leaveRequest?.update) {
-    const updated = await prisma.leaveRequest.update({
-      where: { id },
-      data: {
-        status: data.status,
-        actionBy: user.name || "School Admin",
-        actionComment: data.comment || null,
-      },
-    });
-    return updated;
+  if (!["APPROVED", "REJECTED"].includes(data.status)) {
+    throw new ApiError(400, "status must be APPROVED or REJECTED");
   }
 
-  return { id, status: data.status, actionBy: user.name };
+  const existing = await prisma.leaveRequest.findUnique({ where: { id } });
+  if (!existing) throw new ApiError(404, "Leave request not found");
+
+  // Record-level tenancy check: admins may only act within their own school.
+  if (user.role !== "superAdmin" && existing.schoolId !== user.schoolId) {
+    throw new ApiError(403, "Leave request belongs to a different school");
+  }
+  if (existing.status !== "PENDING") {
+    throw new ApiError(409, `Leave request is already ${existing.status}`);
+  }
+
+  const updated = await prisma.leaveRequest.update({
+    where: { id },
+    data: {
+      status: data.status,
+      actionBy: user.name || "School Admin",
+      actionComment: data.comment || null,
+    },
+  });
+  return updated;
 }
 
 module.exports = {

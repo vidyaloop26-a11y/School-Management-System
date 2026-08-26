@@ -65,22 +65,49 @@ function Group({ label, items, defaultOpen = true, onClose }) {
 
 const ROLE_VISIBILITY = {
   [ROLES.SUPER_ADMIN]: new Set([
-    "dashboard", "schools", "students", "staff", "timetable", "attendance",
-    "examination", "fees", "admissions", "payroll", "income", "certificates", "leave",
+    "dashboard",
+    "schools",
+    "support",
   ]),
   [ROLES.SCHOOL_ADMIN]: new Set([
     "dashboard", "students", "staff", "timetable", "attendance",
     "examination", "fees", "admissions", "payroll", "income", "certificates", "leave",
-  ]),
-  [ROLES.TEACHER]: new Set([
-    "dashboard", "students", "timetable", "attendance", "examination",
-    "certificates", "leave",
-  ]),
-  [ROLES.PARENT]: new Set([
-    "dashboard", "timetable", "attendance", "fees", "examination",
-    "certificates", "leave",
+    "diary", "homework", "communication", "events", "idcard",
   ]),
 };
+
+// Duty-keyed nav for role:"staff" accounts — a staff member sees the modules
+// their duties unlock. Admins bypass this via ROLE_VISIBILITY.
+const DUTY_NAV = [
+  { duty: "teacher", keys: ["dashboard", "students", "timetable", "attendance", "examination", "certificates", "leave", "diary", "homework", "communication"] },
+  { duty: "principal", keys: ["dashboard", "timetable", "attendance", "examination", "leave", "communication"] },
+  { duty: "vicePrincipal", keys: ["dashboard", "timetable", "attendance", "examination", "leave", "communication"] },
+  { duty: "hod", keys: ["dashboard", "timetable", "examination", "leave", "communication"] },
+  { duty: "examCoordinator", keys: ["dashboard", "examination", "certificates", "timetable"] },
+  { duty: "accountant", keys: ["dashboard", "fees", "payroll", "income"] },
+  { duty: "frontOffice", keys: ["dashboard", "admissions", "idcard", "leave"] },
+  { duty: "librarian", keys: ["dashboard"] },
+  { duty: "transportIncharge", keys: ["dashboard"] },
+  { duty: "warden", keys: ["dashboard", "attendance"] },
+  { duty: "hrManager", keys: ["dashboard", "staff", "payroll", "leave"] },
+  { duty: "admissionsOfficer", keys: ["dashboard", "admissions"] },
+  { duty: "itAdmin", keys: ["dashboard", "settings"] },
+];
+
+function visibleKeysFor(user) {
+  if (!user) return null;
+  const byRole = ROLE_VISIBILITY[user.role];
+  if (byRole) return byRole;
+  if (user.role === ROLES.STAFF) {
+    const held = Array.isArray(user.duties) ? user.duties : [];
+    const keys = new Set();
+    for (const entry of DUTY_NAV) {
+      if (held.includes(entry.duty)) entry.keys.forEach((k) => keys.add(k));
+    }
+    return keys;
+  }
+  return null; // unknown role → show everything (server still enforces)
+}
 
 export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
   useLocation();
@@ -88,7 +115,7 @@ export default function Sidebar({ mobileOpen = false, onClose = () => {} }) {
 
   const allow = (key) => {
     if (!user) return false;
-    const allowed = ROLE_VISIBILITY[user.role];
+    const allowed = visibleKeysFor(user);
     return allowed ? allowed.has(key) : true;
   };
 

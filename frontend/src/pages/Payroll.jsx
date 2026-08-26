@@ -3,49 +3,15 @@ import PageHeader from "@/components/common/PageHeader";
 import TrendPill from "@/components/common/TrendPill";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Banknote, Download, FileText, CheckCircle2, Clock, Search, Filter, Play, Printer } from "lucide-react";
+import { Banknote, Download, FileText, CheckCircle2, Clock, Search, Filter, Play, Printer, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/lib/AuthContext";
 import api from "@/lib/api";
 
-const SCHOOL_PAYROLL_MAP = {
-  VLPS: [
-    { id: "pay-vls-104", schoolCode: "VLPS", staffId: "VLS-104", staffName: "Vikram Singh", role: "Vice Principal", month: "August 2026", basicSalary: 78000, allowances: 10500, deductions: 4800, netSalary: 83700, status: "PAID", paymentDate: "2026-08-01", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-vls-101", schoolCode: "VLPS", staffId: "VLS-101", staffName: "Neha Kulkarni", role: "Teacher - Math", month: "August 2026", basicSalary: 52000, allowances: 6500, deductions: 3100, netSalary: 55400, status: "PAID", paymentDate: "2026-08-01", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-vls-102", schoolCode: "VLPS", staffId: "VLS-102", staffName: "Arjun Rao", role: "Teacher - Science", month: "August 2026", basicSalary: 49000, allowances: 6000, deductions: 2900, netSalary: 52100, status: "PENDING", paymentDate: "-", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-vls-103", schoolCode: "VLPS", staffId: "VLS-103", staffName: "Meera Iyer", role: "Teacher - English", month: "August 2026", basicSalary: 46500, allowances: 5500, deductions: 2700, netSalary: 49300, status: "PAID", paymentDate: "2026-08-01", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-vls-106", schoolCode: "VLPS", staffId: "VLS-106", staffName: "Deepak Chawla", role: "Accountant", month: "August 2026", basicSalary: 44000, allowances: 5200, deductions: 2500, netSalary: 46700, status: "PAID", paymentDate: "2026-08-02", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-vls-105", schoolCode: "VLPS", staffId: "VLS-105", staffName: "Sunita Joshi", role: "Front Office", month: "August 2026", basicSalary: 36000, allowances: 4000, deductions: 2000, netSalary: 38000, status: "PENDING", paymentDate: "-", paymentMode: "Direct Bank Transfer" },
-  ],
-  SXIS: [
-    { id: "pay-sxis-100", schoolCode: "SXIS", staffId: "SXIS-100", staffName: "Sister Clara", role: "Principal", month: "August 2026", basicSalary: 95000, allowances: 14000, deductions: 6500, netSalary: 102500, status: "PAID", paymentDate: "2026-08-01", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-sxis-101", schoolCode: "SXIS", staffId: "SXIS-101", staffName: "Priya Sharma", role: "Physics Teacher", month: "August 2026", basicSalary: 58000, allowances: 7500, deductions: 3500, netSalary: 62000, status: "PAID", paymentDate: "2026-08-01", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-sxis-102", schoolCode: "SXIS", staffId: "SXIS-102", staffName: "Rajesh Kulkarni", role: "History Teacher", month: "August 2026", basicSalary: 54000, allowances: 6800, deductions: 3200, netSalary: 57600, status: "PENDING", paymentDate: "-", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-sxis-103", schoolCode: "SXIS", staffId: "SXIS-103", staffName: "Sunita Patel", role: "Chemistry Teacher", month: "August 2026", basicSalary: 51000, allowances: 6200, deductions: 3000, netSalary: 54200, status: "PAID", paymentDate: "2026-08-01", paymentMode: "Direct Bank Transfer" },
-  ],
-  DPA: [
-    { id: "pay-dpa-100", schoolCode: "DPA", staffId: "DPA-100", staffName: "Dr. Amit Singhania", role: "Principal", month: "August 2026", basicSalary: 88000, allowances: 12500, deductions: 5800, netSalary: 94700, status: "PAID", paymentDate: "2026-08-01", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-dpa-101", schoolCode: "DPA", staffId: "DPA-101", staffName: "Ritu Singhania", role: "Biology Teacher", month: "August 2026", basicSalary: 56000, allowances: 7000, deductions: 3400, netSalary: 59600, status: "PAID", paymentDate: "2026-08-01", paymentMode: "Direct Bank Transfer" },
-    { id: "pay-dpa-102", schoolCode: "DPA", staffId: "DPA-102", staffName: "Kavita Nair", role: "Computer Science", month: "August 2026", basicSalary: 50000, allowances: 6000, deductions: 3000, netSalary: 53000, status: "PENDING", paymentDate: "-", paymentMode: "Direct Bank Transfer" },
-  ],
-};
-
-const ALL_SCHOOLS_PAYROLL = [
-  ...SCHOOL_PAYROLL_MAP.VLPS,
-  ...SCHOOL_PAYROLL_MAP.SXIS,
-  ...SCHOOL_PAYROLL_MAP.DPA,
-];
-
-function getFallbackPayrollForScope(activeSchoolId) {
-  if (!activeSchoolId || activeSchoolId === "all") return ALL_SCHOOLS_PAYROLL;
-  if (SCHOOL_PAYROLL_MAP[activeSchoolId]) return SCHOOL_PAYROLL_MAP[activeSchoolId];
-  return [];
-}
-
 export default function Payroll() {
   const { user } = useAuth();
   const role = user?.role || "superAdmin";
-  const isTeacher = role === "teacher";
+  const isTeacher = role === "staff";
   const isSchoolAdmin = role === "schoolAdmin" || role === "school_admin" || role === "admin";
   const isSuperAdmin = role === "superAdmin";
 
@@ -53,8 +19,8 @@ export default function Payroll() {
     return localStorage.getItem("vidyaloop_active_school_id") || "all";
   });
 
-  const [records, setRecords] = useState(() => getFallbackPayrollForScope(activeSchoolId));
-  const [loading, setLoading] = useState(false);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedPayslip, setSelectedPayslip] = useState(null);
@@ -81,7 +47,7 @@ export default function Payroll() {
         const payRes = await api.getPayroll({ schoolId: effectiveSchoolId });
         payRecords = payRes?.records || [];
       } catch (e) {
-        // ignore
+        // no payroll records yet
       }
 
       // 2. Fetch staff members belonging to this school from DB
@@ -122,10 +88,10 @@ export default function Payroll() {
       } else if (payRecords.length > 0) {
         setRecords(payRecords);
       } else {
-        setRecords(getFallbackPayrollForScope(effectiveSchoolId));
+        setRecords([]);
       }
     } catch (err) {
-      setRecords(getFallbackPayrollForScope(activeSchoolId));
+      setRecords([]);
     } finally {
       setLoading(false);
     }
@@ -314,6 +280,15 @@ export default function Payroll() {
         </div>
 
         <div className="overflow-x-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 text-[#29ABE2] animate-spin" />
+            </div>
+          ) : filteredRecords.length === 0 ? (
+            <div className="text-center py-16 text-slate-500 text-[13px]">
+              {role === "superAdmin" ? "No staff or payroll records found. Select a school scope to view data." : "No payroll records found for your school."}
+            </div>
+          ) : (
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="border-b border-slate-200/80 text-[11px] uppercase tracking-wider font-semibold text-slate-400">
@@ -367,6 +342,7 @@ export default function Payroll() {
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </div>
 

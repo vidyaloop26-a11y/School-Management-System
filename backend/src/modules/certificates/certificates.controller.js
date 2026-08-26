@@ -18,7 +18,17 @@ async function issueCertificate(req, res, next) {
   }
 }
 
+async function requestCertificate(req, res, next) {
+  try {
+    const result = await service.requestCertificate({ user: req.user, data: req.body });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listCertificates,
   issueCertificate,
+  requestCertificate,
 };

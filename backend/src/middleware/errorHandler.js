@@ -20,6 +20,11 @@ const errorHandler = (err, req, res, next) => {
     return res.status(404).json({ success: false, message: "Record not found" });
   }
 
+  // Malformed JSON body
+  if (err && err.type === "entity.parse.failed") {
+    return res.status(400).json({ success: false, message: "Invalid JSON body" });
+  }
+
   console.error("[ERROR]", err);
   return res.status(500).json({ success: false, message: "Internal server error" });
 };

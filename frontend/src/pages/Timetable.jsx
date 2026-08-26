@@ -23,7 +23,7 @@ const SUBJECT_COLORS = {
 
 export default function Timetable() {
   const { user, role } = useRole();
-  const isTeacher = role === "teacher" || user?.role === "teacher";
+  const isTeacher = role === "staff" && (user?.duties || []).includes("teacher");
   const [cls, setCls] = useState("8");
   const [section, setSection] = useState("A");
   const [timetableData, setTimetableData] = useState({});

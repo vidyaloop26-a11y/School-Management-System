@@ -73,6 +73,26 @@ const bulkDeleteSchema = z.object({
   ids: z.array(z.string().min(1)).min(1, "At least one student ID is required"),
 });
 
+// Bulk import items are more forgiving than single create: CSV sources deliver
+// numbers as strings and often leave roll blank.
+const bulkStudentItemSchema = z.object({
+  ...studentBase,
+  roll: z
+    .union([
+      z.number().int().min(1),
+      z
+        .string()
+        .regex(/^\d+$/, "roll must be a number")
+        .transform((v) => parseInt(v, 10)),
+    ])
+    .optional()
+    .nullable(),
+});
+
+const bulkCreateStudentsSchema = z.object({
+  students: z.array(bulkStudentItemSchema).min(1, "students array cannot be empty").max(1000),
+});
+
 module.exports = {
   createStudentSchema,
   updateStudentSchema,
@@ -81,4 +101,5 @@ module.exports = {
   listQuerySchema,
   studentIdParam,
   bulkDeleteSchema,
+  bulkCreateStudentsSchema,
 };

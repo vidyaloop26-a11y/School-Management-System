@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const { validate, validateQuery } = require("../../middleware/validate");
 const { authenticate } = require("../../middleware/auth");
-const { requireRole, ROLES } = require("../../middleware/rbac");
+const { requireRole, requireDuty, rejectRoles, ROLES } = require("../../middleware/rbac");
 const studentsController = require("./students.controller");
 const {
   createStudentSchema,
@@ -10,14 +10,16 @@ const {
   listQuerySchema,
   studentIdParam,
   bulkDeleteSchema,
+  bulkCreateStudentsSchema,
 } = require("./students.schema");
 
 // Every authenticated user can read students (parents see only their own child,
 // enforced inside the service).
 router.use(authenticate);
 
-router.get("/", validateQuery(listQuerySchema), studentsController.list);
-router.get("/:id", validateQuery(studentIdParam, "params"), studentsController.get);
+// School-level reads — superAdmin is walled out (use /api/support/* instead).
+router.get("/", rejectRoles(ROLES.SUPER_ADMIN), validateQuery(listQuerySchema), studentsController.list);
+router.get("/:id", rejectRoles(ROLES.SUPER_ADMIN), validateQuery(studentIdParam, "params"), studentsController.get);
 
 // Create — school admin only (and super admin). Teachers cannot add users.
 router.post(
@@ -31,16 +33,17 @@ router.post(
 router.post(
   "/bulk",
   requireRole(ROLES.SCHOOL_ADMIN),
+  validate(bulkCreateStudentsSchema),
   studentsController.bulkCreate
 );
 
-// Update — school admin full update; teacher correction-only.
+// Update — school admin full update; teaching staff correction-only.
 router.put(
   "/:id",
   validateQuery(studentIdParam, "params"),
-  requireRole(ROLES.SCHOOL_ADMIN, ROLES.TEACHER),
+  requireDuty("teacher"),
   (req, res, next) => {
-    const schema = req.user.role === ROLES.TEACHER ? teacherCorrectSchema : updateStudentSchema;
+    const schema = req.user.role === ROLES.STAFF ? teacherCorrectSchema : updateStudentSchema;
     return validate(schema)(req, res, next);
   },
   studentsController.update

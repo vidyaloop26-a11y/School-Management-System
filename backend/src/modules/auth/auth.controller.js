@@ -28,6 +28,15 @@ const logout = catchAsync(async (req, res) => {
   res.json({ success: true });
 });
 
+const changePassword = catchAsync(async (req, res) => {
+  const data = await authService.changePassword({
+    user: req.user,
+    currentPassword: req.body.currentPassword,
+    newPassword: req.body.newPassword,
+  });
+  res.json({ success: true, ...data });
+});
+
 const me = catchAsync(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user.id } });
   res.json({ success: true, user: authService.toSafeUser(user) });
@@ -38,5 +47,6 @@ module.exports = {
   login,
   refresh,
   logout,
+  changePassword,
   me,
 };

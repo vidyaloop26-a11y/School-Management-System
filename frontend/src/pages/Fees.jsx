@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { useDataStore } from "@/lib/dataStore";
@@ -7,34 +7,59 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { PARENT_CHILD } from "@/lib/stage2Data";
 import { formatINR } from "@/lib/format";
-import { Wallet, TrendingUp, AlertCircle, Download, CreditCard, CheckCircle2 } from "lucide-react";
+import { Wallet, TrendingUp, AlertCircle, Download, CreditCard, CheckCircle2, Loader2 } from "lucide-react";
 import ExportButton from "@/components/common/ExportButton";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 function AdminView() {
-  const { fees, payFeeForStudent } = useDataStore();
+  const { user } = useAuth();
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [cls, setCls] = useState("all");
   const [status, setStatus] = useState("all");
-  const [selectedStudent, setSelectedStudent] = useState(null);
 
-  const classes = Array.from(new Set(fees.map((r) => r.classSection))).sort();
+  const fetchRecords = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.getFinanceRecords({ type: "INCOME" });
+      const allRecords = res?.records || [];
+      // Filter to fee-collection records only
+      const feeRecords = allRecords.filter(
+        (r) => r.category?.toLowerCase().includes("fee") || r.category?.toLowerCase().includes("tuition")
+      );
+      setRecords(feeRecords);
+    } catch (err) {
+      toast.error("Failed to load fee records");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+  const classes = useMemo(() => Array.from(new Set(records.map((r) => r.classSection || r.title?.split(" ")[0] || "N/A"))).sort(), [records]);
 
   const rows = useMemo(() => {
-    return fees.filter((r) => {
+    return records.map((r) => ({
+      id: r.id,
+      admNo: r.voucherNo || r.id,
+      name: r.title?.replace("Fee Collection: ", "") || "Student",
+      classSection: r.classSection || "N/A",
+      term: r.term || "Term 2",
+      status: r.status || "Paid",
+      due: r.dueDate || "—",
+      amount: r.amount || 0,
+    })).filter((r) => {
       if (cls !== "all" && r.classSection !== cls) return false;
       if (status !== "all" && r.status.toLowerCase() !== status) return false;
       return true;
     });
-  }, [fees, cls, status]);
+  }, [records, cls, status]);
 
-  const totalCollected = fees.filter((r) => r.status === "Paid").length * 35000;
-  const totalDue = fees.filter((r) => r.status !== "Paid").length * 35000;
-  const overdueCount = fees.filter((r) => r.status === "Overdue").length;
-
-  const handleMarkPaid = (admNo, name) => {
-    payFeeForStudent(admNo);
-    toast.success(`Fee marked as Paid for ${name} (${admNo})`);
-  };
+  const totalCollected = rows.filter((r) => r.status === "Paid").reduce((sum, r) => sum + r.amount, 0);
+  const totalDue = rows.filter((r) => r.status !== "Paid").reduce((sum, r) => sum + r.amount, 0);
+  const overdueCount = rows.filter((r) => r.status === "Overdue").length;
 
   return (
     <div>
@@ -52,14 +77,14 @@ function AdminView() {
             <TrendingUp className="h-3.5 w-3.5 text-emerald-600" /> Total Collected
           </div>
           <div className="font-display text-[36px] font-bold text-slate-900 mt-3 tracking-tight">{formatINR(totalCollected)}</div>
-          <div className="text-[12px] text-slate-500 mt-1">Across all classes · Term 2</div>
+          <div className="text-[12px] text-slate-500 mt-1">Across all classes</div>
         </div>
         <div data-testid="fee-stat-due" className="glass rounded-2xl p-5 reveal d1">
           <div className="flex items-center gap-2 text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">
             <Wallet className="h-3.5 w-3.5 text-[#29ABE2]" /> Total Due
           </div>
           <div className="font-display text-[36px] font-bold text-slate-900 mt-3 tracking-tight">{formatINR(totalDue)}</div>
-          <div className="text-[12px] text-slate-500 mt-1">Term 2 projected receivables</div>
+          <div className="text-[12px] text-slate-500 mt-1">Pending receivables</div>
         </div>
         <div data-testid="fee-stat-overdue" className="glass rounded-2xl p-5 reveal d2">
           <div className="flex items-center gap-2 text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">
@@ -92,51 +117,38 @@ function AdminView() {
           </Select>
         </div>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 text-[#29ABE2] animate-spin" />
+          </div>
+        ) : (
+        <>
         {/* Desktop table */}
         <div className="hidden md:block overflow-hidden rounded-xl border border-slate-100 bg-white/60">
           <table className="min-w-full text-[13px]">
             <thead className="bg-slate-50/80">
               <tr className="text-left text-[11px] tracking-[0.14em] text-slate-500 uppercase">
-                <th className="px-5 py-3 font-semibold">Adm. No.</th>
-                <th className="px-5 py-3 font-semibold">Name</th>
-                <th className="px-5 py-3 font-semibold">Class</th>
-                <th className="px-5 py-3 font-semibold">Term</th>
-                <th className="px-5 py-3 font-semibold">Fee Status</th>
-                <th className="px-5 py-3 font-semibold">Due Date</th>
-                <th className="px-5 py-3 font-semibold text-right">Action</th>
+                <th className="px-5 py-3 font-semibold">Voucher</th>
+                <th className="px-5 py-3 font-semibold">Student</th>
+                <th className="px-5 py-3 font-semibold">Amount</th>
+                <th className="px-5 py-3 font-semibold">Payment Method</th>
+                <th className="px-5 py-3 font-semibold">Date</th>
+                <th className="px-5 py-3 font-semibold">Recorded By</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.admNo} data-testid={`fee-row-${r.admNo}`} className="border-t border-slate-100 hover:bg-[#f3faff] transition">
+                <tr key={r.id} data-testid={`fee-row-${r.id}`} className="border-t border-slate-100 hover:bg-[#f3faff] transition">
                   <td className="px-5 py-3.5 font-mono text-[12px] text-slate-500">{r.admNo}</td>
                   <td className="px-5 py-3.5 font-medium text-slate-800">{r.name}</td>
-                  <td className="px-5 py-3.5 text-slate-600">{r.classSection}</td>
-                  <td className="px-5 py-3.5 text-slate-600">Term {r.term}</td>
-                  <td className="px-5 py-3.5">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${r.status === "Paid" ? "bg-emerald-50 text-emerald-700" : r.status === "Overdue" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>
-                      <span className={`h-1.5 w-1.5 rounded-full ${r.status === "Paid" ? "bg-emerald-500" : r.status === "Overdue" ? "bg-rose-500" : "bg-amber-500"}`} />
-                      {r.status}
-                    </span>
-                  </td>
+                  <td className="px-5 py-3.5 font-mono font-semibold text-slate-900">{formatINR(r.amount)}</td>
+                  <td className="px-5 py-3.5 text-slate-600">{r.paymentMethod || "Online"}</td>
                   <td className="px-5 py-3.5 text-slate-500">{r.due}</td>
-                  <td className="px-5 py-3.5 text-right">
-                    {r.status !== "Paid" ? (
-                      <button
-                        data-testid={`collect-fee-${r.admNo}`}
-                        onClick={() => handleMarkPaid(r.admNo, r.name)}
-                        className="text-[12px] font-semibold text-[#29ABE2] hover:text-[#0e7fb1] hover:underline"
-                      >
-                        Collect Fee
-                      </button>
-                    ) : (
-                      <span className="text-[11px] text-slate-400 font-mono">Paid</span>
-                    )}
-                  </td>
+                  <td className="px-5 py-3.5 text-slate-500">{r.recordedBy || "—"}</td>
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500">No fee records match your criteria.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-500">No fee records found.</td></tr>
               )}
             </tbody>
           </table>
@@ -145,27 +157,22 @@ function AdminView() {
         {/* Mobile list */}
         <div className="md:hidden space-y-2.5">
           {rows.map((r) => (
-            <div key={r.admNo} data-testid={`fee-card-${r.admNo}`} className="glass-soft rounded-xl p-4">
+            <div key={r.id} data-testid={`fee-card-${r.id}`} className="glass-soft rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-mono text-[11px] text-slate-500">{r.admNo}</div>
                   <div className="font-medium text-slate-800 text-[14.5px] mt-0.5 truncate">{r.name}</div>
                 </div>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium shrink-0 ${r.status === "Paid" ? "bg-emerald-50 text-emerald-700" : r.status === "Overdue" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>
-                  {r.status}
-                </span>
+                <div className="font-mono font-semibold text-slate-900">{formatINR(r.amount)}</div>
               </div>
-              {r.status !== "Paid" && (
-                <button
-                  onClick={() => handleMarkPaid(r.admNo, r.name)}
-                  className="mt-3 w-full rounded-lg bg-[#29ABE2] text-white py-1.5 text-[12.5px] font-medium"
-                >
-                  Collect Fee
-                </button>
-              )}
             </div>
           ))}
+          {rows.length === 0 && (
+            <div className="text-center py-10 text-slate-500 text-[13px]">No fee records found.</div>
+          )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

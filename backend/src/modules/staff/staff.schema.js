@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { DUTIES } = require("../../middleware/rbac");
 
 const staffBase = {
   staffId: z.string().min(1, "Staff ID is required"),
@@ -13,6 +14,8 @@ const staffBase = {
   assignedSection: z.string().optional().or(z.literal("")).optional(),
   joined: z.string().optional(),
   status: z.enum(["Active", "Inactive"]).optional(),
+  salary: z.number().nonnegative().optional(),
+  duties: z.array(z.enum(DUTIES)).max(DUTIES.length).optional(),
   schoolId: z.string().optional(),
 };
 
@@ -29,4 +32,20 @@ const listQuerySchema = z.object({
 
 const staffIdParam = z.object({ id: z.string().min(1) });
 
-module.exports = { createStaffSchema, updateStaffSchema, listQuerySchema, staffIdParam };
+const bulkCreateStaffSchema = z.object({
+  staff: z.array(z.object(staffBase)).min(1, "staff array cannot be empty").max(500),
+});
+
+// Temporary-password regeneration by a school admin.
+const resetPasswordSchema = z.object({
+  newPassword: z.string().min(8).max(72).optional(),
+});
+
+module.exports = {
+  createStaffSchema,
+  updateStaffSchema,
+  listQuerySchema,
+  staffIdParam,
+  bulkCreateStaffSchema,
+  resetPasswordSchema,
+};

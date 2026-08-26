@@ -219,7 +219,8 @@ async function main() {
               email,
               username,
               passwordHash: teacherHash,
-              role: "teacher",
+              role: "staff",
+              duties: ["teacher"],
               schoolId: school.id,
               staffId: staffObj.id,
               isActive: true,
@@ -233,6 +234,9 @@ async function main() {
               passwordHash: teacherHash,
               isActive: true,
               mustChangePassword: false,
+              ...(existingTeacherUser.role === "teacher"
+                ? { role: "staff", duties: ["teacher"] }
+                : {}),
             },
           });
         }

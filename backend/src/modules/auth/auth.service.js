@@ -121,12 +121,50 @@ async function logout(refreshToken) {
   });
 }
 
+// Self-service password change. Verifies the current password, rotates the
+// hash and clears the mustChangePassword flag.
+async function changePassword({ user, currentPassword, newPassword }) {
+  const record = await prisma.user.findUnique({ where: { id: user.id } });
+  if (!record) throw new ApiError(401, "Account not found");
+
+  const valid = await bcrypt.compare(currentPassword, record.passwordHash);
+  if (!valid) throw new ApiError(401, "Current password is incorrect");
+
+  const passwordHash = await hashPassword(newPassword);
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      mustChangePassword: false,
+    },
+  });
+
+  // Rotate sessions: old refresh tokens are revoked so a stolen session
+  // can't outlive a password change.
+  await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+  const refreshToken = signRefreshToken(updated);
+  await prisma.refreshToken.create({
+    data: {
+      userId: updated.id,
+      token: hashToken(refreshToken),
+      expiresAt: new Date(Date.now() + env.refreshTtlDays * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  return {
+    user: toSafeUser(updated),
+    accessToken: signAccessToken(updated),
+    refreshToken,
+  };
+}
+
 module.exports = {
   hashPassword,
   createSuperAdmin,
   login,
   refresh,
   logout,
+  changePassword,
   findUserByEmail: findByIdentifier,
   toSafeUser,
 };

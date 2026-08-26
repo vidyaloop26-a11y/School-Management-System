@@ -1,9 +1,9 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/lib/AuthContext";
+import { useAuth, isAdminRole } from "@/lib/AuthContext";
 import { Loader2, Building2 } from "lucide-react";
 
-export function ProtectedRoute({ children, allowedRoles }) {
+export function ProtectedRoute({ children, allowedRoles, allowedDuties }) {
   const { user, isLoading, isAuthenticated } = useAuth();
   const location = useLocation();
 
@@ -27,6 +27,16 @@ export function ProtectedRoute({ children, allowedRoles }) {
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
+  }
+
+  if (allowedDuties && allowedDuties.length) {
+    // Admins pass everything; staff need at least one of the listed duties.
+    const ok =
+      isAdminRole(user) ||
+      (user.role === "staff" &&
+        Array.isArray(user.duties) &&
+        user.duties.some((d) => allowedDuties.includes(d)));
+    if (!ok) return <Navigate to="/" replace />;
   }
 
   return children;

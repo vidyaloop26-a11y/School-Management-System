@@ -1,35 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ScrollText, Plus, Search, Printer, CheckCircle2, Award, FileText, Send } from "lucide-react";
+import { ScrollText, Plus, Search, Printer, CheckCircle2, Award, FileText, Send, Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/lib/AuthContext";
-
-const SCHOOL_CERTIFICATES_MAP = {
-  VLPS: [
-    { id: "c-v1", schoolCode: "VLPS", studentId: "VL2024001", studentName: "Aarav Sharma", cls: "8", section: "A", type: "Transfer Certificate", certificateNo: "TC-VLPS-0891", issueDate: "2026-08-15", status: "ISSUED", conduct: "Exemplary", reason: "Father Transfer to Mumbai Branch", issuedBy: "Vikram Singh" },
-    { id: "c-v2", schoolCode: "VLPS", studentId: "VL2024002", studentName: "Ishita Verma", cls: "8", section: "A", type: "Character Certificate", certificateNo: "CC-VLPS-0155", issueDate: "2026-08-05", status: "ISSUED", conduct: "Outstanding", reason: "Inter-School Math Olympiad Winner", issuedBy: "Neha Kulkarni" },
-  ],
-  SXIS: [
-    { id: "c-s1", schoolCode: "SXIS", studentId: "SX2024001", studentName: "Vivaan Joshi", cls: "8", section: "A", type: "Bonafide Certificate", certificateNo: "BC-SXIS-0412", issueDate: "2026-08-10", status: "ISSUED", conduct: "Good", reason: "Passport Application Verification", issuedBy: "Sister Clara" },
-    { id: "c-s2", schoolCode: "SXIS", studentId: "SX2024002", studentName: "Ananya Sen", cls: "8", section: "A", type: "Merit Certificate", certificateNo: "MC-SXIS-0988", issueDate: "2026-08-02", status: "ISSUED", conduct: "Exemplary", reason: "1st Rank in Annual Science Fair", issuedBy: "Priya Sharma" },
-  ],
-  DPA: [
-    { id: "c-d1", schoolCode: "DPA", studentId: "DPA2024001", studentName: "Aditya Kumar", cls: "7", section: "A", type: "Bonafide Certificate", certificateNo: "BC-DPA-0490", issueDate: "2026-08-19", status: "REQUESTED", conduct: "Good", reason: "State Athletics Championship Entry", issuedBy: "Dr. Amit Singhania" },
-  ],
-};
-
-const ALL_CERTIFICATES = [
-  ...SCHOOL_CERTIFICATES_MAP.VLPS,
-  ...SCHOOL_CERTIFICATES_MAP.SXIS,
-  ...SCHOOL_CERTIFICATES_MAP.DPA,
-];
-
-function getFallbackCertificatesForScope(activeSchoolId) {
-  if (!activeSchoolId || activeSchoolId === "all") return ALL_CERTIFICATES;
-  if (SCHOOL_CERTIFICATES_MAP[activeSchoolId]) return SCHOOL_CERTIFICATES_MAP[activeSchoolId];
-  return [];
-}
+import api from "@/lib/api";
 
 export default function Certificates() {
   const { user } = useAuth();
@@ -48,7 +23,8 @@ export default function Certificates() {
     return () => window.removeEventListener("schoolScopeChanged", handleScopeChange);
   }, []);
 
-  const [certificates, setCertificates] = useState(() => getFallbackCertificatesForScope(activeSchoolId));
+  const [certificates, setCertificates] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedCert, setSelectedCert] = useState(null);
@@ -64,39 +40,59 @@ export default function Certificates() {
     reason: "",
   });
 
+  const fetchCertificates = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.getCertificates({ schoolId: activeSchoolId });
+      setCertificates(res?.records || []);
+    } catch (err) {
+      toast.error("Failed to load certificates");
+    } finally {
+      setLoading(false);
+    }
+  }, [activeSchoolId]);
+
+  useEffect(() => { fetchCertificates(); }, [fetchCertificates]);
+
   const filteredCerts = useMemo(() => {
-    const dataset = SCHOOL_CERTIFICATES_MAP[activeSchoolId] || ALL_CERTIFICATES;
-    return dataset.filter((c) => {
-      const matchesSearch = c.studentName.toLowerCase().includes(search.toLowerCase()) || c.certificateNo.toLowerCase().includes(search.toLowerCase());
+    return certificates.filter((c) => {
+      const matchesSearch = c.studentName?.toLowerCase().includes(search.toLowerCase()) || c.certificateNo?.toLowerCase().includes(search.toLowerCase());
       const matchesType = typeFilter === "all" || c.type === typeFilter;
       return matchesSearch && matchesType;
     });
-  }, [search, typeFilter, activeSchoolId]);
+  }, [certificates, search, typeFilter]);
 
-  const handleIssueCertificate = (e) => {
+  const handleIssueCertificate = async (e) => {
     e.preventDefault();
     if (!form.studentName || !form.reason) {
       toast.error("Please fill student name and reason");
       return;
     }
-    const newCert = {
-      id: Date.now().toString(),
-      studentId: form.studentId || `VL${Math.floor(100000 + Math.random() * 900000)}`,
+
+    const payload = {
       studentName: form.studentName,
+      studentId: form.studentId || undefined,
       cls: form.cls,
       section: form.section,
       type: form.type,
-      certificateNo: `CERT-${Math.floor(100000 + Math.random() * 900000)}`,
-      issueDate: new Date().toISOString().split("T")[0],
-      status: isParentOrStudent ? "REQUESTED" : "ISSUED",
       conduct: form.conduct,
       reason: form.reason,
-      issuedBy: user?.name || "Principal",
     };
-    setCertificates([newCert, ...certificates]);
-    toast.success(isParentOrStudent ? "Certificate request submitted!" : "Certificate issued successfully!");
-    setForm({ studentName: "", studentId: "", cls: "10", section: "A", type: "Transfer Certificate", conduct: "Good", reason: "" });
-    setIssueModalOpen(false);
+
+    try {
+      if (isParentOrStudent) {
+        await api.requestCertificate(payload);
+        toast.success("Certificate request submitted!");
+      } else {
+        await api.issueCertificate(payload);
+        toast.success("Certificate issued successfully!");
+      }
+      fetchCertificates();
+      setForm({ studentName: "", studentId: "", cls: "10", section: "A", type: "Transfer Certificate", conduct: "Good", reason: "" });
+      setIssueModalOpen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to process certificate");
+    }
   };
 
   const handlePrint = () => {
@@ -149,7 +145,7 @@ export default function Certificates() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search student name or certificate number…"
+              placeholder="Search student name or certificate number..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-[13px] rounded-xl border border-slate-200 bg-white/80"
@@ -171,6 +167,11 @@ export default function Certificates() {
           </div>
         </div>
 
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 text-[#29ABE2] animate-spin" />
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
@@ -190,14 +191,14 @@ export default function Certificates() {
                   <td className="py-3.5 px-3 font-mono font-semibold text-slate-600">{c.certificateNo}</td>
                   <td className="py-3.5 px-3">
                     <div className="font-semibold text-slate-800">{c.studentName}</div>
-                    <div className="text-[11px] text-slate-500">{c.studentId} • Class {c.cls}-{c.section}</div>
+                    <div className="text-[11px] text-slate-500">{c.studentId || "N/A"} {c.cls ? `• Class ${c.cls}${c.section ? `-${c.section}` : ""}` : ""}</div>
                   </td>
                   <td className="py-3.5 px-3 text-slate-700 font-medium">{c.type}</td>
                   <td className="py-3.5 px-3 text-slate-600">
-                    <div>{c.reason}</div>
-                    <div className="text-[11px] text-slate-400">Conduct: {c.conduct}</div>
+                    <div>{c.reason || "—"}</div>
+                    <div className="text-[11px] text-slate-400">Conduct: {c.conduct || "Good"}</div>
                   </td>
-                  <td className="py-3.5 px-3 text-slate-600">{c.issueDate}</td>
+                  <td className="py-3.5 px-3 text-slate-600">{c.issueDate ? new Date(c.issueDate).toLocaleDateString() : "—"}</td>
                   <td className="py-3.5 px-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${c.status === "ISSUED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
                       {c.status}
@@ -214,9 +215,13 @@ export default function Certificates() {
                   </td>
                 </tr>
               ))}
+              {filteredCerts.length === 0 && (
+                <tr><td colSpan={7} className="px-3 py-10 text-center text-slate-500">No certificates found.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       {/* Modal: Issue / Request Certificate */}

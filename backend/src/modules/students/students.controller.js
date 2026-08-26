@@ -18,7 +18,7 @@ const create = catchAsync(async (req, res) => {
 });
 
 const update = catchAsync(async (req, res) => {
-  const isTeacherCorrection = req.user.role === ROLES.TEACHER;
+  const isTeacherCorrection = req.user.role === ROLES.STAFF;
   if (req.user.role === ROLES.PARENT) {
     throw new ApiError(403, "Parents cannot edit student records");
   }

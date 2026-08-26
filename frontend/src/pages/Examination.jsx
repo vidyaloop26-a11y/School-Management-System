@@ -12,7 +12,7 @@ const SUBJECTS = ["Mathematics", "Science", "English", "Social Sci.", "Hindi", "
 
 export default function Examination() {
   const { user, role } = useRole();
-  const isTeacher = role === "teacher" || user?.role === "teacher";
+  const isTeacher = role === "staff" && (user?.duties || []).includes("teacher");
 
   const [session, setSession] = useState("2024-2025");
   const [term, setTerm] = useState("Mid-Term");

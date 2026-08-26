@@ -13,8 +13,27 @@ datasource db {
 enum Role {
   superAdmin
   schoolAdmin
-  teacher
+  staff
   parent
+}
+
+// Functional duties a staff account may hold (checkbox model — one person can
+// hold several, e.g. teacher + librarian). schoolAdmin/superAdmin bypass duty
+// checks; parents never carry duties.
+enum Duty {
+  principal
+  vicePrincipal
+  hod
+  teacher
+  examCoordinator
+  accountant
+  frontOffice
+  librarian
+  transportIncharge
+  warden
+  hrManager
+  admissionsOfficer
+  itAdmin
 }
 
 enum StaffRole {
@@ -177,6 +196,7 @@ model User {
   username           String   @unique
   passwordHash       String
   role               Role
+  duties             Duty[]
   name               String
   isActive           Boolean  @default(true)
   mustChangePassword Boolean  @default(true)
@@ -205,6 +225,23 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// Platform-level audit trail. Every privileged cross-school access (support
+// lookups by superAdmin) is recorded here.
+model AuditLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId    String
+  actorEmail String?
+  action     String
+  targetType String?
+  targetId   String?
+  schoolId   String?  @db.ObjectId
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([schoolId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -263,6 +300,7 @@ model Staff {
   assignedSection String?
   status        String   @default("Active")
   joined        String?
+  salary        Float?
 
   user          User?
   timetable     TimetableEntry[]
@@ -467,6 +505,7 @@ model CertificateRecord {
   conduct       String?  @default("Good")
   remarks       String?
   issuedBy      String?
+  requestedBy   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

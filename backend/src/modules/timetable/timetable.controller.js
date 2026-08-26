@@ -15,6 +15,7 @@ const getByTeacher = catchAsync(async (req, res) => {
   const data = await timetableService.getStaffTimetable({
     user: req.user,
     staffId: req.query.staffId,
+    query: req.query,
   });
   res.json({ success: true, ...data });
 });

@@ -59,7 +59,7 @@ async function markClassAttendance({ user, data }) {
   if (!schoolId) throw new ApiError(400, "School ID required");
 
   // Class-teacher scoping: only the teacher appointed to this class/section may mark.
-  if (user.role === ROLES.TEACHER && user.staffId) {
+  if (user.role === ROLES.STAFF && user.staffId) {
     const staff = await prisma.staff.findUnique({
       where: { id: user.staffId },
       select: { assignedClass: true, assignedSection: true },

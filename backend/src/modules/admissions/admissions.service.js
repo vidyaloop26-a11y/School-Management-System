@@ -24,13 +24,6 @@ async function resolveSchoolScope(user, query = {}) {
   return user.schoolId;
 }
 
-const MOCK_INQUIRIES = [
-  { id: "inq-1", name: "Aditya Rawat", classApplied: "6", parentName: "Rajesh Rawat", phone: "+91 9876543210", stage: "inquiry", status: "Active", createdAt: new Date().toISOString() },
-  { id: "inq-2", name: "Sara Fernandes", classApplied: "9", parentName: "Mark Fernandes", phone: "+91 9876543211", stage: "docs", status: "Active", createdAt: new Date().toISOString() },
-  { id: "inq-3", name: "Om Prakash", classApplied: "3", parentName: "Sunil Prakash", phone: "+91 9876543212", stage: "interaction", status: "Active", createdAt: new Date().toISOString() },
-  { id: "inq-4", name: "Zara Khan", classApplied: "11", parentName: "Tariq Khan", phone: "+91 9876543213", stage: "enrolled", status: "Active", createdAt: new Date().toISOString() },
-];
-
 async function listInquiries({ user, query }) {
   const schoolId = await resolveSchoolScope(user, query);
   const where = {
@@ -48,107 +41,67 @@ async function listInquiries({ user, query }) {
     ];
   }
 
-  try {
-    if (prisma.admissionInquiry?.findMany) {
-      const inquiries = await prisma.admissionInquiry.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        include: { school: { select: { name: true, code: true } } },
-      });
-      return { inquiries };
-    }
-  } catch (err) {
-    console.warn("AdmissionInquiry DB query error, serving fallback dataset:", err.message);
-  }
-
-  return { inquiries: MOCK_INQUIRIES };
+  const inquiries = await prisma.admissionInquiry.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: { school: { select: { name: true, code: true } } },
+  });
+  return { inquiries };
 }
 
 async function createInquiry({ user, data }) {
-  const schoolId = user.schoolId || data.schoolId || "sch_demo";
+  const schoolId =
+    user.role === "superAdmin"
+      ? data.schoolId
+      : user.schoolId || data.schoolId;
+  if (!schoolId) throw new ApiError(400, "School ID is required to create an inquiry");
 
-  try {
-    if (prisma.admissionInquiry?.create) {
-      const inquiry = await prisma.admissionInquiry.create({
-        data: {
-          schoolId,
-          name: data.name,
-          classApplied: data.classApplied,
-          parentName: data.parentName,
-          phone: data.phone,
-          email: data.email || null,
-          prevSchool: data.prevSchool || null,
-        },
-      });
-      return inquiry;
-    }
-  } catch (err) {
-    console.warn("AdmissionInquiry DB create error, using fallback record:", err.message);
-  }
-
-  return {
-    id: `inq-${Date.now()}`,
-    schoolId,
-    name: data.name,
-    classApplied: data.classApplied,
-    parentName: data.parentName,
-    phone: data.phone,
-    email: data.email || null,
-    prevSchool: data.prevSchool || null,
-    stage: "inquiry",
-    status: "Active",
-    createdAt: new Date().toISOString(),
-  };
+  const inquiry = await prisma.admissionInquiry.create({
+    data: {
+      schoolId,
+      name: data.name,
+      classApplied: data.classApplied,
+      parentName: data.parentName,
+      phone: data.phone,
+      email: data.email || null,
+      prevSchool: data.prevSchool || null,
+    },
+  });
+  return inquiry;
 }
 
 async function getInquiry({ user, id }) {
-  try {
-    if (prisma.admissionInquiry?.findUnique) {
-      const inquiry = await prisma.admissionInquiry.findUnique({ where: { id } });
-      if (inquiry) return inquiry;
-    }
-  } catch (err) {
-    // fallback
-  }
+  const inquiry = await prisma.admissionInquiry.findUnique({ where: { id } });
+  if (!inquiry) throw new ApiError(404, "Inquiry not found");
 
-  const found = MOCK_INQUIRIES.find((i) => i.id === id);
-  if (found) return found;
-  throw new ApiError(404, "Inquiry not found");
+  const schoolId = await resolveSchoolScope(user, {});
+  if (schoolId && inquiry.schoolId !== schoolId) {
+    throw new ApiError(403, "Inquiry belongs to a different school");
+  }
+  return inquiry;
 }
 
 async function updateInquiry({ user, id, data }) {
-  try {
-    if (prisma.admissionInquiry?.update) {
-      return await prisma.admissionInquiry.update({
-        where: { id },
-        data: {
-          ...(data.name && { name: data.name }),
-          ...(data.classApplied && { classApplied: data.classApplied }),
-          ...(data.parentName && { parentName: data.parentName }),
-          ...(data.phone && { phone: data.phone }),
-          ...("email" in data && { email: data.email || null }),
-          ...("prevSchool" in data && { prevSchool: data.prevSchool || null }),
-          ...(data.stage && { stage: data.stage }),
-          ...(data.status && { status: data.status }),
-        },
-      });
-    }
-  } catch (err) {
-    console.warn("AdmissionInquiry update DB fallback:", err.message);
-  }
-
-  return { id, ...data };
+  const existing = await getInquiry({ user, id });
+  return prisma.admissionInquiry.update({
+    where: { id: existing.id },
+    data: {
+      ...(data.name && { name: data.name }),
+      ...(data.classApplied && { classApplied: data.classApplied }),
+      ...(data.parentName && { parentName: data.parentName }),
+      ...(data.phone && { phone: data.phone }),
+      ...("email" in data && { email: data.email || null }),
+      ...("prevSchool" in data && { prevSchool: data.prevSchool || null }),
+      ...(data.stage && { stage: data.stage }),
+      ...(data.status && { status: data.status }),
+    },
+  });
 }
 
 async function deleteInquiry({ user, id }) {
-  try {
-    if (prisma.admissionInquiry?.delete) {
-      return await prisma.admissionInquiry.delete({ where: { id } });
-    }
-  } catch (err) {
-    // fallback
-  }
-  return { id, deleted: true };
+  const existing = await getInquiry({ user, id });
+  await prisma.admissionInquiry.delete({ where: { id: existing.id } });
+  return { id: existing.id, deleted: true };
 }
 
 function buildAdmNo(schoolCode, sequence) {
@@ -168,7 +121,17 @@ async function enrollInquiry({ user, id, data }) {
   const schoolCode = school ? school.code : inquiry.schoolId;
 
   const count = await prisma.student.count({ where: { schoolId: inquiry.schoolId } });
-  const admNo = buildAdmNo(schoolCode, count + 1);
+  let admNo = buildAdmNo(schoolCode, count + 1);
+
+  // Guard against admission-number collisions (e.g. after deletions).
+  for (let attempt = count + 1; attempt < count + 50; attempt++) {
+    const clash = await prisma.student.findFirst({
+      where: { schoolId: inquiry.schoolId, admNo },
+      select: { id: true },
+    });
+    if (!clash) break;
+    admNo = buildAdmNo(schoolCode, attempt + 1);
+  }
 
   const section = data.section || "A";
   const roll = data.roll != null ? data.roll : count + 1;

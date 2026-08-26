@@ -1,7 +1,7 @@
 const prisma = require("../../lib/prisma");
 const { ApiError } = require("../../lib/errors");
 const authService = require("../auth/auth.service");
-const { generateUsername, ensureUniqueEmail } = require("../../utils/credentials");
+const { generateUsername, ensureUniqueEmail, generateTempPassword } = require("../../utils/credentials");
 
 async function resolveSchoolScope(user, query = {}) {
   const scopeInput = (user.role === "superAdmin")
@@ -77,6 +77,7 @@ async function createStaff({ user, data }) {
       assignedSection: data.assignedSection || null,
       status: data.status || "Active",
       joined: data.joined,
+      salary: typeof data.salary === "number" ? data.salary : null,
     },
   });
 
@@ -93,7 +94,8 @@ async function createStaff({ user, data }) {
         email,
         username,
         passwordHash: await authService.hashPassword(tempPassword),
-        role: "teacher",
+        role: "staff",
+        duties: Array.isArray(data.duties) && data.duties.length ? data.duties : ["teacher"],
         schoolId,
         staffId: staff.id,
         mustChangePassword: true,
@@ -148,12 +150,14 @@ async function bulkCreateStaff({ user, staff }) {
         assignedSection: s.assignedSection || s.section || null,
         status: s.status || "Active",
         joined: s.joined,
+        salary: typeof s.salary === "number" ? s.salary : null,
       },
       update: {
         name: s.name,
         jobTitle: s.jobTitle,
         dept: s.dept,
         subject: s.subject,
+        ...(typeof s.salary === "number" ? { salary: s.salary } : {}),
         assignedClass: s.assignedClass || s.cls || undefined,
         assignedSection: s.assignedSection || s.section || undefined,
       },
@@ -178,7 +182,8 @@ async function bulkCreateStaff({ user, staff }) {
             email,
             username,
             passwordHash: await authService.hashPassword(tempPassword),
-            role: "teacher",
+            role: "staff",
+            duties: Array.isArray(s.duties) && s.duties.length ? s.duties : ["teacher"],
             schoolId: targetSchoolId,
             staffId: staffObj.id,
             mustChangePassword: true,
@@ -217,33 +222,47 @@ async function updateStaff({ user, id, data }) {
     throw new ApiError(403, "Access denied");
   }
 
-  if (data.staffId && data.staffId.trim().toUpperCase() !== existing.staffId) {
-    const cleanStaffId = data.staffId.trim().toUpperCase();
+  // `duties` lives on the linked User, not the Staff record.
+  const { duties, ...staffFields } = data;
+
+  if (staffFields.staffId && staffFields.staffId.trim().toUpperCase() !== existing.staffId) {
+    const cleanStaffId = staffFields.staffId.trim().toUpperCase();
     const duplicate = await prisma.staff.findFirst({
       where: { schoolId: existing.schoolId, staffId: cleanStaffId, NOT: { id } },
     });
     if (duplicate) {
       throw new ApiError(409, `A staff member with Staff ID '${cleanStaffId}' already exists in this school.`);
     }
-    data.staffId = cleanStaffId;
+    staffFields.staffId = cleanStaffId;
   }
 
   const updatedStaff = await prisma.staff.update({
     where: { id },
-    data,
+    data: staffFields,
   });
 
-  if (data.status && existing.user) {
-    const isActive = data.status === "Active";
-    await prisma.user.update({
-      where: { id: existing.user.id },
-      data: { isActive },
-    });
+  if (existing.user) {
+    const userUpdate = {};
+    if (staffFields.status) {
+      userUpdate.isActive = staffFields.status === "Active";
+    }
+    if (Array.isArray(duties)) {
+      userUpdate.duties = duties;
+    }
+    if (Object.keys(userUpdate).length) {
+      await prisma.user.update({
+        where: { id: existing.user.id },
+        data: userUpdate,
+      });
+    }
   }
 
   return updatedStaff;
 }
 
+// Archive, never hard-delete: a departed staff member's historical payroll,
+// timetable and attendance references must keep resolving. We flip status,
+// revoke their login and kill their sessions; records stay intact.
 async function deleteStaff({ user, id }) {
   const staff = await prisma.staff.findUnique({
     where: { id },
@@ -259,9 +278,67 @@ async function deleteStaff({ user, id }) {
       where: { id: staff.user.id },
       data: { isActive: false },
     });
+    await prisma.refreshToken.deleteMany({ where: { userId: staff.user.id } });
   }
 
-  return prisma.staff.delete({ where: { id } });
+  const archived = await prisma.staff.update({
+    where: { id },
+    data: { status: "Inactive" },
+  });
+
+  return { archived: true, staff: archived };
+}
+
+// Regenerate a temporary password for the staff member's login.
+// They must change it on next sign-in (mustChangePassword is set).
+async function resetStaffPassword({ user, id, newPassword }) {
+  const staff = await prisma.staff.findUnique({
+    where: { id },
+    include: { user: true },
+  });
+  if (!staff) throw new ApiError(404, "Staff member not found");
+  if (user.schoolId && staff.schoolId !== user.schoolId) {
+    throw new ApiError(403, "Access denied");
+  }
+
+  let account = staff.user;
+  if (!account) {
+    // Provision a login on the fly for a staff member who never had one
+    // (e.g. non-teaching staff imported before accounts existed).
+    const tempPassword = newPassword || generateTempPassword();
+    const username = await generateUsername(staff.staffId.toLowerCase(), prisma);
+    const emailBase = staff.email?.toLowerCase().trim() || `${staff.staffId.toLowerCase()}@vidyaloop.local`;
+    const email = await ensureUniqueEmail(emailBase, prisma);
+    account = await prisma.user.create({
+      data: {
+        name: staff.name,
+        email,
+        username,
+        passwordHash: await authService.hashPassword(tempPassword),
+        role: "staff",
+        duties: [],
+        schoolId: staff.schoolId,
+        staffId: staff.id,
+        isActive: true,
+        mustChangePassword: true,
+      },
+    });
+    return { success: true, username: account.username, email: account.email, tempPassword, provisioned: true };
+  }
+
+  const tempPassword = newPassword || generateTempPassword();
+  await prisma.user.update({
+    where: { id: account.id },
+    data: {
+      passwordHash: await authService.hashPassword(tempPassword),
+      mustChangePassword: true,
+      isActive: true,
+    },
+  });
+  // Any existing sessions die immediately.
+  await prisma.refreshToken.deleteMany({ where: { userId: account.id } });
+
+  return { success: true, username: account.username, email: account.email, tempPassword };
 }
 
 module.exports = {
@@ -271,5 +348,6 @@ module.exports = {
   bulkCreateStaff,
   updateStaff,
   deleteStaff,
+  resetStaffPassword,
   resolveSchoolScope,
 };

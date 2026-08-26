@@ -33,7 +33,7 @@ async function listStudents({ user, query }) {
 
   // Class Isolation for Teacher Role:
   // A teacher can ONLY view students belonging to their assigned Class and Section (as designated by School Admin).
-  if (user && user.role === "teacher") {
+  if (user && user.role === "staff") {
     let assignedClass = null;
     let assignedSection = null;
 
@@ -98,7 +98,7 @@ async function getStudent({ user, id }) {
   }
 
   // Teacher Class Isolation for single student access
-  if (user && user.role === "teacher" && user.staffId) {
+  if (user && user.role === "staff" && user.staffId) {
     const staff = await prisma.staff.findUnique({
       where: { id: user.staffId },
       select: { assignedClass: true, assignedSection: true },
@@ -303,6 +303,7 @@ async function resetParentPassword({ user, id }) {
       mustChangePassword: true,
     },
   });
+  await prisma.refreshToken.deleteMany({ where: { userId: parentUser.id } });
 
   return {
     success: true,

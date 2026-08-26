@@ -3,6 +3,7 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth, ROLES } from "@/lib/AuthContext";
 import { ProtectedRoute, PublicRoute } from "@/components/auth/ProtectedRoute";
+import ChangePasswordGate from "@/components/auth/ChangePasswordGate";
 import Layout from "@/components/layout/Layout";
 import Dashboard from "@/pages/Dashboard";
 import Students from "@/pages/Students";
@@ -28,6 +29,7 @@ import IDCard from "@/pages/IDCard";
 import Events from "@/pages/Events";
 import Login from "@/pages/Login";
 import Schools from "@/pages/Schools";
+import Support from "@/pages/Support";
 import { DataStoreProvider } from "@/lib/dataStore";
 import { NAV } from "@/lib/mockData";
 import { PLACEHOLDER_DESCRIPTIONS } from "@/lib/stage3Data";
@@ -36,8 +38,8 @@ import { Toaster } from "@/components/ui/sonner";
 function DashboardRouter() {
   const { user } = useAuth();
   if (!user) return null;
-  if (user.role === ROLES.TEACHER) return <TeacherDashboard />;
   if (user.role === ROLES.PARENT) return <ParentDashboard />;
+  if (user.role === ROLES.STAFF) return <TeacherDashboard />;
   return <Dashboard />;
 }
 
@@ -65,26 +67,78 @@ function AppRoutes() {
       <Route
         element={
           <ProtectedRoute>
-            <Layout />
+            <ChangePasswordGate>
+              <Layout />
+            </ChangePasswordGate>
           </ProtectedRoute>
         }
       >
         <Route path="/" element={<DashboardRouter />} />
-        <Route path="/schools" element={<Schools />} />
+        <Route
+          path="/schools"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+              <Schools />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/support"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
+              <Support />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/students" element={<Students />} />
         <Route path="/students/:id" element={<StudentProfile />} />
-        <Route path="/staff" element={<Staff />} />
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+              <Staff />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/staff/:id" element={<StaffProfile />} />
         <Route path="/timetable" element={<Timetable />} />
         <Route path="/attendance" element={<Attendance />} />
+        <Route
+          path="/fees"
+          element={
+            <ProtectedRoute allowedDuties={["accountant"]}>
+              <Fees />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payroll"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+              <Payroll />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/income"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+              <IncomeExpense />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admissions"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+              <Admissions />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/diary" element={<DigitalDiary />} />
         <Route path="/homework" element={<Homework />} />
-        <Route path="/fees" element={<Fees />} />
         <Route path="/communication" element={<Communication />} />
-        <Route path="/admissions" element={<Admissions />} />
         <Route path="/examination" element={<Examination />} />
-        <Route path="/payroll" element={<Payroll />} />
-        <Route path="/income" element={<IncomeExpense />} />
         <Route path="/certificates" element={<Certificates />} />
         <Route path="/leave" element={<Leave />} />
         <Route path="/id-card" element={<IDCard />} />

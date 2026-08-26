@@ -318,6 +318,28 @@ api.createFinanceRecord = async (recordData) => {
   return res.data;
 };
 
+// Certificates
+api.getCertificates = async (params = {}) => {
+  const query = new URLSearchParams();
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+  if (params.type) query.append("type", params.type);
+  if (params.status) query.append("status", params.status);
+  const qStr = query.toString();
+  const res = await api.get(`/certificates${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+api.issueCertificate = async (certData) => {
+  const res = await api.post("/certificates/issue", certData);
+  return res.data;
+};
+
+api.requestCertificate = async (certData) => {
+  const res = await api.post("/certificates/request", certData);
+  return res.data;
+};
+
 // Leave Applications
 api.getLeaveRequests = async (params = {}) => {
   const query = new URLSearchParams();

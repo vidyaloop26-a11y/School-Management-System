@@ -51,19 +51,29 @@ async function getClassTimetable({ user, cls, section, query = {} }) {
   };
 }
 
-async function getStaffTimetable({ user, staffId: paramStaffId }) {
+async function getStaffTimetable({ user, staffId: paramStaffId, query = {} }) {
+  // Resolve which staff member's timetable to show. There is deliberately NO
+  // database-wide fallback: an unresolvable request is an error, never
+  // "the first teacher we found" (that leaked data across schools).
   let targetStaffId = paramStaffId || user.staffId;
-  if (!targetStaffId && user.role === "teacher") {
-    targetStaffId = user.staffId;
-  }
-  if (!targetStaffId) {
-    const firstTeacher = await prisma.staff.findFirst({
-      where: { jobTitle: { contains: "Teacher", mode: "insensitive" } },
+  if (targetStaffId) {
+    const staff = await prisma.staff.findUnique({
+      where: { id: targetStaffId },
+      select: { id: true, schoolId: true, name: true },
     });
-    if (firstTeacher) targetStaffId = firstTeacher.id;
-  }
+    if (!staff) throw new ApiError(404, "Teacher profile not found");
 
-  if (!targetStaffId) throw new ApiError(404, "Teacher profile not found");
+    const callerSchoolId =
+      user.role === "superAdmin"
+        ? await resolveSchoolScope(user, query)
+        : user.schoolId;
+    if (callerSchoolId && staff.schoolId !== callerSchoolId) {
+      throw new ApiError(403, "Teacher belongs to a different school");
+    }
+    targetStaffId = staff.id;
+  } else {
+    throw new ApiError(400, "staffId is required");
+  }
 
   const entries = await prisma.timetableEntry.findMany({
     where: { staffId: targetStaffId },

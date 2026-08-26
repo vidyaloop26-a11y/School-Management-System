@@ -177,21 +177,6 @@ export default function Login() {
                 )}
               </button>
             </form>
-
-            <div className="mt-8 pt-6 border-t border-slate-100/80">
-              <p className="text-center text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Demo Environment Access</p>
-              <div className="space-y-2 text-[12px]">
-                <div className="glass-soft rounded-xl p-3 font-mono text-slate-700 bg-slate-50/50 border border-slate-100 flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-1.5">
-                  <div>
-                    <span className="text-slate-900 font-semibold">Super Admin ID:</span>
-                    <div className="text-[11px] text-slate-500">superadmin@vidyaloop.in</div>
-                  </div>
-                  <div className="px-2 py-0.5 rounded bg-sky-100 text-sky-800 text-[10px] font-bold">
-                    Super@1234
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <p className="text-center text-xs text-slate-400 lg:hidden">

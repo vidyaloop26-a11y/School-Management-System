@@ -23,6 +23,7 @@ const payrollRoutes = require("./modules/payroll/payroll.routes");
 const financeRoutes = require("./modules/finance/finance.routes");
 const certificatesRoutes = require("./modules/certificates/certificates.routes");
 const leaveRoutes = require("./modules/leave/leave.routes");
+const supportRoutes = require("./modules/support/support.routes");
 
 const app = express();
 const api = express.Router();
@@ -74,6 +75,7 @@ api.use("/finance", financeRoutes);
 api.use("/income", financeRoutes);
 api.use("/certificates", certificatesRoutes);
 api.use("/leave", leaveRoutes);
+api.use("/support", supportRoutes);
 
 app.use("/api", api);
 app.use(notFound);

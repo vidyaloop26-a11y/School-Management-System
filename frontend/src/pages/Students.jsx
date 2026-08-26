@@ -242,7 +242,7 @@ export default function Students() {
   };
 
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
-  const isTeacherRole = currentUser?.role === "teacher";
+  const isTeacherRole = currentUser?.role === "staff" && ((currentUser?.duties) || []).includes("teacher");
 
   return (
     <div data-testid="students-page" className="max-w-[1400px] mx-auto px-2 sm:px-4">
