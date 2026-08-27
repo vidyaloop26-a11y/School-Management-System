@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -57,7 +57,7 @@ export default function Tasks() {
     dueDate: "",
   });
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.getTasks({ status: statusFilter, priority: priorityFilter, category: categoryFilter, search });
@@ -68,7 +68,7 @@ export default function Tasks() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, priorityFilter, categoryFilter, search]);
 
   const fetchStaff = async () => {
     try {
@@ -81,7 +81,7 @@ export default function Tasks() {
 
   useEffect(() => {
     fetchTasks();
-  }, [statusFilter, priorityFilter, categoryFilter, search]);
+  }, [fetchTasks]);
 
   useEffect(() => {
     fetchStaff();

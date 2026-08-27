@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -201,7 +201,7 @@ function AlbumDetailView({ albumId, onBack }) {
   const [confirmPhoto, setConfirmPhoto] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchAlbum = async () => {
+  const fetchAlbum = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.getAlbumById(albumId);
@@ -211,9 +211,9 @@ function AlbumDetailView({ albumId, onBack }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [albumId]);
 
-  useEffect(() => { fetchAlbum(); }, [albumId]);
+  useEffect(() => { fetchAlbum(); }, [fetchAlbum]);
 
   const handleDeletePhoto = async () => {
     if (!confirmPhoto) return;

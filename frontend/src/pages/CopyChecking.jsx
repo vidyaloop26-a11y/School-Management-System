@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -316,7 +316,7 @@ function BatchDetailView({ batch, onBack, onRefresh }) {
   const { data: studentsData } = useStudents();
   const students = Array.isArray(studentsData) ? studentsData : [];
 
-  const fetchEntries = async () => {
+  const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.getCopyCheckBatches({ status: batch.status, cls: batch.cls, subject: batch.subject });
@@ -327,11 +327,11 @@ function BatchDetailView({ batch, onBack, onRefresh }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [batch]);
 
   useEffect(() => {
     fetchEntries();
-  }, [batch.id]);
+  }, [fetchEntries]);
 
   const getStudentName = (id) => {
     const s = students.find((st) => (st.id || st._id) === id);
@@ -498,7 +498,7 @@ export default function CopyChecking() {
   const { data: studentsData } = useStudents();
   const students = Array.isArray(studentsData) ? studentsData : [];
 
-  const fetchBatches = async () => {
+  const fetchBatches = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
@@ -513,11 +513,11 @@ export default function CopyChecking() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, clsFilter, subjectFilter]);
 
   useEffect(() => {
     fetchBatches();
-  }, [statusFilter, clsFilter, subjectFilter]);
+  }, [fetchBatches]);
 
   const handleDelete = async (id) => {
     try {

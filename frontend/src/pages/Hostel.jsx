@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,16 +41,16 @@ export default function Hostel() {
   const [bedForm, setBedForm] = useState(INITIAL_BED_FORM);
   const [maintenanceForm, setMaintenanceForm] = useState(INITIAL_MAINTENANCE_FORM);
 
-  const fetchBuildings = async () => {
+  const fetchBuildings = useCallback(async () => {
     try {
       const res = await api.getBuildings();
       setBuildings(res?.buildings || []);
     } catch {
       toast.error("Failed to load buildings");
     }
-  };
+  }, []);
 
-  const fetchRooms = async () => {
+  const fetchRooms = useCallback(async () => {
     try {
       const params = filterBuilding !== "all" ? { buildingId: filterBuilding } : {};
       const res = await api.getHostelRooms(params);
@@ -58,30 +58,30 @@ export default function Hostel() {
     } catch {
       toast.error("Failed to load rooms");
     }
-  };
+  }, [filterBuilding]);
 
-  const fetchMaintenance = async () => {
+  const fetchMaintenance = useCallback(async () => {
     try {
       const res = await api.getMaintenanceRequests();
       setMaintenanceRequests(res?.requests || []);
     } catch {
       toast.error("Failed to load maintenance requests");
     }
-  };
+  }, []);
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     await Promise.all([fetchBuildings(), fetchRooms(), fetchMaintenance()]);
     setLoading(false);
-  };
+  }, [fetchBuildings, fetchRooms, fetchMaintenance]);
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
   useEffect(() => {
     if (activeTab === "rooms") fetchRooms();
-  }, [filterBuilding, activeTab]);
+  }, [filterBuilding, activeTab, fetchRooms]);
 
   const totalRooms = rooms.length;
   const occupiedRooms = rooms.filter((r) => r.status === "OCCUPIED").length;

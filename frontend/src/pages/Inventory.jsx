@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -75,7 +75,7 @@ export default function Inventory() {
   const [issueForm, setIssueForm] = useState(INITIAL_ISSUE_FORM);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.getInventoryItems({
@@ -88,21 +88,21 @@ export default function Inventory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, category]);
 
-  const fetchLowStock = async () => {
+  const fetchLowStock = useCallback(async () => {
     try {
       const res = await api.getLowStockItems();
       setLowStockItems(res?.items || []);
     } catch {
       // low stock may not be supported yet
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchItems();
     fetchLowStock();
-  }, [search, category]);
+  }, [fetchItems, fetchLowStock]);
 
   const totalItems = items.length;
   const lowStockCount = lowStockItems.length || items.filter((i) => i.currentStock <= i.reorderLevel).length;

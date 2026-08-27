@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -56,7 +56,7 @@ export default function Library() {
   const [submitting, setSubmitting] = useState(false);
   const [returningId, setReturningId] = useState(null);
 
-  const fetchBooks = async () => {
+  const fetchBooks = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.getBooks({ search, category: category === "all" ? undefined : category });
@@ -66,21 +66,21 @@ export default function Library() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, category]);
 
-  const fetchIssues = async () => {
+  const fetchIssues = useCallback(async () => {
     try {
       const res = await api.getLibraryIssues({ status: activeTab === "issues" ? undefined : undefined });
       setIssues(res?.issues || []);
     } catch {
       toast.error("Failed to load library issues");
     }
-  };
+  }, [activeTab]);
 
   useEffect(() => {
     fetchBooks();
     fetchIssues();
-  }, [search, category, activeTab]);
+  }, [fetchBooks, fetchIssues]);
 
   const totalBooks = books.reduce((sum, b) => sum + (b.totalCopies || 0), 0);
   const issuedCount = issues.filter((i) => i.status === "ISSUED").length;
