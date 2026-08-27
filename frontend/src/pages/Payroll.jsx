@@ -32,8 +32,9 @@ export default function Payroll() {
 
   const monthOptions = useMemo(() => {
     const months = [];
+    const ref = new Date();
     for (let i = -1; i <= 2; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const d = new Date(ref.getFullYear(), ref.getMonth() + i, 1);
       months.push(d.toLocaleString("en-IN", { month: "long", year: "numeric" }));
     }
     return months;
