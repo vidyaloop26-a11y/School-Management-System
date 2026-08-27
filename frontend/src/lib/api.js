@@ -416,6 +416,35 @@ api.syncHolidays = async (year, country) => {
   return res.data;
 };
 
+// Tasks
+api.getTasks = async (params = {}) => {
+  const query = new URLSearchParams();
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+  if (params.status && params.status !== "all") query.append("status", params.status);
+  if (params.priority && params.priority !== "all") query.append("priority", params.priority);
+  if (params.category && params.category !== "all") query.append("category", params.category);
+  if (params.search) query.append("search", params.search);
+  const qStr = query.toString();
+  const res = await api.get(`/tasks${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+api.createTask = async (taskData) => {
+  const res = await api.post("/tasks", taskData);
+  return res.data;
+};
+
+api.updateTask = async (id, taskData) => {
+  const res = await api.put(`/tasks/${id}`, taskData);
+  return res.data;
+};
+
+api.deleteTask = async (id) => {
+  const res = await api.delete(`/tasks/${id}`);
+  return res.data;
+};
+
 // Leave Applications
 api.getLeaveRequests = async (params = {}) => {
   const query = new URLSearchParams();
@@ -463,5 +492,130 @@ export const setAuthToken = (token) => {
     delete api.defaults.headers.common.Authorization;
   }
 };
+
+// Syllabus
+api.getSyllabusTopics = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.cls) query.append("cls", params.cls);
+  if (params.section) query.append("section", params.section);
+  if (params.subject) query.append("subject", params.subject);
+  const qStr = query.toString();
+  const res = await api.get(`/syllabus${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createSyllabusTopic = async (data) => { const res = await api.post("/syllabus", data); return res.data; };
+api.updateSyllabusTopic = async (id, data) => { const res = await api.put(`/syllabus/${id}`, data); return res.data; };
+api.markSyllabusProgress = async (id, data) => { const res = await api.post(`/syllabus/${id}/progress`, data); return res.data; };
+api.getSyllabusDashboard = async () => { const res = await api.get("/syllabus/dashboard"); return res.data; };
+
+// Gallery
+api.getAlbums = async () => { const res = await api.get("/gallery"); return res.data; };
+api.getAlbumById = async (id) => { const res = await api.get(`/gallery/${id}`); return res.data; };
+api.createAlbum = async (data) => { const res = await api.post("/gallery", data); return res.data; };
+api.addPhoto = async (albumId, data) => { const res = await api.post(`/gallery/${albumId}/photos`, data); return res.data; };
+api.deleteAlbum = async (id) => { const res = await api.delete(`/gallery/${id}`); return res.data; };
+api.deletePhoto = async (id) => { const res = await api.delete(`/gallery/photos/${id}`); return res.data; };
+
+// Library
+api.getBooks = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.search) query.append("search", params.search);
+  if (params.category) query.append("category", params.category);
+  if (params.status) query.append("status", params.status);
+  const qStr = query.toString();
+  const res = await api.get(`/library${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createBook = async (data) => { const res = await api.post("/library", data); return res.data; };
+api.issueBook = async (data) => { const res = await api.post("/library/issue", data); return res.data; };
+api.returnBook = async (id, data) => { const res = await api.post(`/library/${id}/return`, data); return res.data; };
+api.getLibraryIssues = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.status) query.append("status", params.status);
+  const qStr = query.toString();
+  const res = await api.get(`/library/issues${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.deleteBook = async (id) => { const res = await api.delete(`/library/${id}`); return res.data; };
+
+// Transport
+api.getTransportRoutes = async () => { const res = await api.get("/transport/routes"); return res.data; };
+api.createTransportRoute = async (data) => { const res = await api.post("/transport/routes", data); return res.data; };
+api.updateTransportRoute = async (id, data) => { const res = await api.put(`/transport/routes/${id}`, data); return res.data; };
+api.deleteTransportRoute = async (id) => { const res = await api.delete(`/transport/routes/${id}`); return res.data; };
+api.getVehicles = async () => { const res = await api.get("/transport/vehicles"); return res.data; };
+api.createVehicle = async (data) => { const res = await api.post("/transport/vehicles", data); return res.data; };
+api.updateVehicle = async (id, data) => { const res = await api.put(`/transport/vehicles/${id}`, data); return res.data; };
+api.deleteVehicle = async (id) => { const res = await api.delete(`/transport/vehicles/${id}`); return res.data; };
+api.assignStudentTransport = async (data) => { const res = await api.post("/transport/assign", data); return res.data; };
+api.removeStudentTransport = async (id) => { const res = await api.delete(`/transport/assign/${id}`); return res.data; };
+
+// Front Office
+api.getVisitors = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.status) query.append("status", params.status);
+  if (params.date) query.append("date", params.date);
+  const qStr = query.toString();
+  const res = await api.get(`/frontoffice/visitors${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.checkInVisitor = async (data) => { const res = await api.post("/frontoffice/visitors/check-in", data); return res.data; };
+api.checkOutVisitor = async (id) => { const res = await api.post(`/frontoffice/visitors/${id}/check-out`); return res.data; };
+api.getGatePasses = async () => { const res = await api.get("/frontoffice/gate-passes"); return res.data; };
+api.createGatePass = async (data) => { const res = await api.post("/frontoffice/gate-passes", data); return res.data; };
+api.getHostMappings = async () => { const res = await api.get("/frontoffice/host-mappings"); return res.data; };
+api.createHostMapping = async (data) => { const res = await api.post("/frontoffice/host-mappings", data); return res.data; };
+api.deleteHostMapping = async (id) => { const res = await api.delete(`/frontoffice/host-mappings/${id}`); return res.data; };
+
+// Inventory
+api.getInventoryItems = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.category) query.append("category", params.category);
+  if (params.search) query.append("search", params.search);
+  if (params.lowStock) query.append("lowStock", params.lowStock);
+  const qStr = query.toString();
+  const res = await api.get(`/inventory${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createInventoryItem = async (data) => { const res = await api.post("/inventory", data); return res.data; };
+api.updateInventoryItem = async (id, data) => { const res = await api.put(`/inventory/${id}`, data); return res.data; };
+api.deleteInventoryItem = async (id) => { const res = await api.delete(`/inventory/${id}`); return res.data; };
+api.recordPurchase = async (data) => { const res = await api.post("/inventory/purchase", data); return res.data; };
+api.recordIssue = async (data) => { const res = await api.post("/inventory/issue", data); return res.data; };
+api.getLowStockItems = async () => { const res = await api.get("/inventory/low-stock"); return res.data; };
+
+// Hostel
+api.getBuildings = async () => { const res = await api.get("/hostel/buildings"); return res.data; };
+api.createBuilding = async (data) => { const res = await api.post("/hostel/buildings", data); return res.data; };
+api.updateBuilding = async (id, data) => { const res = await api.put(`/hostel/buildings/${id}`, data); return res.data; };
+api.deleteBuilding = async (id) => { const res = await api.delete(`/hostel/buildings/${id}`); return res.data; };
+api.getHostelRooms = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.buildingId) query.append("buildingId", params.buildingId);
+  const qStr = query.toString();
+  const res = await api.get(`/hostel/rooms${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createHostelRoom = async (data) => { const res = await api.post("/hostel/rooms", data); return res.data; };
+api.assignBed = async (data) => { const res = await api.post("/hostel/assign", data); return res.data; };
+api.unassignBed = async (id) => { const res = await api.delete(`/hostel/assign/${id}`); return res.data; };
+api.getMaintenanceRequests = async () => { const res = await api.get("/hostel/maintenance"); return res.data; };
+api.createMaintenanceRequest = async (data) => { const res = await api.post("/hostel/maintenance", data); return res.data; };
+api.updateMaintenanceRequest = async (id, data) => { const res = await api.put(`/hostel/maintenance/${id}`, data); return res.data; };
+
+// Copy Checking
+api.getCopyCheckBatches = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.status) query.append("status", params.status);
+  if (params.cls) query.append("cls", params.cls);
+  if (params.subject) query.append("subject", params.subject);
+  const qStr = query.toString();
+  const res = await api.get(`/copychecking${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createCopyCheckBatch = async (data) => { const res = await api.post("/copychecking", data); return res.data; };
+api.addCopyCheckEntry = async (batchId, data) => { const res = await api.post(`/copychecking/${batchId}/entries`, data); return res.data; };
+api.updateCopyCheckEntry = async (id, data) => { const res = await api.put(`/copychecking/entries/${id}`, data); return res.data; };
+api.deleteCopyCheckBatch = async (id) => { const res = await api.delete(`/copychecking/${id}`); return res.data; };
 
 export default api;

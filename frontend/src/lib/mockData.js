@@ -3,7 +3,7 @@ import {
   BookOpen, PencilLine, MessageSquare, Images, PartyPopper,
   Wallet, Bus, Library, Boxes, Building2, BedDouble,
   UserPlus, Banknote, TrendingUp, ScrollText, PlaneTakeoff, CheckSquare,
-  IdCard, Settings, Megaphone, Shield
+  IdCard, Settings, Megaphone, Shield, ListTodo, BookMarked
 } from "lucide-react";
 
 // Sidebar structure
@@ -21,6 +21,7 @@ export const NAV = {
         { key: "timetable",   label: "Timetable",   path: "/timetable",   icon: CalendarDays,     functional: true },
         { key: "attendance",  label: "Attendance",  path: "/attendance",  icon: ClipboardCheck,   functional: true },
         { key: "examination", label: "Examination", path: "/examination", icon: FileSpreadsheet,  functional: true },
+        { key: "syllabus",    label: "Syllabus",    path: "/syllabus",    icon: BookMarked,       functional: true },
       ],
     },
     {
@@ -29,7 +30,7 @@ export const NAV = {
         { key: "diary",         label: "Digital Diary",       path: "/diary",         icon: BookOpen,      functional: true },
         { key: "homework",      label: "Homework",            path: "/homework",      icon: PencilLine,    functional: true },
         { key: "communication", label: "Communication",       path: "/communication", icon: MessageSquare, functional: true },
-        { key: "gallery",       label: "Gallery",             path: "/gallery",       icon: Images,        functional: false },
+        { key: "gallery",       label: "Gallery",             path: "/gallery",       icon: Images,        functional: true },
         { key: "events",        label: "Events & Holidays",   path: "/events",        icon: PartyPopper,   functional: true },
       ],
     },
@@ -37,11 +38,11 @@ export const NAV = {
       label: "OPERATIONS",
       items: [
         { key: "fees",       label: "Fees",              path: "/fees",       icon: Wallet,      functional: true },
-        { key: "transport",  label: "Transport",         path: "/transport",  icon: Bus,         functional: false },
-        { key: "library",    label: "Library",           path: "/library",    icon: Library,     functional: false },
-        { key: "inventory",  label: "Inventory",         path: "/inventory",  icon: Boxes,       functional: false },
-        { key: "frontoffice",label: "Front Office",      path: "/front-office",icon: Building2,  functional: false },
-        { key: "hostel",     label: "Building & Hostel", path: "/hostel",     icon: BedDouble,   functional: false },
+        { key: "transport",  label: "Transport",         path: "/transport",  icon: Bus,         functional: true },
+        { key: "library",    label: "Library",           path: "/library",    icon: Library,     functional: true },
+        { key: "inventory",  label: "Inventory",         path: "/inventory",  icon: Boxes,       functional: true },
+        { key: "frontoffice",label: "Front Office",      path: "/front-office",icon: Building2,  functional: true },
+        { key: "hostel",     label: "Building & Hostel", path: "/hostel",     icon: BedDouble,   functional: true },
       ],
     },
     {
@@ -53,7 +54,8 @@ export const NAV = {
         { key: "income",     label: "Income & Expense", path: "/income",     icon: TrendingUp, functional: true },
         { key: "certificates",label:"Certificates",     path: "/certificates",icon:ScrollText,  functional: true },
         { key: "leave",      label: "Leave",            path: "/leave",      icon: PlaneTakeoff,functional: true },
-        { key: "copycheck",  label: "Copy Checking",    path: "/copy-checking", icon: CheckSquare, functional: false },
+        { key: "copycheck",  label: "Copy Checking",    path: "/copy-checking", icon: CheckSquare, functional: true },
+        { key: "tasks",      label: "Tasks",            path: "/tasks",      icon: ListTodo,    functional: true },
       ],
     },
   ],

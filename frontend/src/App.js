@@ -11,7 +11,6 @@ import StudentProfile from "@/pages/StudentProfile";
 import Staff from "@/pages/Staff";
 import StaffProfile from "@/pages/StaffProfile";
 import Timetable from "@/pages/Timetable";
-import Placeholder from "@/pages/Placeholder";
 import TeacherDashboard from "@/pages/TeacherDashboard";
 import ParentDashboard from "@/pages/ParentDashboard";
 import Attendance from "@/pages/Attendance";
@@ -31,9 +30,16 @@ import Login from "@/pages/Login";
 import Schools from "@/pages/Schools";
 import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
+import Tasks from "@/pages/Tasks";
+import Syllabus from "@/pages/Syllabus";
+import Gallery from "@/pages/Gallery";
+import Library from "@/pages/Library";
+import Transport from "@/pages/Transport";
+import FrontOffice from "@/pages/FrontOffice";
+import Inventory from "@/pages/Inventory";
+import Hostel from "@/pages/Hostel";
+import CopyChecking from "@/pages/CopyChecking";
 import { DataStoreProvider } from "@/lib/dataStore";
-import { NAV } from "@/lib/mockData";
-import { PLACEHOLDER_DESCRIPTIONS } from "@/lib/stage3Data";
 import { Toaster } from "@/components/ui/sonner";
 
 function DashboardRouter() {
@@ -45,14 +51,6 @@ function DashboardRouter() {
 }
 
 function AppRoutes() {
-  const placeholderRoutes = [];
-  const collect = (item) => {
-    if (!item.functional) placeholderRoutes.push(item);
-  };
-  NAV.top.forEach(collect);
-  NAV.groups.forEach((g) => g.items.forEach(collect));
-  NAV.bottom.forEach(collect);
-
   return (
     <Routes>
       <Route
@@ -152,13 +150,29 @@ function AppRoutes() {
         <Route path="/leave" element={<Leave />} />
         <Route path="/id-card" element={<IDCard />} />
         <Route path="/events" element={<Events />} />
-        {placeholderRoutes.map((p) => (
-          <Route
-            key={p.key}
-            path={p.path}
-            element={<Placeholder title={p.label} icon={p.icon} description={PLACEHOLDER_DESCRIPTIONS[p.key]} />}
-          />
-        ))}
+        <Route path="/tasks" element={<Tasks />} />
+        <Route path="/syllabus" element={<Syllabus />} />
+        <Route path="/gallery" element={<Gallery />} />
+        <Route path="/library" element={<Library />} />
+        <Route
+          path="/transport"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+              <Transport />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/front-office" element={<FrontOffice />} />
+        <Route
+          path="/inventory"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+              <Inventory />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/hostel" element={<Hostel />} />
+        <Route path="/copy-checking" element={<CopyChecking />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

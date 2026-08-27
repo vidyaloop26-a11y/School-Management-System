@@ -25,6 +25,15 @@ const certificatesRoutes = require("./modules/certificates/certificates.routes")
 const leaveRoutes = require("./modules/leave/leave.routes");
 const supportRoutes = require("./modules/support/support.routes");
 const settingsRoutes = require("./modules/settings/settings.routes");
+const transportRoutes = require("./modules/transport/transport.routes");
+const hostelRoutes = require("./modules/hostel/hostel.routes");
+const tasksRoutes = require("./modules/tasks/tasks.routes");
+const syllabusRoutes = require("./modules/syllabus/syllabus.routes");
+const galleryRoutes = require("./modules/gallery/gallery.routes");
+const libraryRoutes = require("./modules/library/library.routes");
+const frontofficeRoutes = require("./modules/frontoffice/frontoffice.routes");
+const inventoryRoutes = require("./modules/inventory/inventory.routes");
+const copycheckingRoutes = require("./modules/copychecking/copychecking.routes");
 
 const app = express();
 const api = express.Router();
@@ -78,6 +87,15 @@ api.use("/certificates", certificatesRoutes);
 api.use("/leave", leaveRoutes);
 api.use("/support", supportRoutes);
 api.use("/settings", settingsRoutes);
+api.use("/transport", transportRoutes);
+api.use("/hostel", hostelRoutes);
+api.use("/tasks", tasksRoutes);
+api.use("/syllabus", syllabusRoutes);
+api.use("/gallery", galleryRoutes);
+api.use("/library", libraryRoutes);
+api.use("/frontoffice", frontofficeRoutes);
+api.use("/inventory", inventoryRoutes);
+api.use("/copychecking", copycheckingRoutes);
 
 app.use("/api", api);
 app.use(notFound);

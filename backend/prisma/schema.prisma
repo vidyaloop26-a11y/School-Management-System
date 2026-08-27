@@ -83,6 +83,22 @@ model School {
    certificateRecords CertificateRecord[]
    leaveRequests      LeaveRequest[]
    schoolEvents       SchoolEvent[]
+  tasks              Task[]
+  syllabusTopics     SyllabusTopic[]
+  albums             Album[]
+  books              Book[]
+  bookIssues         BookIssue[]
+  transportRoutes    TransportRoute[]
+  vehicles           Vehicle[]
+  visitors           Visitor[]
+  gatePasses         GatePass[]
+  inventoryItems     InventoryItem[]
+  purchaseRecords    PurchaseRecord[]
+  issueLogs          IssueLog[]
+  buildings          Building[]
+  hostelRooms        HostelRoom[]
+  maintenanceRequests MaintenanceRequest[]
+  copyCheckBatches   CopyCheckBatch[]
 }
 
 model SchoolSettings {
@@ -553,5 +569,410 @@ model LeaveRequest {
 
   @@index([schoolId, applicantType])
   @@index([schoolId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Task Management
+// ---------------------------------------------------------------------------
+
+model Task {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String   @db.ObjectId
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title         String
+  description   String?
+  assigneeId    String?  @db.ObjectId
+  assigneeName  String?
+  assignedById  String?  @db.ObjectId
+  assignedByName String?
+  dueDate       DateTime?
+  priority      String   @default("MEDIUM")
+  status        String   @default("PENDING")
+  category      String?
+  checklist     Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([schoolId, assigneeId])
+  @@index([schoolId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Syllabus & Lesson Progress Tracking
+// ---------------------------------------------------------------------------
+
+model SyllabusTopic {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String   @db.ObjectId
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subject       String
+  cls           String
+  section       String
+  topicName     String
+  targetDate    DateTime?
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  progress      LessonProgress[]
+
+  @@index([schoolId, cls, section, subject])
+}
+
+model LessonProgress {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  topicId       String   @db.ObjectId
+  topic         SyllabusTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  teacherId     String?  @db.ObjectId
+  teacherName   String?
+  completedDate DateTime?
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@index([topicId])
+}
+
+// ---------------------------------------------------------------------------
+// Gallery
+// ---------------------------------------------------------------------------
+
+model Album {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String   @db.ObjectId
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  eventDate   DateTime?
+  coverUrl    String?
+  visibility  String   @default("PUBLIC")
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  photos      Photo[]
+
+  @@index([schoolId, eventDate])
+}
+
+model Photo {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  albumId     String   @db.ObjectId
+  album       Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  url         String
+  caption     String?
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+
+  @@index([albumId])
+}
+
+// ---------------------------------------------------------------------------
+// Library Management
+// ---------------------------------------------------------------------------
+
+model Book {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId        String   @db.ObjectId
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  isbn            String?
+  title           String
+  author          String?
+  category        String?
+  totalCopies     Int      @default(1)
+  availableCopies Int      @default(1)
+  location        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  issues          BookIssue[]
+
+  @@index([schoolId, title])
+}
+
+model BookIssue {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String    @db.ObjectId
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  bookId      String    @db.ObjectId
+  book        Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  studentId   String?   @db.ObjectId
+  staffId     String?   @db.ObjectId
+  issueDate   DateTime  @default(now())
+  dueDate     DateTime
+  returnDate  DateTime?
+  fineAmount  Float     @default(0)
+  finePaid    Boolean   @default(false)
+  status      String    @default("ISSUED")
+  createdAt   DateTime  @default(now())
+
+  @@index([schoolId, bookId])
+  @@index([schoolId, studentId])
+  @@index([schoolId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Transport Management
+// ---------------------------------------------------------------------------
+
+model TransportRoute {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String   @db.ObjectId
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name        String
+  stops       Json
+  vehicleId   String?  @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments StudentRoute[]
+
+  @@index([schoolId])
+}
+
+model Vehicle {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId        String   @db.ObjectId
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  plateNumber     String
+  type            String   @default("Bus")
+  capacity        Int?
+  driverName      String?
+  driverPhone     String?
+  permitExpiry    DateTime?
+  insuranceExpiry DateTime?
+  status          String   @default("Active")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId])
+}
+
+model StudentRoute {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String   @db.ObjectId
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId   String   @db.ObjectId
+  routeId     String   @db.ObjectId
+  route       TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  stopName    String
+  monthlyFee  Float    @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([schoolId, studentId])
+}
+
+// ---------------------------------------------------------------------------
+// Front Office
+// ---------------------------------------------------------------------------
+
+model Visitor {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String   @db.ObjectId
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name          String
+  phone         String?
+  photoUrl      String?
+  purpose       String
+  hostStaffId   String?  @db.ObjectId
+  hostStaffName String?
+  studentId     String?  @db.ObjectId
+  studentName   String?
+  checkInTime   DateTime @default(now())
+  checkOutTime  DateTime?
+  gatePassId    String?
+  status        String   @default("CHECKED_IN")
+  createdAt     DateTime @default(now())
+
+  gatePass      GatePass?
+
+  @@index([schoolId, checkInTime])
+  @@index([schoolId, status])
+}
+
+model GatePass {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String   @db.ObjectId
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  visitorId   String   @db.ObjectId
+  visitor     Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  studentId   String?  @db.ObjectId
+  studentName String?
+  issuedBy    String
+  issuedAt    DateTime @default(now())
+  purpose     String?
+  status      String   @default("ACTIVE")
+
+  @@index([schoolId, issuedAt])
+}
+
+model HostMapping {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String   @db.ObjectId
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  visitType     String
+  notifyStaffId String
+  createdAt     DateTime @default(now())
+
+  @@index([schoolId, visitType])
+}
+
+// ---------------------------------------------------------------------------
+// Inventory Management
+// ---------------------------------------------------------------------------
+
+model InventoryItem {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId      String   @db.ObjectId
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name          String
+  category      String?
+  currentStock  Int      @default(0)
+  reorderLevel  Int      @default(10)
+  unitPrice     Float    @default(0)
+  unit          String   @default("pcs")
+  location      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  purchases     PurchaseRecord[]
+  issues        IssueLog[]
+
+  @@index([schoolId, category])
+}
+
+model PurchaseRecord {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId     String   @db.ObjectId
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  itemId       String   @db.ObjectId
+  item         InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity     Int
+  vendorName   String?
+  invoiceNo    String?
+  totalCost    Float?
+  purchaseDate DateTime @default(now())
+  recordedBy   String?
+  createdAt    DateTime @default(now())
+
+  @@index([schoolId, itemId])
+}
+
+model IssueLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId   String   @db.ObjectId
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  itemId     String   @db.ObjectId
+  item       InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  quantity   Int
+  department String?
+  issuedTo   String?
+  issuedAt   DateTime @default(now())
+  recordedBy String?
+  createdAt  DateTime @default(now())
+
+  @@index([schoolId, itemId])
+}
+
+// ---------------------------------------------------------------------------
+// Building & Hostel Management
+// ---------------------------------------------------------------------------
+
+model Building {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @db.ObjectId
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name      String
+  type      String   @default("Hostel")
+  floors    Int      @default(1)
+  createdAt DateTime @default(now())
+
+  rooms     HostelRoom[]
+
+  @@index([schoolId])
+}
+
+model HostelRoom {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  buildingId  String   @db.ObjectId
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  floor       Int      @default(0)
+  roomNumber  String
+  bedCount    Int      @default(2)
+  roomType    String   @default("Standard")
+  status      String   @default("AVAILABLE")
+  createdAt   DateTime @default(now())
+
+  assignments BedAssignment[]
+
+  @@unique([buildingId, roomNumber])
+}
+
+model BedAssignment {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  roomId     String     @db.ObjectId
+  room       HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bedNumber  Int
+  studentId  String     @db.ObjectId
+  session    String     @default("2024-2025")
+  createdAt  DateTime   @default(now())
+
+  @@unique([roomId, bedNumber])
+}
+
+model MaintenanceRequest {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId    String   @db.ObjectId
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  roomId      String?  @db.ObjectId
+  description String
+  priority    String   @default("MEDIUM")
+  status      String   @default("PENDING")
+  reportedBy  String?
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([schoolId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Copy Checking
+// ---------------------------------------------------------------------------
+
+model CopyCheckBatch {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId       String   @db.ObjectId
+  school         School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subject        String
+  cls            String
+  section        String
+  term           String
+  totalCopies    Int
+  assignedToId   String?  @db.ObjectId
+  assignedToName String?
+  dueDate        DateTime?
+  completedCount Int      @default(0)
+  status         String   @default("NOT_STARTED")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  entries        CopyCheckEntry[]
+
+  @@index([schoolId, assignedToId])
+  @@index([schoolId, status])
+}
+
+model CopyCheckEntry {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  batchId     String   @db.ObjectId
+  batch       CopyCheckBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  studentId   String   @db.ObjectId
+  studentName String?
+  marks       Float?
+  maxMarks    Float    @default(100)
+  checkedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([batchId])
 }
 
