@@ -9,6 +9,15 @@ export const PLACEHOLDER_DESCRIPTIONS = {
   copycheck:   "Assign and track answer-sheet checking workload among teachers.",
 };
 
+// Admission pipeline stages
+export const KANBAN_STAGES = [
+  { key: "inquiry",     label: "Inquiry",     color: "#3b82f6" },
+  { key: "docs",        label: "Documents",   color: "#f59e0b" },
+  { key: "interaction", label: "Interaction",  color: "#8b5cf6" },
+  { key: "enrolled",    label: "Enrolled",     color: "#10b981" },
+  { key: "rejected",    label: "Rejected",     color: "#ef4444" },
+];
+
 // ID Card templates
 export const ID_CARD_TEMPLATES = [
   { key: "classic-blue",   label: "Classic Blue" },
