@@ -25,14 +25,26 @@ export default function Payroll() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedPayslip, setSelectedPayslip] = useState(null);
   const [runModalOpen, setRunModalOpen] = useState(false);
-  const [targetMonth, setTargetMonth] = useState("September 2026");
+
+  const now = new Date();
+  const currentMonthLabel = now.toLocaleString("en-IN", { month: "long", year: "numeric" });
+  const [targetMonth, setTargetMonth] = useState(currentMonthLabel);
+
+  const monthOptions = useMemo(() => {
+    const months = [];
+    for (let i = -1; i <= 2; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      months.push(d.toLocaleString("en-IN", { month: "long", year: "numeric" }));
+    }
+    return months;
+  }, []);
 
   // School Admin Salary Structure Editing
   const [editSalaryModal, setEditSalaryModal] = useState(null);
   const [editForm, setEditForm] = useState({
-    basicSalary: 45000,
-    allowances: 5000,
-    deductions: 2500,
+    basicSalary: 0,
+    allowances: 0,
+    deductions: 0,
     paymentMode: "Direct Bank Transfer",
   });
 
@@ -63,9 +75,9 @@ export default function Payroll() {
         // Map staff members into payroll table rows so School Admin can edit & disburse salaries
         const merged = staffList.map((s, idx) => {
           const existing = payRecords.find((r) => r.staffId === s.staffId || r.staffId === s.id || r.staffName === s.name);
-          const basic = existing ? existing.basicSalary : (Number(s.salary) || Number(s.basicSalary) || (45000 + (idx * 5000)));
-          const allowances = existing ? existing.allowances : Math.round(basic * 0.12);
-          const deductions = existing ? existing.deductions : Math.round(basic * 0.05);
+          const basic = existing ? existing.basicSalary : (Number(s.salary) || Number(s.basicSalary) || 0);
+          const allowances = existing ? existing.allowances : 0;
+          const deductions = existing ? existing.deductions : 0;
           const net = basic + allowances - deductions;
 
           return {
@@ -133,7 +145,7 @@ export default function Payroll() {
     const paidCount = filteredRecords.filter((r) => r.status === "PAID").length;
     const pendingCount = filteredRecords.filter((r) => r.status === "PENDING").length;
     return [
-      { title: "Total Outflow (Monthly)", value: `₹${totalOutflow.toLocaleString("en-IN")}`, sub: "For Selected Scope", trend: "+4.2% vs last month" },
+      { title: "Total Outflow (Monthly)", value: `₹${totalOutflow.toLocaleString("en-IN")}`, sub: "For Selected Scope", trend: null },
       { title: "Paid Payslips", value: `${paidCount} Staff`, sub: "Successfully Disbursed", trend: null },
       { title: "Pending Disbursements", value: `${pendingCount} Staff`, sub: "Awaiting Processing", trend: null },
     ];
@@ -142,9 +154,9 @@ export default function Payroll() {
   const handleOpenEditModal = (rec) => {
     setEditSalaryModal(rec);
     setEditForm({
-      basicSalary: rec.basicSalary || 45000,
-      allowances: rec.allowances || 5000,
-      deductions: rec.deductions || 2500,
+      basicSalary: rec.basicSalary || 0,
+      allowances: rec.allowances || 0,
+      deductions: rec.deductions || 0,
       paymentMode: rec.paymentMode || "Direct Bank Transfer",
     });
   };
@@ -360,9 +372,10 @@ export default function Payroll() {
                 onChange={(e) => setTargetMonth(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
               >
-                <option value="August 2026">August 2026</option>
-                <option value="September 2026">September 2026</option>
-                <option value="October 2026">October 2026</option>
+                <option value={targetMonth}>{targetMonth}</option>
+                {monthOptions.filter(m => m !== targetMonth).map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
               </select>
             </div>
             <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-blue-800 text-[12px]">

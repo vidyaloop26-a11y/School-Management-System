@@ -30,6 +30,9 @@ const QUERY_KEYS = {
   communication: {
     list: ["communication", "notices"],
   },
+  events: {
+    list: ["events"],
+  },
 };
 
 export const useAuth = () => {
@@ -462,6 +465,16 @@ export const useCreateNotice = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.communication.list });
+    },
+  });
+};
+
+export const useEvents = (params = {}) => {
+  return useQuery({
+    queryKey: [...QUERY_KEYS.events.list, params],
+    queryFn: async () => {
+      const res = await api.getEvents(params);
+      return res;
     },
   });
 };

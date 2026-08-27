@@ -92,7 +92,6 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
                   className="relative h-10 w-10 grid place-items-center rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition"
                 >
                   <Bell className="h-4.5 w-4.5 text-slate-600" strokeWidth={1.8} />
-                  <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold grid place-items-center">3</span>
                 </button>
               </PopoverTrigger>
               <PopoverContent align="end" sideOffset={12} className="w-[360px] p-0 rounded-2xl overflow-hidden border-slate-200/70 shadow-xl">

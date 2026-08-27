@@ -1,37 +1,13 @@
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
 
 // Initial seed data for schools
-const SEED_SCHOOLS = [
-  { id: "SCH001", code: "SCH001", name: "Greenwood International School", board: "CBSE", city: "New Delhi", status: "Active", session: "2026-27" },
-];
+const SEED_SCHOOLS = [];
 
 // Initial seed data for timetable
-const SEED_TIMETABLE = {
-  "10-A": {
-    "Mon": { P1: "Mathematics", P2: "Physics", P3: "English", P4: "Chemistry", P5: "Physical Ed." },
-    "Tue": { P1: "English", P2: "Mathematics", P3: "Physics", P4: "Biology", P5: "Computer Sci." },
-    "Wed": { P1: "Physics", P2: "Chemistry", P3: "Mathematics", P4: "Hindi/Sanskrit", P5: "Library" },
-    "Thu": { P1: "Mathematics", P2: "Biology", P3: "English", P4: "Social Sci.", P5: "Physics Lab" },
-    "Fri": { P1: "Computer Sci.", P2: "Mathematics", P3: "Chemistry", P4: "English", P5: "Sports" },
-  },
-  "9-B": {
-    "Mon": { P1: "English", P2: "Mathematics", P3: "Science", P4: "Social Sci.", P5: "Arts" },
-    "Tue": { P1: "Science", P2: "English", P3: "Mathematics", P4: "Hindi", P5: "Sports" },
-    "Wed": { P1: "Mathematics", P2: "Science", P3: "English", P4: "Computer", P5: "Music" },
-    "Thu": { P1: "Social Sci.", P2: "Mathematics", P3: "Science", P4: "English", P5: "Library" },
-    "Fri": { P1: "Science", P2: "Social Sci.", P3: "Mathematics", P4: "English", P5: "Activity" },
-  }
-};
+const SEED_TIMETABLE = {};
 
 // Initial seed data for attendance
-const SEED_ATTENDANCE = {
-  "2026-08-14": {
-    "10-A": {
-      "S101": "P", "S102": "P", "S103": "A", "S104": "P", "S105": "L",
-      "S106": "P", "S107": "P", "S108": "P", "S109": "A", "S110": "P"
-    }
-  }
-};
+const SEED_ATTENDANCE = {};
 
 // Data Store Keys
 const KEYS = {

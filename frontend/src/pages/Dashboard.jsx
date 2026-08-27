@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import PageHeader from "@/components/common/PageHeader";
 import TrendPill from "@/components/common/TrendPill";
 import LastSynced from "@/components/common/LastSynced";
-import { useDashboard } from "@/lib/queries";
+import { useDashboard, useEvents } from "@/lib/queries";
 import { useAuth } from "@/lib/AuthContext";
 import { ArrowUpRight, Loader2, Calendar, School, BookOpen } from "lucide-react";
+import api from "@/lib/api";
 
 function StatCard({ card, index }) {
   return (
@@ -29,8 +30,8 @@ function ChartTooltip({ active, payload, label }) {
   const v = payload[0].value;
   return (
     <div className="rounded-xl bg-white/85 backdrop-blur-xl border border-white/80 shadow-[0_10px_30px_-12px_rgba(20,60,100,0.18)] px-3.5 py-2.5">
-      <div className="text-[10px] tracking-widest text-slate-500 uppercase font-semibold">{label} 2026</div>
-      <div className="text-[15px] font-bold text-slate-900 mt-0.5 tracking-tight">₹{v}L <span className="text-slate-400 text-[11px] font-medium">collected</span></div>
+      <div className="text-[10px] tracking-widest text-slate-500 uppercase font-semibold">{label}</div>
+      <div className="text-[15px] font-bold text-slate-900 mt-0.5 tracking-tight">₹{v.toLocaleString()} <span className="text-slate-400 text-[11px] font-medium">collected</span></div>
     </div>
   );
 }
@@ -38,6 +39,22 @@ function ChartTooltip({ active, payload, label }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const { data, isLoading } = useDashboard();
+  const { data: eventsData } = useEvents();
+  const [feeChart, setFeeChart] = useState([]);
+  const [feeTotal, setFeeTotal] = useState(0);
+
+  useEffect(() => {
+    async function fetchFeeChart() {
+      try {
+        const res = await api.getFinanceSummary();
+        if (res?.chart) setFeeChart(res.chart);
+        if (res?.totalCollected != null) setFeeTotal(res.totalCollected);
+      } catch {
+        setFeeChart([]);
+      }
+    }
+    if (user?.role !== "superAdmin") fetchFeeChart();
+  }, [user?.role]);
 
   if (isLoading) {
     return (
@@ -69,7 +86,8 @@ export default function Dashboard() {
     board: school.board,
   } : null;
 
-  const FEE_CHART = [];
+  const events = eventsData?.events || [];
+  const chartData = feeChart.length > 0 ? feeChart : [];
 
   return (
     <div data-testid="dashboard-page" className="max-w-[1400px] mx-auto">
@@ -121,39 +139,48 @@ export default function Dashboard() {
               <div className="text-[11px] tracking-[0.18em] font-semibold text-slate-500 uppercase">
                 Fee Collection · Last 6 Months
               </div>
-              <div className="font-display text-[30px] leading-tight font-bold text-slate-900 mt-1.5 tracking-tight">
-                ₹68.4L <span className="text-slate-400 font-medium text-[18px]">collected this month</span>
-              </div>
+              {chartData.length > 0 ? (
+                <>
+                  <div className="font-display text-[30px] leading-tight font-bold text-slate-900 mt-1.5 tracking-tight">
+                    ₹{feeTotal.toLocaleString()} <span className="text-slate-400 font-medium text-[18px]">collected this month</span>
+                  </div>
+                </>
+              ) : (
+                <div className="font-display text-[30px] leading-tight font-bold text-slate-900 mt-1.5 tracking-tight">
+                  No fee data yet
+                </div>
+              )}
             </div>
-            <span className="inline-flex items-center gap-1 rounded-full pill-up px-2 py-0.5 text-[11px] font-medium shrink-0">
-              <ArrowUpRight className="h-3 w-3" strokeWidth={2.2} /> +10.3%
-            </span>
           </div>
 
           <div className="h-[280px] mt-4 -ml-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={FEE_CHART} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="feeGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#29ABE2" stopOpacity={0.32} />
-                    <stop offset="100%" stopColor="#29ABE2" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="#e5eef5" strokeDasharray="3 6" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#94a3b8" }}
-                  axisLine={false}
-                  tickLine={false}
-                  domain={[0, 80]}
-                  ticks={[0, 20, 40, 60, 80]}
-                  tickFormatter={(v) => `₹${v}L`}
-                  width={48}
-                />
-                <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#29ABE2", strokeDasharray: "3 3", strokeOpacity: 0.6 }} />
-                <Area type="monotone" dataKey="amount" stroke="#29ABE2" strokeWidth={2.5} fill="url(#feeGrad)" dot={{ r: 3, fill: "#fff", stroke: "#29ABE2", strokeWidth: 2 }} activeDot={{ r: 5 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData} margin={{ top: 10, right: 12, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="feeGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#29ABE2" stopOpacity={0.32} />
+                      <stop offset="100%" stopColor="#29ABE2" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#e5eef5" strokeDasharray="3 6" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#94a3b8" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `₹${v.toLocaleString()}`}
+                    width={60}
+                  />
+                  <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#29ABE2", strokeDasharray: "3 3", strokeOpacity: 0.6 }} />
+                  <Area type="monotone" dataKey="amount" stroke="#29ABE2" strokeWidth={2.5} fill="url(#feeGrad)" dot={{ r: 3, fill: "#fff", stroke: "#29ABE2", strokeWidth: 2 }} activeDot={{ r: 5 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                No payment data available yet. Charts will appear once fee payments are recorded.
+              </div>
+            )}
           </div>
         </div>
 
@@ -165,9 +192,25 @@ export default function Dashboard() {
           <div className="font-display text-[24px] leading-tight font-bold text-slate-900 mt-1.5 mb-5 tracking-tight">
             On the calendar
           </div>
-          <div className="text-center py-10 text-slate-500 text-[13px]">
-            Events module coming soon.
-          </div>
+          {events.length > 0 ? (
+            <div className="space-y-3">
+              {events.slice(0, 5).map((ev, i) => (
+                <div key={ev.id || i} className="flex items-start gap-3 p-3 rounded-xl bg-white/50 border border-slate-100">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#29ABE2]/10 to-[#0c6a99]/10 grid place-items-center shrink-0">
+                    <Calendar className="h-4 w-4 text-[#29ABE2]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-800 truncate">{ev.title}</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">{new Date(ev.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-slate-500 text-[13px]">
+              No upcoming events. Add events from Settings.
+            </div>
+          )}
         </div>
       </div>
     </div>

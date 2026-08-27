@@ -331,6 +331,15 @@ api.createFinanceRecord = async (recordData) => {
   return res.data;
 };
 
+api.getFinanceSummary = async () => {
+  try {
+    const res = await api.get("/finance/summary");
+    return res.data;
+  } catch {
+    return { chart: [], totalCollected: 0 };
+  }
+};
+
 // Certificates
 api.getCertificates = async (params = {}) => {
   const query = new URLSearchParams();

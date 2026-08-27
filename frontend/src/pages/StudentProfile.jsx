@@ -31,14 +31,15 @@ function AttendanceTab({ studentId }) {
     return <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 text-[#29ABE2] animate-spin" /></div>;
   }
 
-  const cal = data || {
-    summary: { percent: 96.4, present: 18, absent: 1, late: 0 },
-    marks: { 1: "P", 2: "P", 3: "P", 4: "P", 5: "H", 6: "H", 7: "P", 8: "P", 9: "P", 10: "P", 11: "P", 12: "H", 13: "H", 14: "P" },
-    daysInMonth: 31,
-    month: now.getMonth() + 1,
-    year: now.getFullYear(),
-    schoolDays: 19
-  };
+  const cal = data || null;
+
+  if (!cal) {
+    return (
+      <div className="text-center py-16 text-slate-400 text-[13px]">
+        No attendance data available for this month.
+      </div>
+    );
+  }
 
   const { summary, marks, daysInMonth, month, year, schoolDays } = cal;
   const cells = [];
@@ -236,27 +237,8 @@ export default function StudentProfile() {
   const [studentFees, setStudentFees] = useState([]);
   const [feesLoading, setFeesLoading] = useState(false);
 
-  const fallbackStudent = {
-    id: id || "S101",
-    admNo: "ADM001",
-    name: "Aarav Sharma",
-    cls: "10",
-    section: "A",
-    roll: 1,
-    dob: "2012-05-14",
-    gender: "Male",
-    bloodGroup: "O+",
-    status: "Active",
-    address: "B-42, Vasant Kunj, New Delhi",
-    emergency: "+91 98765 43210",
-    fatherName: "Rajesh Sharma",
-    fatherPhone: "+91 98765 43210",
-    fatherEmail: "rajesh.sharma@example.com",
-    motherName: "Sunita Sharma",
-  };
-
-  const student = p || fallbackStudent;
-  const initials = student.name.split(" ").map((x) => x[0]).slice(0, 2).join("");
+  const student = p;
+  const initials = student?.name ? student.name.split(" ").map((x) => x[0]).slice(0, 2).join("") : "?";
 
   // Fetch student's fee records from finance API
   const fetchStudentFees = useCallback(async () => {
@@ -279,10 +261,31 @@ export default function StudentProfile() {
 
   useEffect(() => { fetchStudentFees(); }, [fetchStudentFees]);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 text-[#29ABE2] animate-spin" />
+      </div>
+    );
+  }
+
+  if (!student) {
+    return (
+      <div className="max-w-[1400px] mx-auto">
+        <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-[12.5px] text-slate-500 hover:text-slate-800 mb-6">
+          <ArrowLeft className="h-4 w-4" /> Back to Students
+        </button>
+        <div className="glass rounded-2xl p-10 text-center">
+          <div className="text-slate-400 text-sm">Student not found.</div>
+        </div>
+      </div>
+    );
+  }
+
   const latestFee = studentFees.length > 0 ? studentFees[0] : null;
-  const feeStatus = latestFee?.status || "Paid";
-  const feeAmount = latestFee?.amount || 35000;
-  const feeDate = latestFee?.date ? new Date(latestFee.date).toLocaleDateString() : "15 Jul 2026";
+  const feeStatus = latestFee?.status || null;
+  const feeAmount = latestFee?.amount || null;
+  const feeDate = latestFee?.date ? new Date(latestFee.date).toLocaleDateString() : null;
 
   return (
     <div data-testid="student-profile" className="max-w-[1400px] mx-auto">
@@ -359,9 +362,11 @@ export default function StudentProfile() {
                     <p className="text-[12px] text-slate-500">Fee records from finance system</p>
                   </div>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[12px] font-bold ${feeStatus === "Paid" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                  {feeStatus}
-                </span>
+                {feeStatus && (
+                  <span className={`px-3 py-1 rounded-full text-[12px] font-bold ${feeStatus === "Paid" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                    {feeStatus}
+                  </span>
+                )}
               </div>
               {feesLoading ? (
                 <div className="flex items-center justify-center py-8">
@@ -383,19 +388,8 @@ export default function StudentProfile() {
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-3 border-t border-slate-100 text-[13px]">
-                  <div>
-                    <span className="text-slate-400 text-[11px] block uppercase">Total Billed</span>
-                    <span className="font-semibold text-slate-800">₹{feeAmount.toLocaleString("en-IN")}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[11px] block uppercase">Payment Due Date</span>
-                    <span className="font-semibold text-slate-800">{feeDate}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[11px] block uppercase">Status</span>
-                    <span className="font-semibold text-slate-800">{feeStatus}</span>
-                  </div>
+                <div className="text-center py-6 text-slate-400 text-[13px]">
+                  No fee records found for this student.
                 </div>
               )}
             </div>
