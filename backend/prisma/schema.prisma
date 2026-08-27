@@ -95,10 +95,11 @@ model School {
   inventoryItems     InventoryItem[]
   purchaseRecords    PurchaseRecord[]
   issueLogs          IssueLog[]
-  buildings          Building[]
-  hostelRooms        HostelRoom[]
-  maintenanceRequests MaintenanceRequest[]
-  copyCheckBatches   CopyCheckBatch[]
+   buildings          Building[]
+   maintenanceRequests MaintenanceRequest[]
+   copyCheckBatches   CopyCheckBatch[]
+   studentRoutes      StudentRoute[]
+   hostMappings       HostMapping[]
 }
 
 model SchoolSettings {
@@ -239,10 +240,10 @@ model User {
   schoolId           String?  @db.ObjectId
   school             School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  studentId          String?  @unique @db.ObjectId
+  studentId          String?  @db.ObjectId
   student            Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 
-  staffId            String?  @unique @db.ObjectId
+  staffId            String?  @db.ObjectId
   staff              Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
 
   refreshTokens      RefreshToken[]
@@ -305,7 +306,7 @@ model Student {
   address     String?
   status      String   @default("Active")
 
-  user        User?
+  users        User[]
   ledgers     StudentFeeLedger[]
   payments    Payment[]
   attendance  AttendanceRecord[]
@@ -337,7 +338,7 @@ model Staff {
   joined        String?
   salary        Float?
 
-  user          User?
+  users            User[]
   timetable     TimetableEntry[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -783,7 +784,7 @@ model Visitor {
   status        String   @default("CHECKED_IN")
   createdAt     DateTime @default(now())
 
-  gatePass      GatePass?
+  gatePasses    GatePass[]
 
   @@index([schoolId, checkInTime])
   @@index([schoolId, status])
@@ -803,6 +804,7 @@ model GatePass {
   status      String   @default("ACTIVE")
 
   @@index([schoolId, issuedAt])
+  @@index([visitorId])
 }
 
 model HostMapping {

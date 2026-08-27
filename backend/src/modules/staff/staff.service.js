@@ -215,7 +215,7 @@ async function bulkCreateStaff({ user, staff }) {
 async function updateStaff({ user, id, data }) {
   const existing = await prisma.staff.findUnique({
     where: { id },
-    include: { user: true },
+    include: { users: true },
   });
   if (!existing) throw new ApiError(404, "Staff member not found");
   if (user.schoolId && existing.schoolId !== user.schoolId) {
@@ -241,7 +241,7 @@ async function updateStaff({ user, id, data }) {
     data: staffFields,
   });
 
-  if (existing.user) {
+  if (existing.users.length > 0) {
     const userUpdate = {};
     if (staffFields.status) {
       userUpdate.isActive = staffFields.status === "Active";
@@ -250,10 +250,12 @@ async function updateStaff({ user, id, data }) {
       userUpdate.duties = duties;
     }
     if (Object.keys(userUpdate).length) {
-      await prisma.user.update({
-        where: { id: existing.user.id },
-        data: userUpdate,
-      });
+      for (const u of existing.users) {
+        await prisma.user.update({
+          where: { id: u.id },
+          data: userUpdate,
+        });
+      }
     }
   }
 
@@ -266,19 +268,21 @@ async function updateStaff({ user, id, data }) {
 async function deleteStaff({ user, id }) {
   const staff = await prisma.staff.findUnique({
     where: { id },
-    include: { user: true },
+    include: { users: true },
   });
   if (!staff) throw new ApiError(404, "Staff member not found");
   if (user.schoolId && staff.schoolId !== user.schoolId) {
     throw new ApiError(403, "Access denied");
   }
 
-  if (staff.user) {
-    await prisma.user.update({
-      where: { id: staff.user.id },
-      data: { isActive: false },
-    });
-    await prisma.refreshToken.deleteMany({ where: { userId: staff.user.id } });
+  if (staff.users.length > 0) {
+    for (const u of staff.users) {
+      await prisma.user.update({
+        where: { id: u.id },
+        data: { isActive: false },
+      });
+      await prisma.refreshToken.deleteMany({ where: { userId: u.id } });
+    }
   }
 
   const archived = await prisma.staff.update({
@@ -294,14 +298,14 @@ async function deleteStaff({ user, id }) {
 async function resetStaffPassword({ user, id, newPassword }) {
   const staff = await prisma.staff.findUnique({
     where: { id },
-    include: { user: true },
+    include: { users: true },
   });
   if (!staff) throw new ApiError(404, "Staff member not found");
   if (user.schoolId && staff.schoolId !== user.schoolId) {
     throw new ApiError(403, "Access denied");
   }
 
-  let account = staff.user;
+  let account = staff.users[0] || null;
   if (!account) {
     // Provision a login on the fly for a staff member who never had one
     // (e.g. non-teaching staff imported before accounts existed).
