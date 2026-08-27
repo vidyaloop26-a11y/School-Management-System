@@ -5,7 +5,6 @@ import { useDataStore } from "@/lib/dataStore";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { PARENT_CHILD } from "@/lib/stage2Data";
 import { formatINR } from "@/lib/format";
 import { Wallet, TrendingUp, AlertCircle, Download, CreditCard, CheckCircle2, Loader2 } from "lucide-react";
 import ExportButton from "@/components/common/ExportButton";
@@ -179,8 +178,10 @@ function AdminView() {
 }
 
 function ParentView() {
+  const { user } = useAuth();
   const { parentFees, payParentFeeTerm } = useDataStore();
   const [payingTerm, setPayingTerm] = useState(null);
+  const childName = user?.name || "Student";
 
   const handleConfirmPayment = () => {
     if (payingTerm) {
@@ -195,7 +196,7 @@ function ParentView() {
       <PageHeader
         eyebrow="PARENT · FEES"
         title="Fees & Dues"
-        subtitle={<>Term-wise breakdown for <span className="font-serif-i text-slate-700">{PARENT_CHILD.name}</span>.</>}
+        subtitle={<>Term-wise breakdown for <span className="font-serif-i text-slate-700">{childName}</span>.</>}
       />
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-5">
         <div className="glass rounded-2xl p-6 reveal space-y-3">
@@ -268,7 +269,7 @@ function ParentView() {
               <div className="glass-soft rounded-xl p-4 text-[13.5px] space-y-1.5">
                 <div className="flex justify-between text-slate-600">
                   <span>Student Name:</span>
-                  <span className="font-semibold text-slate-800">{PARENT_CHILD.name}</span>
+                  <span className="font-semibold text-slate-800">{childName}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
                   <span>Term Fee:</span>

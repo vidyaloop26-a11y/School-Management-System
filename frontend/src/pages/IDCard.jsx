@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ID_CARD_TEMPLATES, ID_CARD_SAMPLE } from "@/lib/stage3Data";
+import { ID_CARD_TEMPLATES } from "@/lib/stage3Data";
 import { useStudents } from "@/lib/queries";
 import { Loader2 } from "lucide-react";
 import { Download, Printer, Droplet, IdCard as IdCardIcon, Phone, GraduationCap } from "lucide-react";
@@ -135,13 +135,12 @@ export default function IDCard() {
 
   const student = students.find((s) => s.admNo === effectiveAdmNo);
   const cardData = {
-    ...ID_CARD_SAMPLE,
-    name: student ? student.name : ID_CARD_SAMPLE.name,
-    idNo: student ? student.admNo : (effectiveAdmNo || ID_CARD_SAMPLE.idNo),
-    classSection: student ? `${student.cls}-${student.section}` : ID_CARD_SAMPLE.classSection,
-    roll: student ? student.roll : "",
-    bloodGroup: student?.bloodGroup || ID_CARD_SAMPLE.bloodGroup,
-    emergency: student?.emergency || ID_CARD_SAMPLE.emergency,
+    name: student?.name || "Select a student",
+    idNo: student?.admNo || effectiveAdmNo || "—",
+    classSection: student ? `${student.cls}-${student.section}` : "—",
+    roll: student?.roll || "",
+    bloodGroup: student?.bloodGroup || "—",
+    emergency: student?.emergency || "—",
   };
 
   return (

@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
 import { useRole } from "@/lib/RoleContext";
-import DemoBadge from "@/components/common/DemoBadge";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import api from "@/lib/api";
 
@@ -84,8 +84,6 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
                 </SelectContent>
               </Select>
             )}
-
-            <DemoBadge className="hidden lg:inline-flex" />
 
             <Popover>
               <PopoverTrigger asChild>

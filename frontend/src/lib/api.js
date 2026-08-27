@@ -201,7 +201,20 @@ api.getTeacherTimetable = async (staffId) => {
 };
 
 api.upsertTimetable = async (timetableData) => {
-  const res = await api.post("/timetable/upsert", timetableData);
+  const payload = {
+    cls: timetableData.cls,
+    section: timetableData.section,
+    entries: [
+      {
+        day: timetableData.day,
+        period: timetableData.period,
+        subject: timetableData.subject,
+        ...(timetableData.room ? { room: timetableData.room } : {}),
+        ...(timetableData.staffId ? { staffId: timetableData.staffId } : {}),
+      },
+    ],
+  };
+  const res = await api.post("/timetable/upsert", payload);
   return res.data;
 };
 
@@ -337,6 +350,69 @@ api.issueCertificate = async (certData) => {
 
 api.requestCertificate = async (certData) => {
   const res = await api.post("/certificates/request", certData);
+  return res.data;
+};
+
+// Notices
+api.deleteNotice = async (id) => {
+  const res = await api.delete(`/communication/${id}`);
+  return res.data;
+};
+
+// Settings
+api.getSettings = async () => {
+  const res = await api.get("/settings");
+  return res.data;
+};
+
+api.updateSettings = async (data) => {
+  const res = await api.put("/settings", data);
+  return res.data;
+};
+
+// Events
+api.getEvents = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.type) query.append("type", params.type);
+  const qStr = query.toString();
+  const res = await api.get(`/settings/events${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+
+api.createEvent = async (data) => {
+  const res = await api.post("/settings/events", data);
+  return res.data;
+};
+
+api.deleteEvent = async (id) => {
+  const res = await api.delete(`/settings/events/${id}`);
+  return res.data;
+};
+
+// Subjects
+api.getSubjects = async () => {
+  const res = await api.get("/settings/subjects");
+  return res.data;
+};
+
+api.createSubject = async (data) => {
+  const res = await api.post("/settings/subjects", data);
+  return res.data;
+};
+
+api.deleteSubject = async (id) => {
+  const res = await api.delete(`/settings/subjects/${id}`);
+  return res.data;
+};
+
+api.reorderSubjects = async (subjectIds) => {
+  const res = await api.put("/settings/subjects/reorder", { subjectIds });
+  return res.data;
+};
+
+// Holiday sync
+api.syncHolidays = async (year, country) => {
+  const res = await api.post("/settings/sync-holidays", { year, country });
   return res.data;
 };
 

@@ -1,11 +1,21 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Mail, Phone, CalendarDays, GraduationCap, BookOpen, IdCard, Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useStaffMember, useTeacherTimetable } from "@/lib/queries";
-import { DAYS, PERIODS, SUBJECT_COLORS } from "@/lib/mockData";
+import { SUBJECT_COLORS } from "@/lib/mockData";
 import EmptyState from "@/components/common/EmptyState";
 import { PlaneTakeoff } from "lucide-react";
+import api from "@/lib/api";
+
+const DEFAULT_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DEFAULT_PERIODS = [
+  { key: "P1", label: "Period 1", time: "08:00 - 08:45" },
+  { key: "P2", label: "Period 2", time: "08:45 - 09:30" },
+  { key: "P3", label: "Period 3", time: "09:45 - 10:30" },
+  { key: "P4", label: "Period 4", time: "10:30 - 11:15" },
+  { key: "P5", label: "Period 5", time: "11:30 - 12:15" },
+];
 
 function Field({ icon: Icon, label, value }) {
   return (
@@ -23,6 +33,24 @@ function Field({ icon: Icon, label, value }) {
 
 function TeacherTimetable({ staffId }) {
   const { data: entries = [], isLoading } = useTeacherTimetable(staffId);
+  const [settings, setSettings] = useState({ days: DEFAULT_DAYS, periods: DEFAULT_PERIODS });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await api.getSettings?.() || {};
+        if (res.days) setSettings((prev) => ({ ...prev, days: res.days }));
+        if (res.periods) {
+          const p = typeof res.periods === "string" ? JSON.parse(res.periods) : res.periods;
+          if (Array.isArray(p) && p.length > 0) setSettings((prev) => ({ ...prev, periods: p }));
+        }
+      } catch {}
+    };
+    fetchSettings();
+  }, []);
+
+  const DAYS = settings.days;
+  const PERIODS = settings.periods;
 
   if (isLoading) {
     return <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 text-[#29ABE2] animate-spin" /></div>;
@@ -32,7 +60,6 @@ function TeacherTimetable({ staffId }) {
     return <div className="text-center py-10 text-slate-500 text-[13.5px]">No timetable assigned for this staff member.</div>;
   }
 
-  // Build grid from flat entries list
   const grid = {};
   PERIODS.forEach((pr) => {
     grid[pr.key] = {};
@@ -61,9 +88,6 @@ function TeacherTimetable({ staffId }) {
                 <div className="text-[10.5px] text-slate-500">{pr.time}</div>
               </td>
               {DAYS.map((d) => {
-                if (pr.key === "BREAK") {
-                  return <td key={d} className="px-3 py-2"><div className="rounded-lg bg-slate-50 text-slate-400 text-[11px] px-2 py-2 text-center">Break</div></td>;
-                }
                 const cell = grid[pr.key][d];
                 if (!cell) return <td key={d} className="px-3 py-2"><div className="rounded-lg border border-dashed border-slate-200 text-slate-300 text-[11px] px-2 py-2 text-center">—</div></td>;
                 const col = SUBJECT_COLORS[cell.subject] || { bg: "bg-slate-50", text: "text-slate-700", dot: "bg-slate-400" };
@@ -151,8 +175,8 @@ export default function StaffProfile() {
             <div className="glass-soft rounded-xl py-6">
               <EmptyState
                 icon={PlaneTakeoff}
-                title="No pending leave requests — smooth sailing"
-                hint="Any staff or student leave submissions will appear here."
+                title="No pending leave requests"
+                hint="Leave submissions will appear here."
               />
             </div>
           </TabsContent>

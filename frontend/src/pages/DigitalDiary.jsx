@@ -1,12 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PageHeader from "@/components/common/PageHeader";
 import { useAuth } from "@/lib/AuthContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { DIARY_ENTRIES } from "@/lib/stage2Data";
 import { SUBJECT_COLORS } from "@/lib/mockData";
-import { Send } from "lucide-react";
+import { Send, BookOpen } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
+import EmptyState from "@/components/common/EmptyState";
+import api from "@/lib/api";
 
 function SubjectPill({ subject }) {
   const col = SUBJECT_COLORS[subject] || { bg: "bg-slate-100", text: "text-slate-700", dot: "bg-slate-400" };
@@ -22,6 +23,19 @@ function TeacherForm() {
   const [subject, setSubject] = useState("Mathematics");
   const [note, setNote] = useState("");
   const [attach, setAttach] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await api.getSubjects?.() || { subjects: [] };
+        setSubjects(res.subjects || []);
+      } catch {
+        setSubjects(["Mathematics", "Science", "English", "Hindi", "Social Science", "Computer"]);
+      }
+    };
+    fetchSubjects();
+  }, []);
 
   return (
     <div>
@@ -49,7 +63,7 @@ function TeacherForm() {
               <Select value={subject} onValueChange={setSubject}>
                 <SelectTrigger data-testid="diary-subject" className="mt-2 rounded-xl bg-white/80"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["Mathematics","Science","English","Hindi","Social Sci.","Computer","General"].map((s) => (
+                  {subjects.map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
                 </SelectContent>
@@ -64,7 +78,7 @@ function TeacherForm() {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={6}
-              placeholder="Type your update for parents…"
+              placeholder="Type your update for parents..."
               className="mt-2 w-full rounded-xl bg-white/80 border border-slate-200 focus:border-[#29ABE2] focus:ring-2 focus:ring-[#29ABE2]/20 outline-none px-4 py-3 text-[13.5px] resize-none"
             />
           </div>
@@ -88,7 +102,7 @@ function TeacherForm() {
               <span className="text-[11px] text-slate-400">Today</span>
             </div>
             <div className="text-[13.5px] text-slate-700 leading-relaxed min-h-[60px]">
-              {note || <span className="text-slate-400">Your note will appear here…</span>}
+              {note || <span className="text-slate-400">Your note will appear here...</span>}
             </div>
             {attach && (
               <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#e6f4fb] text-[#0c6a99] px-2.5 py-0.5 text-[11px] font-medium">
@@ -103,6 +117,23 @@ function TeacherForm() {
 }
 
 function FeedView() {
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDiary = async () => {
+      try {
+        const res = await api.getDiaryEntries?.() || { entries: [] };
+        setEntries(res.entries || []);
+      } catch {
+        setEntries([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDiary();
+  }, []);
+
   return (
     <div>
       <PageHeader
@@ -110,17 +141,29 @@ function FeedView() {
         title="Feed"
         subtitle="Latest notes from teachers, in reverse-chronological order."
       />
-      <ul className="space-y-4 max-w-3xl">
-        {DIARY_ENTRIES.map((d, i) => (
-          <li key={d.id} data-testid={`diary-entry-${d.id}`} className={`glass rounded-2xl p-5 reveal d${Math.min(i + 1, 5)}`}>
-            <div className="flex items-center justify-between mb-2">
-              <SubjectPill subject={d.subject} />
-              <span className="text-[11.5px] text-slate-400">{d.date}</span>
-            </div>
-            <div className="text-[14px] text-slate-700 leading-relaxed">{d.entry}</div>
-          </li>
-        ))}
-      </ul>
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="h-6 w-6 border-2 border-[#29ABE2] border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : entries.length === 0 ? (
+        <EmptyState
+          icon={BookOpen}
+          title="No diary entries yet"
+          hint="Teacher notes and updates will appear here."
+        />
+      ) : (
+        <ul className="space-y-4 max-w-3xl">
+          {entries.map((d, i) => (
+            <li key={d.id} className={`glass rounded-2xl p-5 reveal d${Math.min(i + 1, 5)}`}>
+              <div className="flex items-center justify-between mb-2">
+                <SubjectPill subject={d.subject} />
+                <span className="text-[11.5px] text-slate-400">{d.date}</span>
+              </div>
+              <div className="text-[14px] text-slate-700 leading-relaxed">{d.entry}</div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

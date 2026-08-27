@@ -82,16 +82,35 @@ model School {
    incomeExpenseRecords IncomeExpenseRecord[]
    certificateRecords CertificateRecord[]
    leaveRequests      LeaveRequest[]
+   schoolEvents       SchoolEvent[]
 }
 
 model SchoolSettings {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId        String   @unique @db.ObjectId
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  term            Int      @default(2)
+  grading         String?
+  academicSession String   @default("2024-2025")
+  days            String[] @default(["Mon","Tue","Wed","Thu","Fri"])
+  periods         Json     @default("[{\"label\":\"P1\",\"time\":\"08:30-09:15\"},{\"label\":\"P2\",\"time\":\"09:15-10:00\"},{\"label\":\"P3\",\"time\":\"10:00-10:45\"},{\"label\":\"P4\",\"time\":\"11:00-11:45\"},{\"label\":\"P5\",\"time\":\"11:45-12:30\"}]")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model SchoolEvent {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  schoolId  String   @unique @db.ObjectId
+  schoolId  String   @db.ObjectId
   school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  term      Int      @default(2)
-  grading   String?
+  title     String
+  sub       String?
+  date      DateTime
+  type      String   @default("Event") // Event | Holiday
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([schoolId, date])
+  @@index([schoolId, type])
 }
 
 model SchoolClass {

@@ -8,7 +8,7 @@ import { useRole } from "@/lib/RoleContext";
 
 const SESSIONS = ["2024-2025", "2023-2024", "2022-2023", "2021-2022"];
 const TERMS = ["Mid-Term", "Final Exam", "Unit Test 1", "Unit Test 2"];
-const SUBJECTS = ["Mathematics", "Science", "English", "Social Sci.", "Hindi", "Computer Sci."];
+const DEFAULT_SUBJECTS = ["Mathematics", "Science", "English", "Social Sci.", "Hindi", "Computer Sci."];
 
 export default function Examination() {
   const { user, role } = useRole();
@@ -19,6 +19,7 @@ export default function Examination() {
   const [cls, setCls] = useState("8");
   const [section, setSection] = useState("A");
   const [subject, setSubject] = useState("Mathematics");
+  const [subjectsList, setSubjectsList] = useState(DEFAULT_SUBJECTS);
 
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +57,14 @@ export default function Examination() {
 
   useEffect(() => {
     fetchExamRoster();
+
+    api.getSubjects()
+      .then((res) => {
+        if (res.subjects && res.subjects.length > 0) {
+          setSubjectsList(res.subjects.map((s) => s.name));
+        }
+      })
+      .catch(() => {});
 
     const handleScopeChange = () => fetchExamRoster();
     window.addEventListener("schoolScopeChanged", handleScopeChange);
@@ -244,7 +253,7 @@ export default function Examination() {
               <SelectValue placeholder="Subject" />
             </SelectTrigger>
             <SelectContent>
-              {SUBJECTS.map((sub) => (
+              {subjectsList.map((sub) => (
                 <SelectItem key={sub} value={sub}>{sub}</SelectItem>
               ))}
             </SelectContent>

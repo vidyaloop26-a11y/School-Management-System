@@ -1,12 +1,8 @@
 import { useState, useEffect, useCallback, createContext, useContext } from "react";
-import { FEE_ROWS, PARENT_FEE_TERMS } from "./stage2Data";
-import { MARK_ENTRY } from "./stage3Data";
 
 // Initial seed data for schools
 const SEED_SCHOOLS = [
   { id: "SCH001", code: "SCH001", name: "Greenwood International School", board: "CBSE", city: "New Delhi", status: "Active", session: "2026-27" },
-  { id: "SCH002", code: "SCH002", name: "St. Xavier Academy", board: "ICSE", city: "Mumbai", status: "Active", session: "2026-27" },
-  { id: "SCH003", code: "SCH003", name: "DPS World School", board: "CBSE", city: "Bengaluru", status: "Active", session: "2026-27" },
 ];
 
 // Initial seed data for timetable
@@ -72,9 +68,9 @@ const DataStoreContext = createContext(null);
 export function DataStoreProvider({ children }) {
   const [schools, setSchoolsState] = useState(() => getStored(KEYS.SCHOOLS, SEED_SCHOOLS));
   const [activeSchoolId, setActiveSchoolIdState] = useState(() => getStored(KEYS.ACTIVE_SCHOOL, "SCH001"));
-  const [fees, setFeesState] = useState(() => getStored(KEYS.FEES, FEE_ROWS));
-  const [parentFees, setParentFeesState] = useState(() => getStored(KEYS.PARENT_FEES, PARENT_FEE_TERMS));
-  const [exams, setExamsState] = useState(() => getStored(KEYS.EXAMS, MARK_ENTRY));
+  const [fees, setFeesState] = useState(() => getStored(KEYS.FEES, []));
+  const [parentFees, setParentFeesState] = useState(() => getStored(KEYS.PARENT_FEES, []));
+  const [exams, setExamsState] = useState(() => getStored(KEYS.EXAMS, []));
   const [attendance, setAttendanceState] = useState(() => getStored(KEYS.ATTENDANCE, SEED_ATTENDANCE));
   const [timetable, setTimetableState] = useState(() => getStored(KEYS.TIMETABLE, SEED_TIMETABLE));
 

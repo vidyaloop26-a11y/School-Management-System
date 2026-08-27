@@ -39,6 +39,11 @@ async function superAdminDashboard() {
 }
 
 async function schoolAdminDashboard(schoolId) {
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { name: true, code: true, session: true, board: true },
+  });
+
   const studentCount = await prisma.student.count({ where: { schoolId, status: "Active" } });
   const staffCount = await prisma.staff.count({ where: { schoolId } });
   const teacherCount = await prisma.staff.count({
@@ -71,6 +76,7 @@ async function schoolAdminDashboard(schoolId) {
 
   return {
     role: "schoolAdmin",
+    school,
     stats: {
       students: studentCount,
       staff: staffCount,

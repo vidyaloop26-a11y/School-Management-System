@@ -5,7 +5,7 @@ import TrendPill from "@/components/common/TrendPill";
 import LastSynced from "@/components/common/LastSynced";
 import { useDashboard } from "@/lib/queries";
 import { useAuth } from "@/lib/AuthContext";
-import { ArrowUpRight, Loader2 } from "lucide-react";
+import { ArrowUpRight, Loader2, Calendar, School, BookOpen } from "lucide-react";
 
 function StatCard({ card, index }) {
   return (
@@ -48,6 +48,8 @@ export default function Dashboard() {
   }
 
   const stats = data?.stats || {};
+  const school = data?.school || {};
+  
   const cards = [
     { key: "students", title: "Total Students", value: (stats.students ?? 0).toLocaleString(), sub: "across all sections", trend: null },
     { key: "staff", title: "Total Staff", value: (stats.staff ?? 0).toLocaleString(), sub: stats.teachers != null ? `${stats.teachers} teaching / ${(stats.staff ?? 0) - (stats.teachers ?? 0)} non-teaching` : "full team", trend: null },
@@ -61,14 +63,13 @@ export default function Dashboard() {
     cards[3] = { key: "parents", title: "Parent Accounts", value: (stats.parentAccounts ?? 0).toLocaleString(), sub: "portal logins", trend: null };
   }
 
-  const FEE_CHART = [
-    { month: "Feb", amount: 40 },
-    { month: "Mar", amount: 48 },
-    { month: "Apr", amount: 55 },
-    { month: "May", amount: 42 },
-    { month: "Jun", amount: 58 },
-    { month: "Jul", amount: 68.4 },
-  ];
+  const sessionInfo = user?.role === "schoolAdmin" && school.session ? {
+    session: school.session,
+    name: school.name,
+    board: school.board,
+  } : null;
+
+  const FEE_CHART = [];
 
   return (
     <div data-testid="dashboard-page" className="max-w-[1400px] mx-auto">
@@ -78,6 +79,34 @@ export default function Dashboard() {
         subtitle={<>A snapshot of today at <span className="font-serif-i text-slate-700">Vidyaloop</span>.</>}
         right={<LastSynced />}
       />
+
+      {/* Session Info Banner (School Admin Only) */}
+      {sessionInfo && (
+        <div data-testid="session-info-banner" className="glass rounded-2xl p-4 mb-6 flex items-center justify-between gap-4 border border-blue-100 bg-gradient-to-r from-blue-50/50 to-cyan-50/50">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#29ABE2] to-[#0c6a99] grid place-items-center text-white shadow-sm shrink-0">
+              <School className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Current Academic Session</div>
+              <div className="text-lg font-display font-bold text-slate-900 mt-0.5 flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-[#29ABE2]" />
+                {sessionInfo.session}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-6 text-sm">
+            <div className="text-center">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">School</div>
+              <div className="font-semibold text-slate-800 mt-0.5">{sessionInfo.name}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Board</div>
+              <div className="font-semibold text-slate-800 mt-0.5">{sessionInfo.board || "CBSE"}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">

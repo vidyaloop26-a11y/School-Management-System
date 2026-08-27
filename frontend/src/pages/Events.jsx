@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import PageHeader from "@/components/common/PageHeader";
-import { CALENDAR_EVENTS } from "@/lib/stage3Data";
-import { ChevronLeft, ChevronRight, CalendarDays, PartyPopper, Flag } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, PartyPopper, Flag, Loader2 } from "lucide-react";
+import api from "@/lib/api";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const WEEKDAY_LABELS = ["S","M","T","W","T","F","S"];
@@ -25,23 +25,53 @@ function TypeChip({ type }) {
 }
 
 export default function Events() {
-  const [year, setYear] = useState(2026);
-  const [month, setMonth] = useState(6); // July 2026
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.getEvents();
+      setEvents(res.events || []);
+    } catch {
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
   const eventsByDay = useMemo(() => {
     const map = {};
-    CALENDAR_EVENTS.forEach((ev) => {
-      if (ev.y === year && ev.m === month) {
-        map[ev.d] = map[ev.d] || [];
-        map[ev.d].push(ev);
+    events.forEach((ev) => {
+      const d = new Date(ev.date);
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        const day = d.getDate();
+        map[day] = map[day] || [];
+        map[day].push({
+          ...ev,
+          y: d.getFullYear(),
+          m: d.getMonth(),
+          d: day,
+        });
       }
     });
     return map;
-  }, [year, month]);
+  }, [events, year, month]);
 
   const monthEvents = useMemo(() => {
-    return CALENDAR_EVENTS.filter((e) => e.y === year && e.m === month);
-  }, [year, month]);
+    return events.filter((e) => {
+      const d = new Date(e.date);
+      return d.getFullYear() === year && d.getMonth() === month;
+    }).map((e) => {
+      const d = new Date(e.date);
+      return { ...e, y: d.getFullYear(), m: d.getMonth(), d: d.getDate() };
+    });
+  }, [events, year, month]);
 
   const prev = () => {
     if (month === 0) { setMonth(11); setYear(year - 1); } else setMonth(month - 1);

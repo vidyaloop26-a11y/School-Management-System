@@ -30,6 +30,7 @@ import Events from "@/pages/Events";
 import Login from "@/pages/Login";
 import Schools from "@/pages/Schools";
 import Support from "@/pages/Support";
+import Settings from "@/pages/Settings";
 import { DataStoreProvider } from "@/lib/dataStore";
 import { NAV } from "@/lib/mockData";
 import { PLACEHOLDER_DESCRIPTIONS } from "@/lib/stage3Data";
@@ -87,6 +88,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN]}>
               <Support />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.SCHOOL_ADMIN, ROLES.SUPER_ADMIN]}>
+              <Settings />
             </ProtectedRoute>
           }
         />
