@@ -32,7 +32,6 @@ import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
 import Tasks from "@/pages/Tasks";
 import Syllabus from "@/pages/Syllabus";
-import StemCourses from "@/pages/StemCourses";
 import Gallery from "@/pages/Gallery";
 import Library from "@/pages/Library";
 import Transport from "@/pages/Transport";
@@ -172,7 +171,6 @@ function AppRoutes() {
         <Route path="/events" element={<Events />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/syllabus" element={<Syllabus />} />
-        <Route path="/stem-courses" element={<StemCourses />} />
         <Route path="/gallery" element={<Gallery />} />
         <Route
           path="/transport"
