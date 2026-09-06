@@ -22,13 +22,17 @@ async function resolveSchoolScope(user, query = {}) {
 
 async function listStudents({ user, query }) {
   const schoolId = await resolveSchoolScope(user, query);
+  const normalizedStatus = query.status
+    ? String(query.status).charAt(0).toUpperCase() + String(query.status).slice(1).toLowerCase()
+    : "";
 
   const where = {
     ...(schoolId ? { schoolId } : {}),
     ...(query.cls ? { cls: query.cls } : {}),
     ...(query.section ? { section: query.section } : {}),
     ...(query.session ? { session: query.session } : {}),
-    ...(query.status ? { status: query.status } : {}),
+    ...(query.batch ? { batch: query.batch } : {}),
+    ...(normalizedStatus ? { status: normalizedStatus } : {}),
   };
 
   // Class Isolation for Teacher Role:

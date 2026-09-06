@@ -16,7 +16,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem("accessToken");
+      const storedToken = localStorage.getItem("accessToken") || localStorage.getItem("vidyaloop_token");
       const storedUser = localStorage.getItem("user");
       
       if (storedToken && storedUser) {
@@ -26,6 +26,7 @@ export function AuthProvider({ children }) {
           setUser(parsedUser);
         } catch {
           localStorage.removeItem("accessToken");
+          localStorage.removeItem("vidyaloop_token");
           localStorage.removeItem("refreshToken");
           localStorage.removeItem("user");
         }

@@ -43,7 +43,10 @@ apiInstance.interceptors.response.use(
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (originalRequest.url?.includes("/auth/me") || originalRequest.url?.includes("/auth/login")) {
+      if (
+        originalRequest.url?.includes("/auth/login") ||
+        originalRequest.url?.includes("/auth/refresh")
+      ) {
         return Promise.reject(error);
       }
 
@@ -102,6 +105,18 @@ export function getActiveSchoolId() {
   return cleaned === "all" ? "" : cleaned;
 }
 
+function appendSchoolScope(query, explicitSchoolId) {
+  const schoolId = explicitSchoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+}
+
+function normalizeStatusParam(status) {
+  if (!status || status === "all") return "";
+  const value = String(status).trim();
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
 const api = apiInstance;
 
 // Helper API methods attached to Axios instance
@@ -111,10 +126,10 @@ api.getStudents = async (params = {}) => {
   if (params.cls && params.cls !== "all") query.append("cls", params.cls);
   if (params.section && params.section !== "all") query.append("section", params.section);
   if (params.session && params.session !== "all") query.append("session", params.session);
-  if (params.status && params.status !== "all") query.append("status", params.status);
+  const normalizedStatus = normalizeStatusParam(params.status);
+  if (normalizedStatus) query.append("status", normalizedStatus);
 
-  const schoolId = params.schoolId || getActiveSchoolId();
-  if (schoolId) query.append("schoolId", schoolId);
+  appendSchoolScope(query, params.schoolId);
 
   const qStr = query.toString();
   const res = await api.get(`/students${qStr ? `?${qStr}` : ""}`);
@@ -369,8 +384,11 @@ api.deleteNotice = async (id) => {
 };
 
 // Settings
-api.getSettings = async () => {
-  const res = await api.get("/settings");
+api.getSettings = async (params = {}) => {
+  const query = new URLSearchParams();
+  appendSchoolScope(query, params.schoolId);
+  const qStr = query.toString();
+  const res = await api.get(`/settings${qStr ? `?${qStr}` : ""}`);
   return res.data;
 };
 
@@ -383,6 +401,7 @@ api.updateSettings = async (data) => {
 api.getEvents = async (params = {}) => {
   const query = new URLSearchParams();
   if (params.type) query.append("type", params.type);
+  appendSchoolScope(query, params.schoolId);
   const qStr = query.toString();
   const res = await api.get(`/settings/events${qStr ? `?${qStr}` : ""}`);
   return res.data;
@@ -399,8 +418,11 @@ api.deleteEvent = async (id) => {
 };
 
 // Subjects
-api.getSubjects = async () => {
-  const res = await api.get("/settings/subjects");
+api.getSubjects = async (params = {}) => {
+  const query = new URLSearchParams();
+  appendSchoolScope(query, params.schoolId);
+  const qStr = query.toString();
+  const res = await api.get(`/settings/subjects${qStr ? `?${qStr}` : ""}`);
   return res.data;
 };
 
@@ -508,14 +530,26 @@ api.getSyllabusTopics = async (params = {}) => {
   if (params.cls) query.append("cls", params.cls);
   if (params.section) query.append("section", params.section);
   if (params.subject) query.append("subject", params.subject);
+  appendSchoolScope(query, params.schoolId);
   const qStr = query.toString();
   const res = await api.get(`/syllabus${qStr ? `?${qStr}` : ""}`);
   return res.data;
 };
-api.createSyllabusTopic = async (data) => { const res = await api.post("/syllabus", data); return res.data; };
+api.createSyllabusTopic = async (data) => {
+  const schoolId = data.schoolId || getActiveSchoolId();
+  const payload = schoolId ? { ...data, schoolId } : data;
+  const res = await api.post("/syllabus", payload);
+  return res.data;
+};
 api.updateSyllabusTopic = async (id, data) => { const res = await api.put(`/syllabus/${id}`, data); return res.data; };
 api.markSyllabusProgress = async (id, data) => { const res = await api.post(`/syllabus/${id}/progress`, data); return res.data; };
-api.getSyllabusDashboard = async () => { const res = await api.get("/syllabus/dashboard"); return res.data; };
+api.getSyllabusDashboard = async (params = {}) => {
+  const query = new URLSearchParams();
+  appendSchoolScope(query, params.schoolId);
+  const qStr = query.toString();
+  const res = await api.get(`/syllabus/dashboard${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
 
 // Gallery
 api.getAlbums = async () => { const res = await api.get("/gallery"); return res.data; };

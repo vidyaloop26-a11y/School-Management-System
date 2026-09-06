@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const { validate, validateQuery } = require("../../middleware/validate");
 const { authenticate } = require("../../middleware/auth");
-const { requireRole, requireDuty, ROLES } = require("../../middleware/rbac");
+const { requireDuty } = require("../../middleware/rbac");
 const syllabusController = require("./syllabus.controller");
 const {
   createTopicSchema,
@@ -16,14 +16,14 @@ router.get("/", validateQuery(syllabusQuerySchema), syllabusController.getTopics
 
 router.post(
   "/",
-  requireRole(ROLES.SCHOOL_ADMIN),
+  requireDuty("teacher", "hod", "principal"),
   validate(createTopicSchema),
   syllabusController.createTopic
 );
 
 router.put(
   "/:id",
-  requireRole(ROLES.SCHOOL_ADMIN),
+  requireDuty("teacher", "hod", "principal"),
   validate(updateTopicSchema),
   syllabusController.updateTopic
 );

@@ -13,6 +13,7 @@
     "seed": "node prisma/seed.js",
     "db:setup": "prisma db push && node scripts/ensure-indexes.js && node prisma/seed.js",
     "db:push-deploy": "prisma generate && prisma db push --skip-generate",
+    "repair:objectids": "node scripts/repair-objectid-fields.js",
     "bootstrap": "node src/modules/auth/bootstrap.js",
     "test": "node --test tests/*.test.js"
   },

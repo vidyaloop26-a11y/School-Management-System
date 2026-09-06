@@ -41,6 +41,7 @@ async function getTopics(user, filters = {}) {
 async function createTopic({ user, data }) {
   const schoolId = user.schoolId || data.schoolId;
   if (!schoolId) throw new ApiError(400, "School ID required");
+  const topicName = data.topicName || data.name;
 
   return prisma.syllabusTopic.create({
     data: {
@@ -48,7 +49,7 @@ async function createTopic({ user, data }) {
       subject: data.subject,
       cls: data.cls,
       section: data.section,
-      topicName: data.topicName,
+      topicName,
       targetDate: data.targetDate ? new Date(data.targetDate) : null,
     },
   });
@@ -111,12 +112,12 @@ async function getPaceDashboard(user, filters = {}) {
   for (const t of topics) {
     const key = `${t.cls}-${t.section}`;
     if (!grouped[key]) {
-      grouped[key] = { cls: t.cls, section: t.section, subjects: {} };
+      grouped[key] = { cls: t.cls, section: t.section, subjectsMap: {} };
     }
-    if (!grouped[key].subjects[t.subject]) {
-      grouped[key].subjects[t.subject] = { total: 0, completed: 0, inProgress: 0, pending: 0, behind: 0 };
+    if (!grouped[key].subjectsMap[t.subject]) {
+      grouped[key].subjectsMap[t.subject] = { subject: t.subject, total: 0, completed: 0, inProgress: 0, pending: 0, behind: 0 };
     }
-    const stats = grouped[key].subjects[t.subject];
+    const stats = grouped[key].subjectsMap[t.subject];
     stats.total++;
     if (t.status === "COMPLETED") stats.completed++;
     else if (t.status === "IN_PROGRESS") stats.inProgress++;
@@ -124,7 +125,23 @@ async function getPaceDashboard(user, filters = {}) {
     else if (t.status === "BEHIND") stats.behind++;
   }
 
-  return Object.values(grouped);
+  return Object.values(grouped).map((g) => {
+    const subjects = Object.values(g.subjectsMap).map((s) => ({
+      ...s,
+      percent: s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0,
+    }));
+    const totalTopics = subjects.reduce((sum, s) => sum + s.total, 0);
+    const completedTopics = subjects.reduce((sum, s) => sum + s.completed, 0);
+    const overallPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
+    return {
+      cls: g.cls,
+      section: g.section,
+      subjects,
+      totalTopics,
+      completedTopics,
+      overallPercent,
+    };
+  });
 }
 
 module.exports = {

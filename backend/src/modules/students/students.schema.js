@@ -6,6 +6,8 @@ const studentBase = {
   cls: z.string().min(1, "Class is required"),
   section: z.string().min(1, "Section is required"),
   roll: z.number().int().min(1),
+  session: z.string().optional(),
+  batch: z.string().optional(),
   dob: z.string().optional(),
   bloodGroup: z.string().optional(),
   emergency: z.string().optional(),
@@ -63,6 +65,8 @@ const listQuerySchema = z.object({
   search: z.string().optional(),
   cls: z.string().optional(),
   section: z.string().optional(),
+  session: z.string().optional(),
+  batch: z.string().optional(),
   status: z.string().optional(),
   schoolId: z.string().optional(),
 });

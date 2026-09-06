@@ -47,6 +47,16 @@ const STATUS_CONFIG = {
   BEHIND: { label: "Behind", color: "bg-rose-50 text-rose-700 border-rose-200", icon: AlertTriangle },
 };
 
+function normalizeSubjectStats(subjects) {
+  if (Array.isArray(subjects)) return subjects;
+  if (subjects && typeof subjects === "object") return Object.values(subjects);
+  return [];
+}
+
+function getTopicTitle(topic) {
+  return topic?.topicName || topic?.name || topic?.topic || "Untitled topic";
+}
+
 function ProgressPill({ percent }) {
   let barColor = "bg-rose-500";
   let textColor = "text-rose-700";
@@ -81,6 +91,8 @@ function ProgressPill({ percent }) {
 }
 
 function ClassCard({ item, subjects }) {
+  const subjectStats = normalizeSubjectStats(item.subjects);
+
   return (
     <div className="glass rounded-2xl p-5 border border-white/80 shadow-xs space-y-3">
       <div className="flex items-center justify-between">
@@ -105,17 +117,17 @@ function ClassCard({ item, subjects }) {
       </div>
 
       <div className="space-y-2.5 pt-1">
-        {(item.subjects || []).slice(0, 6).map((sub) => (
-          <div key={sub.subject} className="space-y-1">
+        {subjectStats.slice(0, 6).map((sub) => (
+          <div key={sub.subject || sub.name} className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-600 truncate">{sub.subject}</span>
-              <span className="text-[10px] text-slate-400 tabular-nums">{sub.completed}/{sub.total}</span>
+              <span className="text-[11px] font-semibold text-slate-600 truncate">{sub.subject || sub.name}</span>
+              <span className="text-[10px] text-slate-400 tabular-nums">{sub.completed || 0}/{sub.total || 0}</span>
             </div>
-            <ProgressPill percent={sub.percent} />
+            <ProgressPill percent={sub.percent || 0} />
           </div>
         ))}
-        {(item.subjects || []).length > 6 && (
-          <div className="text-[10px] text-slate-400 text-center">+{(item.subjects || []).length - 6} more subjects</div>
+        {subjectStats.length > 6 && (
+          <div className="text-[10px] text-slate-400 text-center">+{subjectStats.length - 6} more subjects</div>
         )}
       </div>
     </div>
@@ -130,7 +142,7 @@ function PaceDashboard({ onRefresh }) {
     setLoading(true);
     try {
       const res = await api.getSyllabusDashboard();
-      setDashboard(res.dashboard || []);
+      setDashboard(Array.isArray(res) ? res : (res.dashboard || []));
     } catch {
       toast.error("Failed to load dashboard data");
       setDashboard([]);
@@ -146,7 +158,9 @@ function PaceDashboard({ onRefresh }) {
     return () => window.removeEventListener("schoolScopeChanged", handleScopeChange);
   }, [fetchData]);
 
-  const allSubjects = [...new Set(dashboard.flatMap((d) => (d.subjects || []).map((s) => s.subject)))].sort();
+  const allSubjects = [...new Set(dashboard.flatMap((d) => {
+    return normalizeSubjectStats(d.subjects).map((s) => s.subject || s.name || s);
+  }))].filter(Boolean).sort();
 
   return (
     <div>
@@ -356,7 +370,7 @@ function TopicListView({ onRefresh }) {
                   const StatusIcon = cfg.icon;
                   return (
                     <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50/80 transition">
-                      <td className="p-3 font-bold text-slate-800 max-w-[220px] truncate">{t.name || t.topic}</td>
+                      <td className="p-3 font-bold text-slate-800 max-w-[220px] truncate">{getTopicTitle(t)}</td>
                       <td className="p-3 text-slate-600">{t.subject}</td>
                       <td className="p-3 text-center font-mono text-slate-600">{t.cls}-{t.section}</td>
                       <td className="p-3 text-center">
@@ -412,7 +426,7 @@ function TopicListView({ onRefresh }) {
                       <StatusIcon className="h-3 w-3" /> {cfg.label}
                     </span>
                   </div>
-                  <div className="font-medium text-slate-800 text-[14px]">{t.name || t.topic}</div>
+                  <div className="font-medium text-slate-800 text-[14px]">{getTopicTitle(t)}</div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500">
                     <span>Class {t.cls}-{t.section}</span>
                     <span>{t.targetDate ? new Date(t.targetDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) : "No date"}</span>
@@ -505,7 +519,7 @@ function CreateTopicDialog({ open, onOpenChange, subjectsList, onCreated }) {
         subject: form.subject,
         cls: form.cls,
         section: form.section,
-        name: form.name.trim(),
+        topicName: form.name.trim(),
         targetDate: form.targetDate || undefined,
       });
       toast.success("Syllabus topic created");

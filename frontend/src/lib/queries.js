@@ -44,7 +44,7 @@ export const useAuth = () => {
     },
     staleTime: 5 * 60 * 1000,
     retry: false,
-    enabled: !!localStorage.getItem("accessToken"),
+    enabled: !!(localStorage.getItem("accessToken") || localStorage.getItem("vidyaloop_token")),
   });
 };
 
@@ -57,6 +57,7 @@ export const useLogin = () => {
     },
     onSuccess: (data) => {
       localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("vidyaloop_token", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
       localStorage.setItem("user", JSON.stringify(data.user));
       api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
@@ -76,6 +77,7 @@ export const useLogout = () => {
     },
     onSuccess: () => {
       localStorage.removeItem("accessToken");
+      localStorage.removeItem("vidyaloop_token");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("user");
       delete api.defaults.headers.common.Authorization;

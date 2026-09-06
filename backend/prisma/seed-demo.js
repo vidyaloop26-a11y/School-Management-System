@@ -25,6 +25,7 @@ const prisma = require("../src/lib/prisma");
 const env = require("../src/config/env");
 const authService = require("../src/modules/auth/auth.service");
 const { MongoClient, ObjectId } = require("mongodb");
+const { repairObjectIdFields } = require("../scripts/repair-objectid-fields");
 
 const mongoClient = new MongoClient(env.databaseUrl);
 let mongoDb;
@@ -414,6 +415,23 @@ async function seedSchool(cfg, getHash) {
     update: { passwordHash: await getHash("admin123"), schoolId, name: adminName, isActive: true, mustChangePassword: false },
   });
   void adminUser;
+
+  const domain = code === "VLPS" ? "vidyaloop.in" : code === "SXIS" ? "stxaviers.edu.in" : "dpa.edu.in";
+  const standardAdminEmail = `admin@${domain}`;
+  await prisma.user.upsert({
+    where: { email: standardAdminEmail },
+    create: {
+      email: standardAdminEmail,
+      username: standardAdminEmail,
+      passwordHash: await getHash("Admin@1234"),
+      role: "schoolAdmin",
+      name: adminName,
+      schoolId,
+      isActive: true,
+      mustChangePassword: false,
+    },
+    update: { passwordHash: await getHash("Admin@1234"), schoolId, name: adminName, isActive: true, mustChangePassword: false },
+  });
 
   const teacherLead = (await prisma.staff.findFirst({ where: { schoolId, jobTitle: "Teacher" } })).id;
   await prisma.user.upsert({
@@ -1258,6 +1276,10 @@ async function main() {
     console.log(`Seeding ${cfg.name} (${cfg.code})...`);
     await seedSchool(cfg, getHash);
   }
+
+  const objectIdRepairSummary = await repairObjectIdFields(mongoDb);
+  const repairedCollections = Object.keys(objectIdRepairSummary).length;
+  console.log(`ObjectId relation repair complete (${repairedCollections} collections changed).`);
 
   console.log("\n=======================================================================");
   console.log("   VIDYALOOP DEMO DATA SEED COMPLETE    ");
