@@ -17,9 +17,9 @@ const {
 // enforced inside the service).
 router.use(authenticate);
 
-// School-level reads — superAdmin is walled out (use /api/support/* instead).
-router.get("/", rejectRoles(ROLES.SUPER_ADMIN), validateQuery(listQuerySchema), studentsController.list);
-router.get("/:id", rejectRoles(ROLES.SUPER_ADMIN), validateQuery(studentIdParam, "params"), studentsController.get);
+// School-level reads — service scopes by schoolId or allows superAdmin full/scoped visibility.
+router.get("/", validateQuery(listQuerySchema), studentsController.list);
+router.get("/:id", validateQuery(studentIdParam, "params"), studentsController.get);
 
 // Create — school admin only (and super admin). Teachers cannot add users.
 router.post(

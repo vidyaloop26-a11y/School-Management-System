@@ -2,7 +2,7 @@ const { catchAsync } = require("../../lib/errors");
 const settingsService = require("./settings.service");
 
 const getSettings = catchAsync(async (req, res) => {
-  const data = await settingsService.getSettings(req.user);
+  const data = await settingsService.getSettings(req.user, req.query);
   res.json({ success: true, settings: data });
 });
 
@@ -33,7 +33,7 @@ const syncHolidays = catchAsync(async (req, res) => {
 });
 
 const listSubjects = catchAsync(async (req, res) => {
-  const data = await settingsService.listSubjects(req.user);
+  const data = await settingsService.listSubjects(req.user, req.query);
   res.json({ success: true, subjects: data });
 });
 

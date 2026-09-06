@@ -14,9 +14,9 @@ const {
 
 router.use(authenticate);
 
-// School-level reads — superAdmin is walled out (use /api/support/* instead).
-router.get("/", rejectRoles(ROLES.SUPER_ADMIN), validateQuery(listQuerySchema), staffController.list);
-router.get("/:id", rejectRoles(ROLES.SUPER_ADMIN), validateQuery(staffIdParam, "params"), staffController.get);
+// School-level reads — service scopes by schoolId or allows superAdmin full/scoped visibility.
+router.get("/", validateQuery(listQuerySchema), staffController.list);
+router.get("/:id", validateQuery(staffIdParam, "params"), staffController.get);
 
 // Create single or bulk staff
 router.post(

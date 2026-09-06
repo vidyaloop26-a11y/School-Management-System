@@ -1,9 +1,35 @@
 const prisma = require("../../lib/prisma");
 const { ApiError } = require("../../lib/errors");
 
-async function getSettings(user) {
-  const schoolId = user.schoolId;
-  if (!schoolId) throw new ApiError(400, "School ID required");
+async function resolveSchoolScope(user, query = {}) {
+  const scopeInput = (user.role === "superAdmin")
+    ? (query.schoolId !== "all" ? query.schoolId : null)
+    : (user.schoolId || (query.schoolId !== "all" ? query.schoolId : null));
+
+  if (!scopeInput || scopeInput === "all") {
+    if (user.role === "superAdmin") {
+      const firstSchool = await prisma.school.findFirst({ select: { id: true } });
+      return firstSchool ? firstSchool.id : null;
+    }
+    return user.schoolId || null;
+  }
+  const cleanId = String(scopeInput).replace(/^"|"$/g, "").trim();
+  if (!cleanId || cleanId === "all") return null;
+
+  try {
+    const school = await prisma.school.findFirst({
+      where: { OR: [{ id: cleanId }, { code: cleanId }] },
+      select: { id: true },
+    });
+    return school ? school.id : cleanId;
+  } catch (e) {
+    return cleanId;
+  }
+}
+
+async function getSettings(user, query = {}) {
+  const schoolId = await resolveSchoolScope(user, query);
+  if (!schoolId) return { session: "2024-2025" };
 
   let settings = await prisma.schoolSettings.findUnique({
     where: { schoolId },
@@ -19,7 +45,7 @@ async function getSettings(user) {
 }
 
 async function updateSettings(user, data) {
-  const schoolId = user.schoolId;
+  const schoolId = user.schoolId || (await resolveSchoolScope(user, data));
   if (!schoolId) throw new ApiError(400, "School ID required");
 
   const existing = await prisma.schoolSettings.findUnique({
@@ -39,10 +65,8 @@ async function updateSettings(user, data) {
 }
 
 async function listEvents(user, query = {}) {
-  const schoolId = user.schoolId;
-  if (!schoolId) throw new ApiError(400, "School ID required");
-
-  const where = { schoolId };
+  const schoolId = await resolveSchoolScope(user, query);
+  const where = { ...(schoolId ? { schoolId } : {}) };
   if (query.type) where.type = query.type;
 
   return prisma.schoolEvent.findMany({
@@ -52,7 +76,7 @@ async function listEvents(user, query = {}) {
 }
 
 async function createEvent(user, data) {
-  const schoolId = user.schoolId;
+  const schoolId = user.schoolId || data.schoolId || (await resolveSchoolScope(user, data));
   if (!schoolId) throw new ApiError(400, "School ID required");
 
   return prisma.schoolEvent.create({
@@ -131,9 +155,9 @@ async function syncHolidays(user, year, countryCode) {
   return { imported, skipped, total: holidays.length, year: targetYear, country };
 }
 
-async function listSubjects(user) {
-  const schoolId = user.schoolId;
-  if (!schoolId) throw new ApiError(400, "School ID required");
+async function listSubjects(user, query = {}) {
+  const schoolId = await resolveSchoolScope(user, query);
+  if (!schoolId) return [];
 
   return prisma.schoolSubject.findMany({
     where: { schoolId },

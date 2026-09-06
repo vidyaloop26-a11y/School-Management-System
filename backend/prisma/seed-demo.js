@@ -87,6 +87,19 @@ async function chunked(items, size, fn) {
 // ObjectId fields keep their true types; prisma.$runCommandRaw JSON-serializes Dates
 // into plain strings, which later breaks prisma reads with P2023.
 // oidFields lists scalar fields annotated @db.ObjectId that must be stored as BSON ObjectId.
+
+// Swallows MongoDB E11000 duplicate-key errors so re-running the seed is fully
+// idempotent. Any other error is re-thrown as-is.
+async function ignoreDuplicates(fn) {
+  try {
+    return await fn();
+  } catch (err) {
+    // MongoBulkWriteError wraps writeErrors; plain MongoServerError has .code directly.
+    if (err.code === 11000 || (err.writeErrors && err.writeErrors.length && err.code === 11000)) return;
+    throw err;
+  }
+}
+
 async function bulkInsert(collection, docs, oidFields = []) {
   const transformed = docs.map((d) => {
     const copy = { ...d };
@@ -97,7 +110,9 @@ async function bulkInsert(collection, docs, oidFields = []) {
     return copy;
   });
   for (let i = 0; i < transformed.length; i += 1000) {
-    await mongoDb.collection(collection).insertMany(transformed.slice(i, i + 1000), { ordered: false });
+    await ignoreDuplicates(() =>
+      mongoDb.collection(collection).insertMany(transformed.slice(i, i + 1000), { ordered: false })
+    );
   }
 }
 
@@ -501,8 +516,9 @@ async function seedSchool(cfg, getHash) {
     }
   }
   if (newStudentDocs.length) {
-    console.log("Sample student doc for insertMany:", JSON.stringify(newStudentDocs[0], null, 2));
-    await mongoDb.collection("Student").insertMany(newStudentDocs, { ordered: false });
+    await ignoreDuplicates(() =>
+      mongoDb.collection("Student").insertMany(newStudentDocs, { ordered: false })
+    );
   }
 
   const parentHash = await getHash("parent123");
@@ -531,7 +547,9 @@ async function seedSchool(cfg, getHash) {
     });
   }
   if (newParentDocs.length) {
-    await mongoDb.collection("User").insertMany(newParentDocs, { ordered: false });
+    await ignoreDuplicates(() =>
+      mongoDb.collection("User").insertMany(newParentDocs, { ordered: false })
+    );
   }
   const studentById = new Map(students.map((s) => [s.id, s]));
 
@@ -1134,22 +1152,24 @@ async function seedSchool(cfg, getHash) {
     });
   }
   if (homeworks.length) {
-    await mongoDb.collection("Homework").insertMany(
-      homeworks.map((h) => ({
-        _id: new ObjectId(h.id),
-        schoolId: new ObjectId(schoolId),
-        cls: h.cls,
-        section: h.section,
-        subject: h.subject,
-        title: h.title,
-        description: h.description,
-        dueDate: new Date(h.dueDate),
-        assignedById: new ObjectId(h.assignedById),
-        assignedByName: h.assignedByName,
-        createdAt: new Date(h.createdAt),
-        updatedAt: new Date(),
-      })),
-      { ordered: false }
+    await ignoreDuplicates(() =>
+      mongoDb.collection("Homework").insertMany(
+        homeworks.map((h) => ({
+          _id: new ObjectId(h.id),
+          schoolId: new ObjectId(schoolId),
+          cls: h.cls,
+          section: h.section,
+          subject: h.subject,
+          title: h.title,
+          description: h.description,
+          dueDate: new Date(h.dueDate),
+          assignedById: new ObjectId(h.assignedById),
+          assignedByName: h.assignedByName,
+          createdAt: new Date(h.createdAt),
+          updatedAt: new Date(),
+        })),
+        { ordered: false }
+      )
     );
   }
 

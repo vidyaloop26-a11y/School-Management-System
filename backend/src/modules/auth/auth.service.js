@@ -33,16 +33,27 @@ async function findByIdentifier(identifier) {
 }
 
 async function createSuperAdmin(data) {
-  const existing = await findByIdentifier(data.email);
-  if (existing) return toSafeUser(existing);
+  const email = (data.email || env.superAdmin.email).toLowerCase().trim();
   const password = data.password || env.superAdmin.password;
+  const passwordHash = await hashPassword(password);
+  const existing = await findByIdentifier(email);
+
+  if (existing) {
+    const updated = await prisma.user.update({
+      where: { id: existing.id },
+      data: { passwordHash, isActive: true, mustChangePassword: false },
+    });
+    return toSafeUser(updated);
+  }
+
   const user = await prisma.user.create({
     data: {
       name: data.name || env.superAdmin.name,
-      email: data.email.toLowerCase().trim(),
-      username: data.email.toLowerCase().trim(),
-      passwordHash: await hashPassword(password),
+      email,
+      username: email,
+      passwordHash,
       role: "superAdmin",
+      isActive: true,
       mustChangePassword: false,
     },
   });

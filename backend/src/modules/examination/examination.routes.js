@@ -8,13 +8,13 @@ const { saveExamMarksSchema } = require("./examination.schema");
 
 router.use(authenticate);
 
-router.get("/", rejectRoles(ROLES.SUPER_ADMIN), examController.getRoster);
+router.get("/", examController.getRoster);
 router.post(
   "/marks",
   requireDuty("teacher", "examCoordinator", "hod"),
   validate(saveExamMarksSchema),
   examController.saveMarks
 );
-router.get("/report-card", rejectRoles(ROLES.SUPER_ADMIN), examController.getReportCard);
+router.get("/report-card", examController.getReportCard);
 
 module.exports = router;
