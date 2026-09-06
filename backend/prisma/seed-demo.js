@@ -503,11 +503,11 @@ async function seedSchool(cfg, getHash) {
       };
       rec.id = existingId || new ObjectId().toString();
       if (!existingId) {
-        const { id: _ignore, ...studentData } = rec;
+        const { id: _ignore, schoolId: _ignoreSchoolId, ...studentData } = rec;
         newStudentDocs.push({
+          ...studentData,
           _id: studentOid(rec.id),
           schoolId: studentOid(schoolId),
-          ...studentData,
           createdAt: new Date(),
           updatedAt: new Date(),
         });

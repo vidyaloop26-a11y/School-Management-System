@@ -54,10 +54,36 @@ async function ensureSuperAdmin() {
   }
 }
 
+async function repairDbTypes() {
+  try {
+    const collections = [
+      "Student", "Staff", "AttendanceRecord", "ExamMark", "StudentFeeLedger",
+      "Payment", "TimetableEntry", "Homework", "HomeworkSubmission", "DiaryEntry",
+      "SyllabusTopic", "PayrollRecord", "Book", "Visitor", "Task", "User", "LeaveRequest",
+      "IncomeExpenseRecord", "CertificateRecord", "CopyCheckBatch", "GatePass", "HostelRoom"
+    ];
+    for (const col of collections) {
+      try {
+        await prisma.$runCommandRaw({
+          update: col,
+          updates: [
+            {
+              q: { schoolId: { $type: "string" } },
+              u: [{ $set: { schoolId: { $toObjectId: "$schoolId" } } }],
+              multi: true,
+            },
+          ],
+        });
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
+
 async function main() {
   try {
     await prisma.$connect();
     console.log("✔ Connected to MongoDB");
+    await repairDbTypes();
     await ensureSuperAdmin();
   } catch (err) {
     console.error("✘ Could not connect to database. Check DATABASE_URL in backend/.env");
