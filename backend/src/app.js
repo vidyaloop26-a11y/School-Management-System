@@ -42,6 +42,13 @@ const app = express();
 const api = express.Router();
 
 app.disable("x-powered-by");
+
+// Trust the first hop from Render's (or any reverse-proxy's) load balancer
+// so that express-rate-limit can correctly read X-Forwarded-For.
+// Without this, express-rate-limit throws ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+// which propagates as a 401 on auth routes.
+app.set("trust proxy", 1);
+
 app.use(helmet());
 app.use(
   cors({
