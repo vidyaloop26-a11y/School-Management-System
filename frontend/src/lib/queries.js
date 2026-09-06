@@ -479,4 +479,144 @@ export const useEvents = (params = {}) => {
   });
 };
 
+// Diary
+export const useDiaryEntries = (params = {}) => {
+  return useQuery({
+    queryKey: ["diary", params],
+    queryFn: async () => {
+      const res = await api.getDiaryEntries(params);
+      return res.data?.entries || [];
+    },
+  });
+};
+
+export const useCreateDiaryEntry = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await api.createDiaryEntry(data);
+      return res.data?.entry;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["diary"] });
+    },
+  });
+};
+
+// Homework
+export const useHomeworkList = (params = {}) => {
+  return useQuery({
+    queryKey: ["homework", params],
+    queryFn: async () => {
+      const res = await api.getHomework(params);
+      return res.data?.homework || [];
+    },
+  });
+};
+
+export const useCreateHomework = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await api.createHomework(data);
+      return res.data?.homework;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["homework"] });
+    },
+  });
+};
+
+export const useSubmitHomework = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }) => {
+      const res = await api.submitHomework(id, data);
+      return res.data?.submission;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["homework"] });
+    },
+  });
+};
+
+// Fees
+export const useFeeComponents = () => {
+  return useQuery({
+    queryKey: ["fees", "components"],
+    queryFn: async () => {
+      const res = await api.getFeeComponents();
+      return res.data?.components || [];
+    },
+  });
+};
+
+export const useFeeStructures = (params = {}) => {
+  return useQuery({
+    queryKey: ["fees", "structures", params],
+    queryFn: async () => {
+      const res = await api.getFeeStructures(params);
+      return res.data?.structures || [];
+    },
+  });
+};
+
+export const useFeeLedger = (params = {}) => {
+  return useQuery({
+    queryKey: ["fees", "ledger", params],
+    queryFn: async () => {
+      const res = await api.getFeeLedger(params);
+      return res.data?.ledger || [];
+    },
+  });
+};
+
+export const useFeeSummary = (params = {}) => {
+  return useQuery({
+    queryKey: ["fees", "summary", params],
+    queryFn: async () => {
+      const res = await api.getFeeSummary(params);
+      return res.data;
+    },
+  });
+};
+
+export const useStudentFeeHistory = (studentId) => {
+  return useQuery({
+    queryKey: ["fees", "student", studentId],
+    queryFn: async () => {
+      const res = await api.getStudentFeeHistory(studentId);
+      return res.data;
+    },
+    enabled: !!studentId,
+  });
+};
+
+export const useRecordFeePayment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await api.recordFeePayment(data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fees"] });
+      queryClient.invalidateQueries({ queryKey: ["finance"] });
+    },
+  });
+};
+
+// Leave Balance
+export const useLeaveBalance = (staffId) => {
+  return useQuery({
+    queryKey: ["leave", "balance", staffId],
+    queryFn: async () => {
+      const params = staffId ? { staffId } : {};
+      const res = await api.getLeaveBalance(params);
+      return Array.isArray(res.data) ? res.data : (res.balances || []);
+    },
+    enabled: !!staffId,
+  });
+};
+
 export { QUERY_KEYS };

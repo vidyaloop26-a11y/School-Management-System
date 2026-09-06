@@ -100,6 +100,9 @@ model School {
    copyCheckBatches   CopyCheckBatch[]
    studentRoutes      StudentRoute[]
    hostMappings       HostMapping[]
+   diaryEntries       DiaryEntry[]
+   homeworks          Homework[]
+   leaveBalances      LeaveBalance[]
 }
 
 model SchoolSettings {
@@ -976,5 +979,88 @@ model CopyCheckEntry {
   createdAt   DateTime @default(now())
 
   @@index([batchId])
+}
+
+// ---------------------------------------------------------------------------
+// Digital Diary
+// ---------------------------------------------------------------------------
+
+model DiaryEntry {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId     String   @db.ObjectId
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  cls          String
+  section      String
+  subject      String
+  note         String
+  homework     String?
+  authorId     String   @db.ObjectId
+  authorName   String
+  createdAt    DateTime @default(now())
+
+  @@index([schoolId, cls, section, createdAt])
+  @@index([schoolId, authorId])
+}
+
+// ---------------------------------------------------------------------------
+// Homework
+// ---------------------------------------------------------------------------
+
+model Homework {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId       String   @db.ObjectId
+  school         School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  cls            String
+  section        String
+  subject        String
+  title          String
+  description    String?
+  dueDate        DateTime
+  assignedById   String   @db.ObjectId
+  assignedByName String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  submissions    HomeworkSubmission[]
+
+  @@index([schoolId, cls, section])
+  @@index([schoolId, assignedById])
+}
+
+model HomeworkSubmission {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  homeworkId   String    @db.ObjectId
+  homework     Homework  @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  studentId    String    @db.ObjectId
+  studentName  String
+  status       String    @default("Pending") // Pending | Submitted
+  submittedAt  DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+
+  @@unique([homeworkId, studentId])
+  @@index([homeworkId])
+  @@index([studentId])
+}
+
+// ---------------------------------------------------------------------------
+// Leave Balance (per staff, per year, per leave type)
+// ---------------------------------------------------------------------------
+
+model LeaveBalance {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String @db.ObjectId
+  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  staffId   String @db.ObjectId
+  staffName String
+  year      Int
+  leaveType String // Sick, Casual, Earned, Privilege
+  entitled  Int
+  used      Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([schoolId, staffId, year, leaveType])
+  @@index([schoolId, staffId])
 }
 

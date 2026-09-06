@@ -10,6 +10,8 @@ export default function Certificates() {
   const { user } = useAuth();
   const role = user?.role || "superAdmin";
   const isParentOrStudent = role === "parent";
+  const schoolName = user?.school?.name || "Vidyaloop International School";
+  const schoolCode = user?.school?.code || "VL-1002";
 
   const [activeSchoolId, setActiveSchoolId] = useState(() => {
     return localStorage.getItem("vidyaloop_active_school_id") || "all";
@@ -310,8 +312,8 @@ export default function Certificates() {
         <Dialog open={!!selectedCert} onOpenChange={() => setSelectedCert(null)}>
           <DialogContent className="max-w-2xl bg-white p-8 rounded-2xl shadow-2xl border-4 border-double border-slate-300">
             <div className="text-center space-y-4">
-              <div className="font-display text-2xl font-bold text-slate-900 tracking-tight">VIDYALOOP INTERNATIONAL SCHOOL</div>
-              <div className="text-[12px] text-slate-500 uppercase tracking-widest font-semibold">Affiliated to CBSE • School Code: VL-1002</div>
+              <div className="font-display text-2xl font-bold text-slate-900 tracking-tight">{schoolName}</div>
+              <div className="text-[12px] text-slate-500 uppercase tracking-widest font-semibold">Affiliated to CBSE • School Code: {schoolCode}</div>
               <div className="w-24 h-0.5 bg-[#29ABE2] mx-auto my-2" />
 
               <div className="py-4">
@@ -322,7 +324,7 @@ export default function Certificates() {
 
               <div className="text-left leading-relaxed text-slate-700 space-y-4 py-4 text-[14px]">
                 <p>
-                  This is to certify that <strong>{selectedCert.studentName}</strong> (Admission No: <strong>{selectedCert.studentId}</strong>), son/daughter of <strong>Mr. & Mrs. Sharma</strong>, is a bonafide student of this institution studying in Class <strong>{selectedCert.cls}-{selectedCert.section}</strong> during the academic session 2026-2027.
+                  This is to certify that <strong>{selectedCert.studentName}</strong> (Admission No: <strong>{selectedCert.studentId}</strong>), son/daughter of <strong>{selectedCert.fatherName || "Mr. & Mrs. Sharma"}{selectedCert.motherName ? ` & ${selectedCert.motherName}` : ""}</strong>, is a bonafide student of this institution studying in Class <strong>{selectedCert.classSection || `${selectedCert.cls}-${selectedCert.section}`}</strong> during the academic session 2026-2027.
                 </p>
                 <p>
                   He/She bears a <strong>{selectedCert.conduct}</strong> moral character and active academic record. This certificate is issued upon request for the purpose of: <em>{selectedCert.reason}</em>.

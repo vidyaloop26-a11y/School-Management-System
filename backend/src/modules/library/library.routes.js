@@ -18,21 +18,18 @@ router.get("/:id", libraryController.getBookById);
 
 router.post(
   "/",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("librarian"),
   validate(createBookSchema),
   libraryController.createBook
 );
 router.post(
   "/issue",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("librarian"),
   validate(issueBookSchema),
   libraryController.issueBook
 );
 router.post(
   "/:id/return",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("librarian"),
   validate(returnBookSchema),
   libraryController.returnBook

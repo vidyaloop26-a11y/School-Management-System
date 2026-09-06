@@ -41,13 +41,13 @@ router.post(
 router.get("/host-mappings", frontOfficeController.getHostMappings);
 router.post(
   "/host-mappings",
-  requireRole(ROLES.SCHOOL_ADMIN),
+  requireDuty("frontOffice", "warden"),
   validate(createHostMappingSchema),
   frontOfficeController.createHostMapping
 );
 router.delete(
   "/host-mappings/:id",
-  requireRole(ROLES.SCHOOL_ADMIN),
+  requireDuty("frontOffice", "warden"),
   validateQuery(visitorIdParam, "params"),
   frontOfficeController.deleteHostMapping
 );

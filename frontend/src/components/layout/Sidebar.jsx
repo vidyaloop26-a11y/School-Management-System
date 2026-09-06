@@ -63,17 +63,18 @@ function Group({ label, items, defaultOpen = true, onClose }) {
   );
 }
 
+const ALL_KEYS = [
+  "dashboard", "schools", "stemCourses", "students", "staff", "timetable", "attendance",
+  "examination", "syllabus", "diary", "homework", "communication", "gallery",
+  "events", "fees", "transport", "library", "inventory", "frontoffice", "hostel",
+  "admissions", "payroll", "income", "certificates", "leave", "copycheck", "tasks",
+  "idcard", "support", "settings",
+];
+
 const ROLE_VISIBILITY = {
-  [ROLES.SUPER_ADMIN]: new Set([
-    "dashboard",
-    "schools",
-    "support",
-  ]),
-  [ROLES.SCHOOL_ADMIN]: new Set([
-    "dashboard", "students", "staff", "timetable", "attendance",
-    "examination", "fees", "admissions", "payroll", "income", "certificates", "leave",
-    "diary", "homework", "communication", "events", "idcard",
-  ]),
+  [ROLES.SUPER_ADMIN]: new Set([...ALL_KEYS]),
+  [ROLES.SCHOOL_ADMIN]: new Set(ALL_KEYS.filter((k) => k !== "schools" && k !== "support")),
+  [ROLES.PARENT]: new Set(["dashboard", "fees", "homework", "diary", "leave", "events", "communication", "stemCourses"]),
 };
 
 // Duty-keyed nav for role:"staff" accounts — a staff member sees the modules
@@ -86,13 +87,19 @@ const DUTY_NAV = [
   { duty: "examCoordinator", keys: ["dashboard", "examination", "certificates", "timetable"] },
   { duty: "accountant", keys: ["dashboard", "fees", "payroll", "income"] },
   { duty: "frontOffice", keys: ["dashboard", "admissions", "idcard", "leave"] },
-  { duty: "librarian", keys: ["dashboard"] },
-  { duty: "transportIncharge", keys: ["dashboard"] },
+  { duty: "librarian", keys: ["dashboard", "library"] },
+  { duty: "transportIncharge", keys: ["dashboard", "transport"] },
   { duty: "warden", keys: ["dashboard", "attendance"] },
   { duty: "hrManager", keys: ["dashboard", "staff", "payroll", "leave"] },
   { duty: "admissionsOfficer", keys: ["dashboard", "admissions"] },
   { duty: "itAdmin", keys: ["dashboard", "settings"] },
 ];
+
+// STEM Courses is visible to every role, so append it to every duty's nav keys.
+const DUTY_NAV_WITH_STEM = DUTY_NAV.map((entry) => ({
+  ...entry,
+  keys: [...entry.keys, "stemCourses"],
+}));
 
 function visibleKeysFor(user) {
   if (!user) return null;
@@ -101,7 +108,7 @@ function visibleKeysFor(user) {
   if (user.role === ROLES.STAFF) {
     const held = Array.isArray(user.duties) ? user.duties : [];
     const keys = new Set();
-    for (const entry of DUTY_NAV) {
+    for (const entry of DUTY_NAV_WITH_STEM) {
       if (held.includes(entry.duty)) entry.keys.forEach((k) => keys.add(k));
     }
     return keys;

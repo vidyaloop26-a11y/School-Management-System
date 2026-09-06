@@ -18,14 +18,12 @@ router.use(authenticate);
 router.get("/buildings", hostelController.listBuildings);
 router.post(
   "/buildings",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("warden"),
   validate(createBuildingSchema),
   hostelController.addBuilding
 );
 router.put(
   "/buildings/:id",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("warden"),
   validate(createBuildingSchema.partial()),
   hostelController.editBuilding
@@ -40,7 +38,6 @@ router.delete(
 router.get("/rooms", validateQuery(hostelQuerySchema), hostelController.listRooms);
 router.post(
   "/rooms",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("warden"),
   validate(createRoomSchema),
   hostelController.addRoom
@@ -49,14 +46,12 @@ router.post(
 // Bed assignments
 router.post(
   "/assign",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("warden"),
   validate(assignBedSchema),
   hostelController.assignStudent
 );
 router.delete(
   "/assign/:id",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("warden"),
   hostelController.removeAssignment
 );
@@ -65,14 +60,12 @@ router.delete(
 router.get("/maintenance", validateQuery(hostelQuerySchema), hostelController.listMaintenance);
 router.post(
   "/maintenance",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("warden"),
   validate(createMaintenanceSchema),
   hostelController.addMaintenance
 );
 router.put(
   "/maintenance/:id",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("warden"),
   validate(updateMaintenanceSchema),
   hostelController.editMaintenance

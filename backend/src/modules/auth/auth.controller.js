@@ -38,7 +38,14 @@ const changePassword = catchAsync(async (req, res) => {
 });
 
 const me = catchAsync(async (req, res) => {
-  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  const user = await prisma.user.findUnique({
+    where: { id: req.user.id },
+    include: {
+      school: {
+        select: { id: true, name: true, code: true, address: true, logoUrl: true, board: true, session: true },
+      },
+    },
+  });
   res.json({ success: true, user: authService.toSafeUser(user) });
 });
 

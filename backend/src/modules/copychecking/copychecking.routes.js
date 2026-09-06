@@ -17,7 +17,6 @@ router.get("/:id", copyCheckingController.getBatchById);
 
 router.post(
   "/",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("teacher", "hod", "principal", "examCoordinator"),
   validate(createBatchSchema),
   copyCheckingController.createBatch

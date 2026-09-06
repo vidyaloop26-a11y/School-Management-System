@@ -235,29 +235,27 @@ export default function StudentProfile() {
   const navigate = useNavigate();
   const { data: p, isLoading } = useStudent(id);
   const [studentFees, setStudentFees] = useState([]);
+  const [feePayments, setFeePayments] = useState([]);
   const [feesLoading, setFeesLoading] = useState(false);
 
   const student = p;
   const initials = student?.name ? student.name.split(" ").map((x) => x[0]).slice(0, 2).join("") : "?";
 
-  // Fetch student's fee records from finance API
+  // Fetch student's fee ledger + payments from the fee module
   const fetchStudentFees = useCallback(async () => {
-    if (!student?.id && !student?.admNo) return;
+    if (!student?.id) return;
     setFeesLoading(true);
     try {
-      const res = await api.getFinanceRecords({ type: "INCOME" });
-      const allRecords = res?.records || [];
-      const feeRecords = allRecords.filter(
-        (r) => (r.category?.toLowerCase().includes("fee") || r.category?.toLowerCase().includes("tuition")) &&
-               (r.title?.includes(student.admNo) || r.title?.includes(student.name))
-      );
-      setStudentFees(feeRecords);
+      const res = await api.getStudentFeeHistory(student.id);
+      setStudentFees(res.ledger || []);
+      setFeePayments(res.payments || []);
     } catch (err) {
-      // silently fail — fees tab will show empty state
+      setStudentFees([]);
+      setFeePayments([]);
     } finally {
       setFeesLoading(false);
     }
-  }, [student?.id, student?.admNo, student?.name]);
+  }, [student?.id]);
 
   useEffect(() => { fetchStudentFees(); }, [fetchStudentFees]);
 
@@ -284,8 +282,6 @@ export default function StudentProfile() {
 
   const latestFee = studentFees.length > 0 ? studentFees[0] : null;
   const feeStatus = latestFee?.status || null;
-  const feeAmount = latestFee?.amount || null;
-  const feeDate = latestFee?.date ? new Date(latestFee.date).toLocaleDateString() : null;
 
   return (
     <div data-testid="student-profile" className="max-w-[1400px] mx-auto">
@@ -363,8 +359,8 @@ export default function StudentProfile() {
                   </div>
                 </div>
                 {feeStatus && (
-                  <span className={`px-3 py-1 rounded-full text-[12px] font-bold ${feeStatus === "Paid" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                    {feeStatus}
+                  <span className={`px-3 py-1 rounded-full text-[12px] font-bold ${feeStatus === "PAID" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                    {feeStatus === "PAID" ? "Paid" : feeStatus === "PARTIAL" ? "Partial" : "Due"}
                   </span>
                 )}
               </div>
@@ -373,19 +369,46 @@ export default function StudentProfile() {
                   <Loader2 className="h-5 w-5 text-[#29ABE2] animate-spin" />
                 </div>
               ) : studentFees.length > 0 ? (
-                <div className="space-y-3">
-                  {studentFees.slice(0, 5).map((fee, idx) => (
-                    <div key={fee.id || idx} className="flex items-center justify-between py-2 border-b border-slate-100 text-[13px]">
-                      <div>
-                        <span className="font-medium text-slate-800">{fee.title?.replace("Fee Collection: ", "") || "Fee Payment"}</span>
-                        <span className="text-slate-400 ml-2">{fee.voucherNo}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-semibold text-slate-900">₹{(fee.amount || 0).toLocaleString("en-IN")}</span>
-                        <span className="text-slate-500 ml-2">{fee.date ? new Date(fee.date).toLocaleDateString() : "—"}</span>
-                      </div>
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-5">
+                  <div>
+                    <div className="text-[10.5px] tracking-[0.14em] font-semibold text-slate-400 uppercase mb-2">Term-wise Ledger</div>
+                    <div className="space-y-2.5">
+                      {studentFees.map((fee) => {
+                        const paid = fee.status === "PAID";
+                        const balance = (fee.amount || 0) - (fee.paid || 0);
+                        return (
+                          <div key={fee.id} className="flex items-center justify-between py-2.5 px-3 border border-slate-100 rounded-xl bg-white/50 text-[13px]">
+                            <div>
+                              <span className="font-medium text-slate-800">{fee.term}</span>
+                              <span className="text-slate-400 ml-2">Session {fee.session}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-semibold text-slate-900">₹{(fee.amount || 0).toLocaleString("en-IN")}</span>
+                              <span className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[10.5px] font-medium ${paid ? "bg-emerald-50 text-emerald-700" : balance > 0 && (fee.paid || 0) > 0 ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+                                {paid ? "Paid" : (fee.paid || 0) > 0 ? `Partial · ₹${balance.toLocaleString("en-IN")} left` : "Due"}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </div>
+                  <div>
+                    <div className="text-[10.5px] tracking-[0.14em] font-semibold text-slate-400 uppercase mb-2">Payment History</div>
+                    <div className="space-y-2.5">
+                      {feePayments.length > 0 ? feePayments.map((pay) => (
+                        <div key={pay.id} className="py-2.5 px-3 border border-slate-100 rounded-xl bg-white/50 text-[13px]">
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-slate-500 text-[11.5px]">{pay.receiptNo}</span>
+                            <span className="font-semibold text-emerald-700">₹{(pay.amount || 0).toLocaleString("en-IN")}</span>
+                          </div>
+                          <div className="text-[11.5px] text-slate-500 mt-1">{pay.paymentMode || "—"} · {pay.paidAt ? new Date(pay.paidAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</div>
+                        </div>
+                      )) : (
+                        <div className="text-center py-6 text-slate-400 text-[12.5px] border border-dashed border-slate-200 rounded-xl">No payments recorded yet.</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-6 text-slate-400 text-[13px]">

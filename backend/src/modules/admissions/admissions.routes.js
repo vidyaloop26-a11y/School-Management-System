@@ -1,7 +1,7 @@
 const router = require("express").Router();
 const { validate, validateQuery } = require("../../middleware/validate");
 const { authenticate } = require("../../middleware/auth");
-const { requireRole, ROLES } = require("../../middleware/rbac");
+const { requireDuty } = require("../../middleware/rbac");
 const admissionsController = require("./admissions.controller");
 const {
   createInquirySchema,
@@ -11,8 +11,8 @@ const {
   enrollSchema,
 } = require("./admissions.schema");
 
-// Authenticated users; super admin may scope by ?schoolId=code|id.
-router.use(authenticate, requireRole(ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN));
+// Admins plus staff carrying admissions duties (front desk + admissions officer).
+router.use(authenticate, requireDuty("frontOffice", "admissionsOfficer"));
 
 router.get("/", validateQuery(listQuerySchema), admissionsController.list);
 router.post("/", validate(createInquirySchema), admissionsController.create);

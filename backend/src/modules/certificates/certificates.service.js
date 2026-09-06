@@ -33,7 +33,28 @@ async function listCertificates({ user, query = {} }) {
     where,
     orderBy: { createdAt: "desc" },
   });
-  return { records };
+
+  const admNos = records.map((r) => r.studentId).filter(Boolean);
+  const students =
+    admNos.length > 0
+      ? await prisma.student.findMany({
+          where: { admNo: { in: admNos } },
+          select: { id: true, admNo: true, fatherName: true, motherName: true, cls: true, section: true },
+        })
+      : [];
+  const studentMap = new Map(students.map((s) => [s.admNo, s]));
+
+  const enriched = records.map((r) => {
+    const s = studentMap.get(r.studentId);
+    return {
+      ...r,
+      fatherName: s?.fatherName || null,
+      motherName: s?.motherName || null,
+      classSection: s ? `${s.cls}-${s.section}` : null,
+    };
+  });
+
+  return { records: enriched };
 }
 
 async function nextCertificateNo(schoolId) {

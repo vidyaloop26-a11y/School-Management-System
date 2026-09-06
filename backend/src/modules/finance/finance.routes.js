@@ -8,6 +8,7 @@ const router = express.Router();
 router.use(authenticate);
 
 router.get("/", controller.listRecords);
+router.get("/summary", controller.getSummary);
 router.post("/", requireRole(ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN), controller.createRecord);
 
 module.exports = router;

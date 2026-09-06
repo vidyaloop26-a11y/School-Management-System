@@ -16,7 +16,6 @@ router.get("/:id", tasksController.getTaskById);
 
 router.post(
   "/",
-  requireRole(ROLES.SCHOOL_ADMIN),
   requireDuty("teacher", "hod", "principal"),
   validate(createTaskSchema),
   tasksController.createTask
@@ -24,6 +23,7 @@ router.post(
 
 router.put(
   "/:id",
+  requireDuty("teacher", "hod", "principal"),
   validate(updateTaskSchema),
   tasksController.updateTask
 );

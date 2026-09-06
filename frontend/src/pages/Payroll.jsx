@@ -84,10 +84,10 @@ export default function Payroll() {
           return {
             id: existing ? existing.id : `pay-stf-${s.id}`,
             schoolId: s.schoolId || effectiveSchoolId,
-            staffId: s.staffId || `STF-${100 + idx}`,
+            staffId: s.staffId || s.id,
             staffName: s.name,
             role: s.jobTitle || s.designation || s.dept || "Staff",
-            month: existing ? existing.month : "August 2026",
+            month: existing ? existing.month : targetMonth,
             basicSalary: basic,
             allowances,
             deductions,
@@ -210,9 +210,7 @@ export default function Payroll() {
       toast.success(`Payroll for ${targetMonth} processed & saved!`);
       fetchPayroll();
     } catch (err) {
-      const updated = records.map((r) => ({ ...r, status: "PAID", paymentDate: new Date().toISOString().split("T")[0] }));
-      setRecords(updated);
-      toast.success(`Payroll for ${targetMonth} processed successfully!`);
+      toast.error(err?.response?.data?.message || "Payroll processing failed. No records were modified.");
     } finally {
       setRunModalOpen(false);
     }

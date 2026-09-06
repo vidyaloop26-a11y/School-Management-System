@@ -68,6 +68,60 @@ async function createBatch({ user, data }) {
   });
 }
 
+function calculateGrade(percentage) {
+  if (percentage >= 90) return "A+";
+  if (percentage >= 80) return "A";
+  if (percentage >= 70) return "B+";
+  if (percentage >= 60) return "B";
+  if (percentage >= 50) return "C";
+  if (percentage >= 33) return "D";
+  return "F";
+}
+
+async function syncToExamMarks(batch, studentId, marks, maxMarks) {
+  if (marks == null || !studentId || !batch) return;
+  try {
+    const marksVal = typeof marks === "number" ? marks : parseFloat(marks) || 0;
+    const maxVal = typeof maxMarks === "number" ? maxMarks : 100;
+    const percentage = (marksVal / Math.max(maxVal, 1)) * 100;
+    const grade = calculateGrade(percentage);
+
+    await prisma.examMark.upsert({
+      where: {
+        studentId_session_term_subject: {
+          studentId,
+          session: "2024-2025",
+          term: batch.term || "Mid-Term",
+          subject: batch.subject,
+        },
+      },
+      create: {
+        schoolId: batch.schoolId,
+        studentId,
+        session: "2024-2025",
+        term: batch.term || "Mid-Term",
+        cls: batch.cls,
+        section: batch.section,
+        subject: batch.subject,
+        marksObtained: marksVal,
+        maxMarks: maxVal,
+        grade,
+        remarks: "Evaluated via Copy Checking",
+      },
+      update: {
+        cls: batch.cls,
+        section: batch.section,
+        marksObtained: marksVal,
+        maxMarks: maxVal,
+        grade,
+        remarks: "Evaluated via Copy Checking",
+      },
+    });
+  } catch (err) {
+    console.warn("CopyCheck to ExamMark sync skipped:", err.message);
+  }
+}
+
 async function addEntry({ batchId, data, user }) {
   const batch = await prisma.copyCheckBatch.findUnique({ where: { id: batchId } });
   if (!batch) throw new ApiError(404, "Copy check batch not found");
@@ -85,6 +139,10 @@ async function addEntry({ batchId, data, user }) {
       checkedAt: data.marks != null ? new Date() : null,
     },
   });
+
+  if (data.marks != null) {
+    await syncToExamMarks(batch, data.studentId, data.marks, data.maxMarks);
+  }
 
   await recalcBatch(batchId);
   return entry;
@@ -105,6 +163,10 @@ async function updateEntry({ entryId, data, user }) {
       checkedAt: data.marks != null ? new Date() : entry.checkedAt,
     },
   });
+
+  if (data.marks != null) {
+    await syncToExamMarks(entry.batch, entry.studentId, data.marks, data.maxMarks ?? entry.maxMarks);
+  }
 
   await recalcBatch(entry.batchId);
   return updated;

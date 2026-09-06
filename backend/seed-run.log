@@ -1,0 +1,117 @@
+Starting Vidyaloop DEMO DATA seed...
+Wiped 50 collections.
+Super admin ready.
+Seeding Vidyaloop Public School (VLPS)...
+Sample student doc for insertMany: {
+  "_id": "6a9d810206bcf08c267ec662",
+  "schoolId": "6a9d80f147390dc7fef9daf5",
+  "admNo": "VLPS0001",
+  "name": "Yash Pandey",
+  "cls": "1",
+  "section": "A",
+  "roll": 1,
+  "session": "2024-2025",
+  "batch": "4-9",
+  "dob": "2018-08-09",
+  "bloodGroup": "O+",
+  "fatherName": "Farheen Pandey",
+  "fatherPhone": "+91 9560730843",
+  "fatherEmail": "VLPS0001-parent@vidyaloop.local",
+  "motherName": "Arjun Pandey",
+  "emergency": "+91 9219780258",
+  "address": "50 Street 18, Gurugram",
+  "status": "Active",
+  "createdAt": "2026-09-06T15:04:34.623Z",
+  "updatedAt": "2026-09-06T15:04:34.623Z"
+}
+  [VLPS] done -> students 1000, staff 50, ledger 2000, payments 1590, attendance 45000, exam marks 32000, payroll 300, books 400, diary 300, homework 120
+Seeding St. Xavier International School (SXIS)...
+Sample student doc for insertMany: {
+  "_id": "6a9d815a06bcf08c26801a70",
+  "schoolId": "6a9d814547390dc7fef9de44",
+  "admNo": "SXIS0001",
+  "name": "Myra Garg",
+  "cls": "1",
+  "section": "A",
+  "roll": 1,
+  "session": "2024-2025",
+  "batch": "4-9",
+  "dob": "2018-03-27",
+  "bloodGroup": "O-",
+  "fatherName": "Shreya Garg",
+  "fatherPhone": "+91 9375556147",
+  "fatherEmail": "SXIS0001-parent@vidyaloop.local",
+  "motherName": "Pallavi Garg",
+  "emergency": "+91 9709062990",
+  "address": "32 Colony 20, Faridabad",
+  "status": "Active",
+  "createdAt": "2026-09-06T15:06:02.136Z",
+  "updatedAt": "2026-09-06T15:06:02.136Z"
+}
+  [SXIS] done -> students 1000, staff 50, ledger 2000, payments 1593, attendance 45000, exam marks 32000, payroll 300, books 400, diary 300, homework 120
+Seeding Delhi Public Academy (DPA)...
+Sample student doc for insertMany: {
+  "_id": "6a9d81e006bcf08c26816e81",
+  "schoolId": "6a9d81c547390dc7fef9e193",
+  "admNo": "DPA0001",
+  "name": "Shivam Dubey",
+  "cls": "1",
+  "section": "A",
+  "roll": 1,
+  "session": "2024-2025",
+  "batch": "4-9",
+  "dob": "2012-01-16",
+  "bloodGroup": "O+",
+  "fatherName": "Shreya Dubey",
+  "fatherPhone": "+91 9130513814",
+  "fatherEmail": "DPA0001-parent@vidyaloop.local",
+  "motherName": "Sanya Dubey",
+  "emergency": "+91 9719947280",
+  "address": "51 Street 23, Noida",
+  "status": "Active",
+  "createdAt": "2026-09-06T15:08:16.277Z",
+  "updatedAt": "2026-09-06T15:08:16.277Z"
+}
+  [DPA] done -> students 1000, staff 50, ledger 2000, payments 1623, attendance 45000, exam marks 32000, payroll 300, books 400, diary 300, homework 120
+
+=======================================================================
+   VIDYALOOP DEMO DATA SEED COMPLETE    
+=======================================================================
+
+Super Admin : superadmin@vidyaloop.in / Super@1234
+
+VLPS - Vidyaloop Public School
+   School Admin : admin-VLPS / admin123
+   Teacher      : teacher-VLPS / teacher123
+   Accountant   : accountant-VLPS / accountant123
+   Front Office : frontoffice-VLPS / frontoffice123
+   Transport    : transport-VLPS / transport123
+   Librarian    : librarian-VLPS / librarian123
+   HR           : hr-VLPS / hr123
+   Admissions   : admissions-VLPS / admissions123
+   Parent       : VLPS0001-p / parent123 (and 999 more)
+
+SXIS - St. Xavier International School
+   School Admin : admin-SXIS / admin123
+   Teacher      : teacher-SXIS / teacher123
+   Accountant   : accountant-SXIS / accountant123
+   Front Office : frontoffice-SXIS / frontoffice123
+   Transport    : transport-SXIS / transport123
+   Librarian    : librarian-SXIS / librarian123
+   HR           : hr-SXIS / hr123
+   Admissions   : admissions-SXIS / admissions123
+   Parent       : SXIS0001-p / parent123 (and 999 more)
+
+DPA - Delhi Public Academy
+   School Admin : admin-DPA / admin123
+   Teacher      : teacher-DPA / teacher123
+   Accountant   : accountant-DPA / accountant123
+   Front Office : frontoffice-DPA / frontoffice123
+   Transport    : transport-DPA / transport123
+   Librarian    : librarian-DPA / librarian123
+   HR           : hr-DPA / hr123
+   Admissions   : admissions-DPA / admissions123
+   Parent       : DPA0001-p / parent123 (and 999 more)
+
+=======================================================================
+

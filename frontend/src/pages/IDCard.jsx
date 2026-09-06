@@ -7,6 +7,10 @@ import { Loader2 } from "lucide-react";
 import { Download, Printer, Droplet, IdCard as IdCardIcon, Phone, GraduationCap } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 
+const SESSION_END = new Date(2027, 2, 31);
+const validTillLabel = SESSION_END.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+const sessionLabel = "2026-27";
+
 function ClassicBlueCard({ s }) {
   const initials = s.name.split(" ").map((x) => x[0]).slice(0, 2).join("");
   return (
@@ -62,7 +66,7 @@ function ClassicBlueCard({ s }) {
 
       {/* Footer strip */}
       <div className="absolute bottom-0 left-0 right-0 bg-black/25 backdrop-blur-sm px-5 py-2 flex items-center justify-between text-white/90">
-        <div className="text-[9.5px] tracking-[0.2em] uppercase font-semibold">Vidyaloop School · Session 2026-27</div>
+        <div className="text-[9.5px] tracking-[0.2em] uppercase font-semibold">Vidyaloop School · Session {sessionLabel}</div>
         <div className="text-[9.5px] font-semibold opacity-80">Signature</div>
       </div>
     </div>
@@ -119,12 +123,196 @@ function MinimalWhiteCard({ s }) {
       </div>
 
       <div className="absolute bottom-0 left-0 right-0 border-t border-slate-100 px-5 py-2.5 flex items-center justify-between text-slate-500">
-        <div className="text-[9.5px] tracking-[0.2em] uppercase font-semibold">Session 2026-27</div>
+        <div className="text-[9.5px] tracking-[0.2em] uppercase font-semibold">Session {sessionLabel}</div>
         <div className="text-[9.5px] font-semibold">Signature</div>
       </div>
     </div>
   );
 }
+
+const INK = (ctx, text, x, y, font, color) => {
+  ctx.fillStyle = color;
+  ctx.font = font;
+  ctx.textAlign = "center";
+  ctx.fillText(text, x, y);
+};
+
+function drawClassicBlue(ctx, s) {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  const g = ctx.createLinearGradient(0, 0, w, h);
+  g.addColorStop(0, "#0c6a99");
+  g.addColorStop(0.55, "#0e7fb1");
+  g.addColorStop(1, "#29ABE2");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+
+  // Header
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.beginPath();
+  ctx.arc(28, 40, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#0c6a99";
+  ctx.font = "bold 15px Segoe UI, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("V", 28, 45);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 15px Segoe UI, sans-serif";
+  ctx.fillText("VidyaLoop", 52, 45);
+  ctx.textAlign = "right";
+  ctx.font = "600 9px Segoe UI, sans-serif";
+  ctx.fillText("STUDENT", w - 24, 42);
+
+  // Photo circle
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(w / 2, 118, 48, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  INK(ctx, s.initials, w / 2, 126, "bold 24px Segoe UI, sans-serif", "#0c6a99");
+
+  // Name + class
+  INK(ctx, s.name, w / 2, 178, "bold 19px Segoe UI, sans-serif", "#ffffff");
+  INK(ctx, `Class ${s.classSection}${s.roll ? ` \u00b7 Roll ${s.roll}` : ""}`, w / 2, 198, "500 12px Segoe UI, sans-serif", "rgba(255,255,255,0.85)");
+
+  // Info panel
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  roundRect(ctx, 24, 220, w - 48, 200, 16);
+  ctx.fill();
+  const rows = [
+    ["ID NO.", s.idNo],
+    ["BLOOD GROUP", s.bloodGroup],
+    ["VALID TILL", s.validTill],
+    ["EMERGENCY", s.emergency],
+  ];
+  rows.forEach(([label, value], i) => {
+    INK(ctx, value, w / 2, 258 + i * 40, "600 12px Segoe UI, monospace", "#1e293b");
+    INK(ctx, label, w / 2, 244 + i * 40, "700 8px Segoe UI, sans-serif", "#64748b");
+  });
+
+  // Footer
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fillRect(0, h - 34, w, 34);
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.textAlign = "left";
+  ctx.font = "600 9px Segoe UI, sans-serif";
+  ctx.fillText(`VIDYALOOP SCHOOL \u00b7 SESSION ${sessionLabel}`, 24, h - 13);
+  ctx.textAlign = "right";
+  ctx.fillText("SIGNATURE", w - 24, h - 13);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawMinimalWhite(ctx, s) {
+  const w = ctx.canvas.width;
+  const h = ctx.canvas.height;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, w, h);
+
+  // Accent bar
+  ctx.fillStyle = "#29ABE2";
+  ctx.fillRect(0, 0, w, 10);
+
+  // Header
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 15px Segoe UI, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Vidya", 24, 44);
+  ctx.fillStyle = "#29ABE2";
+  ctx.fillText("Loop", 24 + ctx.measureText("Vidya").width, 44);
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "600 9px Segoe UI, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText("STUDENT", w - 24, 42);
+
+  // Photo circle
+  ctx.fillStyle = "#f8fafc";
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(w / 2, 118, 48, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  INK(ctx, s.initials, w / 2, 126, "bold 24px Segoe UI, sans-serif", "#334155");
+
+  INK(ctx, s.name, w / 2, 178, "bold 19px Segoe UI, sans-serif", "#0f172a");
+  INK(ctx, `Class ${s.classSection}${s.roll ? ` \u00b7 Roll ${s.roll}` : ""}`, w / 2, 198, "500 12px Segoe UI, sans-serif", "#64748b");
+
+  // Info rows
+  const rows = [
+    ["ID No.", s.idNo],
+    ["Blood Group", s.bloodGroup],
+    ["Valid Till", s.validTill],
+    ["Emergency", s.emergency],
+  ];
+  ctx.textAlign = "left";
+  rows.forEach(([label, value], i) => {
+    const y = 232 + i * 50;
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "500 11px Segoe UI, sans-serif";
+    ctx.fillText(label, 36, y + 6);
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "600 12px Segoe UI, sans-serif";
+    ctx.fillText(value, w - 44 - ctx.measureText(value).width, y + 6);
+    if (i < rows.length - 1) {
+      ctx.strokeStyle = "#f1f5f9";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(36, y + 22);
+      ctx.lineTo(w - 36, y + 22);
+      ctx.stroke();
+    }
+  });
+
+  // Footer
+  ctx.strokeStyle = "#f1f5f9";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, h - 36);
+  ctx.lineTo(w, h - 36);
+  ctx.stroke();
+  ctx.fillStyle = "#64748b";
+  ctx.font = "600 9px Segoe UI, sans-serif";
+  ctx.fillText(`SESSION ${sessionLabel}`, 24, h - 15);
+  ctx.textAlign = "right";
+  ctx.fillText("SIGNATURE", w - 24, h - 15);
+}
+
+const downloadCard = (template, s) => {
+  if (!s || !s.name || s.name === "Select a student") {
+    toast.error("Select a student first");
+    return;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 340;
+  canvas.height = 537;
+  const ctx = canvas.getContext("2d");
+  if (template === "classic-blue") drawClassicBlue(ctx, s);
+  else drawMinimalWhite(ctx, s);
+
+  canvas.toBlob((blob) => {
+    if (!blob) { toast.error("Could not generate the card image"); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(s.idNo || "student").replace(/[^a-zA-Z0-9-]/g, "-")}-id-card.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success("ID card downloaded as PNG");
+  }, "image/png");
+};
 
 export default function IDCard() {
   const [template, setTemplate] = useState("classic-blue");
@@ -140,7 +328,14 @@ export default function IDCard() {
     classSection: student ? `${student.cls}-${student.section}` : "—",
     roll: student?.roll || "",
     bloodGroup: student?.bloodGroup || "—",
-    emergency: student?.emergency || "—",
+    validTill: validTillLabel,
+    emergency: student?.emergency || student?.fatherPhone || "—",
+    initials: (student?.name || "S").split(" ").map((x) => x[0]).slice(0, 2).join(""),
+  };
+
+  const handlePrint = () => {
+    if (!student) { toast.error("Select a student first"); return; }
+    window.print();
   };
 
   return (
@@ -205,10 +400,10 @@ export default function IDCard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button data-testid="idcard-print" className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 hover:border-[#29ABE2] transition text-slate-700 hover:text-[#0c6a99] px-4 py-2 text-[13px] font-medium">
+            <button data-testid="idcard-print" onClick={handlePrint} className="inline-flex items-center gap-2 rounded-full bg-white border border-slate-200 hover:border-[#29ABE2] transition text-slate-700 hover:text-[#0c6a99] px-4 py-2 text-[13px] font-medium">
               <Printer className="h-4 w-4" /> Print
             </button>
-            <button data-testid="idcard-download" onClick={() => toast("ID card generated — ready to download")} className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2.5 text-[13px] font-medium shadow-sm">
+            <button data-testid="idcard-download" onClick={() => downloadCard(template, cardData)} className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2.5 text-[13px] font-medium shadow-sm">
               <Download className="h-4 w-4" /> Download
             </button>
           </div>
@@ -217,11 +412,20 @@ export default function IDCard() {
         {/* Preview */}
         <div className="glass rounded-2xl p-6 md:p-8 reveal d1">
           <div className="text-[11px] tracking-[0.18em] font-semibold text-slate-500 uppercase mb-5 text-center">Live Preview</div>
-          <div className="grid place-items-center">
+          <div className="grid place-items-center idcard-print-area">
             {template === "classic-blue" ? <ClassicBlueCard s={cardData} /> : <MinimalWhiteCard s={cardData} />}
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .idcard-print-area, .idcard-print-area * { visibility: visible; }
+          .idcard-print-area { position: fixed; inset: 0; display: grid !important; place-items: center; }
+          .idcard-print-area > div { max-width: 340px !important; }
+        }
+      `}</style>
     </div>
   );
 }

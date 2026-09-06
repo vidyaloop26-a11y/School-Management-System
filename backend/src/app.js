@@ -34,6 +34,9 @@ const libraryRoutes = require("./modules/library/library.routes");
 const frontofficeRoutes = require("./modules/frontoffice/frontoffice.routes");
 const inventoryRoutes = require("./modules/inventory/inventory.routes");
 const copycheckingRoutes = require("./modules/copychecking/copychecking.routes");
+const diaryRoutes = require("./modules/diary/diary.routes");
+const homeworkRoutes = require("./modules/homework/homework.routes");
+const feesRoutes = require("./modules/fees/fees.routes");
 
 const app = express();
 const api = express.Router();
@@ -96,6 +99,9 @@ api.use("/library", libraryRoutes);
 api.use("/frontoffice", frontofficeRoutes);
 api.use("/inventory", inventoryRoutes);
 api.use("/copychecking", copycheckingRoutes);
+api.use("/diary", diaryRoutes);
+api.use("/homework", homeworkRoutes);
+api.use("/fees", feesRoutes);
 
 app.use("/api", api);
 app.use(notFound);

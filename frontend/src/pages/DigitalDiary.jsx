@@ -24,6 +24,7 @@ function TeacherForm() {
   const [note, setNote] = useState("");
   const [attach, setAttach] = useState(false);
   const [subjects, setSubjects] = useState([]);
+  const [posting, setPosting] = useState(false);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -36,6 +37,31 @@ function TeacherForm() {
     };
     fetchSubjects();
   }, []);
+
+  const handlePost = async () => {
+    if (!note.trim()) {
+      toast.error("Please write a note before posting");
+      return;
+    }
+    setPosting(true);
+    try {
+      const [cl, sec] = cls.split("-");
+      await api.createDiaryEntry({
+        cls: cl,
+        section: sec,
+        subject,
+        note: note.trim(),
+        homework: attach ? note.trim() : undefined,
+      });
+      toast.success("Diary entry posted");
+      setNote("");
+      setAttach(false);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to post diary entry");
+    } finally {
+      setPosting(false);
+    }
+  };
 
   return (
     <div>
@@ -88,8 +114,8 @@ function TeacherForm() {
               <Switch data-testid="diary-attach" id="attach" checked={attach} onCheckedChange={setAttach} />
               <label htmlFor="attach" className="text-[13px] text-slate-700 cursor-pointer">Attach as homework</label>
             </div>
-            <button data-testid="diary-post" className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2.5 text-[13px] font-medium shadow-sm">
-              <Send className="h-4 w-4" /> Post
+            <button data-testid="diary-post" onClick={handlePost} disabled={posting || !note.trim()} className="inline-flex items-center gap-2 rounded-full bg-[#29ABE2] hover:bg-[#0e7fb1] transition text-white px-5 py-2.5 text-[13px] font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              <Send className="h-4 w-4" /> {posting ? "Posting..." : "Post"}
             </button>
           </div>
         </div>
@@ -123,7 +149,7 @@ function FeedView() {
   useEffect(() => {
     const fetchDiary = async () => {
       try {
-        const res = await api.getDiaryEntries?.() || { entries: [] };
+        const res = await api.getDiaryEntries();
         setEntries(res.entries || []);
       } catch {
         setEntries([]);
@@ -133,6 +159,12 @@ function FeedView() {
     };
     fetchDiary();
   }, []);
+
+  const formatDate = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return `${d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · ${d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}`;
+  };
 
   return (
     <div>
@@ -157,9 +189,15 @@ function FeedView() {
             <li key={d.id} className={`glass rounded-2xl p-5 reveal d${Math.min(i + 1, 5)}`}>
               <div className="flex items-center justify-between mb-2">
                 <SubjectPill subject={d.subject} />
-                <span className="text-[11.5px] text-slate-400">{d.date}</span>
+                <span className="text-[11.5px] text-slate-400">{formatDate(d.createdAt)}</span>
               </div>
-              <div className="text-[14px] text-slate-700 leading-relaxed">{d.entry}</div>
+              <div className="text-[14px] text-slate-700 leading-relaxed">{d.note || d.entry}</div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-[11.5px] text-slate-500">{d.authorName} · {d.cls}-{d.section}</span>
+                {d.homework && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#e6f4fb] text-[#0c6a99] px-2.5 py-0.5 text-[11px] font-medium">Assigned as homework</span>
+                )}
+              </div>
             </li>
           ))}
         </ul>

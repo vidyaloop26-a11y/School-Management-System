@@ -157,8 +157,65 @@ async function createRecord({ user, data }) {
   throw new ApiError(500, "Database unavailable");
 }
 
+async function getSummary({ user, query = {} }) {
+  const schoolId = await resolveSchoolScope(user, query);
+  const where = schoolId ? { schoolId } : {};
+
+  const [vouchers, payments, payroll, ledger] = await Promise.all([
+    prisma.incomeExpenseRecord?.findMany({ where }) || [],
+    prisma.payment?.findMany({ where }) || [],
+    prisma.payrollRecord?.findMany({ where: { ...where, status: "PAID" } }) || [],
+    prisma.studentFeeLedger?.findMany({ where }) || [],
+  ]);
+
+  const chart = {};
+  const pushMonthly = (date, amount, type) => {
+    const d = new Date(date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (!chart[key]) chart[key] = { month: key, income: 0, expense: 0 };
+    if (type === "INCOME") chart[key].income += amount;
+    else chart[key].expense += amount;
+  };
+
+  let totalCollected = 0;
+  let totalExpenses = 0;
+
+  vouchers.forEach((v) => {
+    const amt = v.amount || 0;
+    pushMonthly(v.date, amt, v.type);
+    if (v.type === "INCOME") totalCollected += amt;
+    else totalExpenses += amt;
+  });
+
+  payments.forEach((p) => {
+    const amt = p.amount || 0;
+    pushMonthly(p.paidAt, amt, "INCOME");
+    totalCollected += amt;
+  });
+
+  payroll.forEach((pr) => {
+    const amt = pr.netSalary || 0;
+    const d = pr.paymentDate && pr.paymentDate !== "-" ? pr.paymentDate : pr.createdAt;
+    pushMonthly(d, amt, "EXPENSE");
+    totalExpenses += amt;
+  });
+
+  const totalBilled = ledger.reduce((s, l) => s + l.amount, 0);
+  const totalDue = ledger.filter((l) => l.status !== "PAID").reduce((s, l) => s + (l.amount - (l.paid || 0)), 0);
+
+  return {
+    chart: Object.values(chart).sort((a, b) => a.month.localeCompare(b.month)),
+    totalCollected,
+    totalExpenses,
+    netSurplus: totalCollected - totalExpenses,
+    totalBilled,
+    totalDue,
+  };
+}
+
 module.exports = {
   listRecords,
   createRecord,
   resolveSchoolScope,
+  getSummary,
 };

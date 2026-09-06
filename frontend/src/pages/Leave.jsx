@@ -9,11 +9,12 @@ import api from "@/lib/api";
 
 export default function Leave() {
   const { user } = useAuth();
-  const userRoleRaw = String(user?.role || "superAdmin").toLowerCase();
-  const isTeacher = userRoleRaw.includes("teacher");
-  const isParent = userRoleRaw.includes("parent");
-  const isSuperAdmin = userRoleRaw === "superadmin";
-  const isSchoolAdmin = userRoleRaw.includes("schooladmin") || userRoleRaw.includes("school_admin") || userRoleRaw.includes("admin") || isSuperAdmin;
+  const role = user?.role;
+  const isTeacher = role === "staff" && Array.isArray(user?.duties) && user.duties.includes("teacher");
+  const isParent = role === "parent";
+  const isSuperAdmin = role === "superAdmin";
+  const isSchoolAdmin = role === "schoolAdmin" || isSuperAdmin;
+  const childId = user?.studentId || user?.student?.id;
 
   const [activeSchoolId, setActiveSchoolId] = useState(() => {
     return localStorage.getItem("vidyaloop_active_school_id") || "all";
@@ -95,14 +96,14 @@ export default function Leave() {
       if (activeTab === "my-leaves") {
         const isMyName = user?.name ? (r.applicantName || "").toLowerCase().includes(user.name.toLowerCase()) : false;
         const isMyId = user?.id ? r.applicantId === user.id : false;
-        return (isMyName || isMyId || isTeacher || !isSchoolAdmin) && matchesSearch && matchesStatus;
+        return (isMyName || isMyId) && matchesSearch && matchesStatus;
       }
       if (activeTab === "child") {
-        return r.applicantType === "STUDENT" && matchesSearch && matchesStatus;
+        return r.applicantType === "STUDENT" && (childId ? r.applicantId === childId : false) && matchesSearch && matchesStatus;
       }
       return matchesSearch && matchesStatus;
     });
-  }, [leaveRequests, activeTab, search, statusFilter, user, isTeacher, isSchoolAdmin]);
+  }, [leaveRequests, activeTab, search, statusFilter, user, childId]);
 
   const handleApplyLeave = async (e) => {
     e.preventDefault();

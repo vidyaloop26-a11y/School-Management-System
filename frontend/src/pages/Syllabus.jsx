@@ -612,8 +612,9 @@ function CreateTopicDialog({ open, onOpenChange, subjectsList, onCreated }) {
 export default function Syllabus() {
   const { user } = useAuth();
   const role = user?.role;
+  const duties = Array.isArray(user?.duties) ? user.duties : [];
 
-  const isHOD = role === "hod" || role === "principal" || role === "admin";
+  const isHOD = role === "schoolAdmin" || role === "superAdmin" || duties.includes("principal") || duties.includes("hod") || duties.includes("teacher");
   const [view, setView] = useState(isHOD ? "dashboard" : "topics");
   const [createOpen, setCreateOpen] = useState(false);
   const [subjectsList, setSubjectsList] = useState([]);

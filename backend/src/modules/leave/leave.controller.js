@@ -27,8 +27,18 @@ async function updateStatus(req, res, next) {
   }
 }
 
+async function getBalance(req, res, next) {
+  try {
+    const result = await service.getBalance({ user: req.user, query: req.query });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listLeaves,
   applyLeave,
   updateStatus,
+  getBalance,
 };

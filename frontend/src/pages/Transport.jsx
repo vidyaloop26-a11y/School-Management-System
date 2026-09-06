@@ -5,8 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Bus, AlertTriangle, MapPin, Clock } from "lucide-react";
+import { Loader2, Plus, Trash2, Bus, AlertTriangle, MapPin, Clock, Users, UserPlus } from "lucide-react";
 import EmptyState from "@/components/common/EmptyState";
+import { useStudents } from "@/lib/queries";
 
 const VEHICLE_TYPE_STYLES = {
   Bus: "bg-blue-50 text-blue-700 border-blue-200",
@@ -30,6 +31,29 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function StudentPicker({ value, onChange }) {
+  const { data: students = [], isLoading } = useStudents();
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-400 text-[12.5px]">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading students…
+      </div>
+    );
+  }
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#29ABE2]/30"
+    >
+      <option value="">Select a student…</option>
+      {students.map((s) => (
+        <option key={s.id} value={s.id}>{s.name} · {s.admNo} ({s.cls}-{s.section})</option>
+      ))}
+    </select>
+  );
+}
+
 export default function Transport() {
   const [activeTab, setActiveTab] = useState("routes");
   const [loading, setLoading] = useState(true);
@@ -40,6 +64,11 @@ export default function Transport() {
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const [vehicleDialogOpen, setVehicleDialogOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const [assignRoute, setAssignRoute] = useState(null);
+  const [assignments, setAssignments] = useState([]);
+  const [assignForm, setAssignForm] = useState({ studentId: "", stopName: "", monthlyFee: "" });
+  const [assignSubmitting, setAssignSubmitting] = useState(false);
 
   const [routeForm, setRouteForm] = useState({ name: "", stops: [{ name: "", time: "" }] });
   const [vehicleForm, setVehicleForm] = useState({
@@ -56,11 +85,12 @@ export default function Transport() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [routesRes, vehiclesRes] = await Promise.all([
-        api.getTransportRoutes().catch(() => ({ routes: [] })),
-        api.getVehicles().catch(() => ({ vehicles: [] })),
-      ]);
-      setRoutes(routesRes?.routes || []);
+      const routesRes = await api.getTransportRoutes().catch(() => ({ routes: [] }));
+      const vehiclesRes = await api.getVehicles().catch(() => ({ vehicles: [] }));
+      setRoutes((routesRes?.routes || []).map((r) => ({
+        ...r,
+        assignedStudents: r._count?.assignments ?? r.assignedStudents ?? 0,
+      })));
       setVehicles(vehiclesRes?.vehicles || []);
     } catch (err) {
       toast.error("Failed to load transport data");
@@ -138,6 +168,58 @@ export default function Transport() {
       toast.error("Failed to delete vehicle");
     }
     setDeleteConfirm(null);
+  };
+
+  const openAssignments = async (route) => {
+    setAssignRoute(route);
+    setAssignments([]);
+    setAssignForm({ studentId: "", stopName: route?.stops?.[0]?.name || "", monthlyFee: "" });
+    try {
+      const res = await api.getTransportRoute(route.id);
+      setAssignments(res.route?.assignments || []);
+    } catch (err) {
+      setAssignments([]);
+    }
+  };
+
+  const handleAssignStudent = async () => {
+    if (!assignRoute || !assignForm.studentId) {
+      toast.error("Select a student");
+      return;
+    }
+    if (!assignForm.stopName) {
+      toast.error("Select a boarding stop");
+      return;
+    }
+    setAssignSubmitting(true);
+    try {
+      const res = await api.assignStudentTransport({
+        studentId: assignForm.studentId,
+        routeId: assignRoute.id,
+        stopName: assignForm.stopName,
+        monthlyFee: Number(assignForm.monthlyFee) || 0,
+      });
+      const assignment = res.assignment;
+      setAssignments((prev) => [...prev, assignment]);
+      setRoutes((prev) => prev.map((r) => r.id === assignRoute.id ? { ...r, assignedStudents: (r.assignedStudents || 0) + 1 } : r));
+      setAssignForm({ studentId: "", stopName: assignRoute.stops?.[0]?.name || "", monthlyFee: "" });
+      toast.success(`${assignment.student?.name || "Student"} assigned to ${assignRoute.name}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to assign student");
+    } finally {
+      setAssignSubmitting(false);
+    }
+  };
+
+  const handleRemoveAssignment = async (id) => {
+    try {
+      await api.removeStudentTransport(id);
+      setAssignments((prev) => prev.filter((a) => a.id !== id));
+      setRoutes((prev) => prev.map((r) => r.id === assignRoute.id ? { ...r, assignedStudents: Math.max(0, (r.assignedStudents || 0) - 1) } : r));
+      toast.success("Student removed from route");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to remove student");
+    }
   };
 
   const addStop = () => {
@@ -252,18 +334,34 @@ export default function Transport() {
                           {route.stops?.length || 0} stop{(route.stops?.length || 0) !== 1 ? "s" : ""} &middot; {route.assignedStudents || 0} students
                         </div>
                       </div>
-                      <button
-                        onClick={() => setDeleteConfirm({ type: "route", id: route.id, name: route.name })}
-                        className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition"
-                        title="Delete route"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openAssignments(route)}
+                          className="p-1.5 rounded-lg hover:bg-[#e6f4fb] text-slate-400 hover:text-[#0c6a99] transition"
+                          title="Manage student assignments"
+                        >
+                          <Users className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm({ type: "route", id: route.id, name: route.name })}
+                          className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition"
+                          title="Delete route"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
+
+                    <button
+                      onClick={() => openAssignments(route)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#29ABE2]/10 text-[#0c6a99] text-[12px] font-semibold hover:bg-[#29ABE2]/20 transition mb-3"
+                    >
+                      <UserPlus className="h-3.5 w-3.5" /> Assign Students
+                    </button>
 
                     {route.vehicle && (
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-[11.5px] font-medium text-slate-700 mb-3">
-                        <Bus className="h-3 w-3" /> {route.vehicle}
+                        <Bus className="h-3 w-3" /> {route.vehicle.plateNumber || route.vehicle.type || route.vehicle}
                       </div>
                     )}
 
@@ -551,6 +649,86 @@ export default function Transport() {
               </button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Students Dialog */}
+      <Dialog open={!!assignRoute} onOpenChange={() => setAssignRoute(null)}>
+        <DialogContent className="max-w-lg bg-white/95 backdrop-blur-xl border-white/80 rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900">Assign Students — {assignRoute?.name}</DialogTitle>
+          </DialogHeader>
+          {assignRoute && (
+            <div className="space-y-4 py-2 text-[13px]">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Student</label>
+                  <StudentPicker
+                    value={assignForm.studentId}
+                    onChange={(v) => setAssignForm({ ...assignForm, studentId: v })}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Boarding Stop</label>
+                  <select
+                    value={assignForm.stopName}
+                    onChange={(e) => setAssignForm({ ...assignForm, stopName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#29ABE2]/30"
+                  >
+                    {(assignRoute.stops || []).map((s, i) => (
+                      <option key={i} value={s.name}>{s.name} {s.time ? `(${s.time})` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Monthly Fee (₹)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 800"
+                  value={assignForm.monthlyFee}
+                  onChange={(e) => setAssignForm({ ...assignForm, monthlyFee: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#29ABE2]/30"
+                />
+              </div>
+              <button
+                onClick={handleAssignStudent}
+                disabled={assignSubmitting}
+                className="inline-flex items-center gap-2 w-full justify-center px-4 py-2 bg-[#29ABE2] hover:bg-[#0c6a99] text-white font-semibold rounded-xl disabled:opacity-50"
+              >
+                {assignSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />} Assign Student
+              </button>
+
+              <div className="border-t border-slate-100 pt-3">
+                <div className="text-[11px] tracking-wider font-semibold text-slate-500 uppercase mb-2">
+                  {assignments.length} Assigned Student{assignments.length !== 1 ? "s" : ""}
+                </div>
+                {assignments.length === 0 ? (
+                  <div className="text-center py-5 text-slate-400 text-[12.5px] border border-dashed border-slate-200 rounded-xl">
+                    No students assigned to this route yet.
+                  </div>
+                ) : (
+                  <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1">
+                    {assignments.map((a) => (
+                      <div key={a.id} className="flex items-center justify-between py-2 px-3 rounded-lg border border-slate-100 bg-white/60">
+                        <div className="min-w-0">
+                          <div className="font-medium text-slate-800 truncate">{a.student?.name || a.studentName || "—"}</div>
+                          <div className="text-[11px] text-slate-500">{a.stopName}{a.monthlyFee ? ` · ₹${a.monthlyFee}/mo` : ""}</div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveAssignment(a.id)}
+                          className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition shrink-0"
+                          title="Remove student"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

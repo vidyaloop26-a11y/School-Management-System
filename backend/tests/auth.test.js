@@ -13,9 +13,22 @@ const TEST_USER = {
 let refreshToken;
 let accessToken;
 
+const bcrypt = require("bcryptjs");
+
 before(async () => {
   await prisma.$connect();
   await prisma.user.deleteMany({ where: { email: TEST_USER.identifier } });
+  const hash = await bcrypt.hash(TEST_USER.password, 10);
+  await prisma.user.create({
+    data: {
+      name: TEST_USER.name,
+      email: TEST_USER.identifier,
+      username: "testadmin",
+      passwordHash: hash,
+      role: "superAdmin",
+      mustChangePassword: false,
+    },
+  });
 });
 
 after(async () => {

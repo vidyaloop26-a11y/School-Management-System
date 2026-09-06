@@ -11,6 +11,7 @@ export const NAV = {
   top: [
     { key: "dashboard", label: "Dashboard", path: "/", icon: LayoutDashboard, functional: true },
     { key: "schools",   label: "Schools",   path: "/schools", icon: Building2, functional: true },
+    { key: "stemCourses", label: "STEM Courses", path: "/stem-courses", icon: BookMarked, functional: true },
   ],
   groups: [
     {

@@ -185,6 +185,45 @@ async function enrollInquiry({ user, id, data }) {
       data: { stage: "enrolled" },
     });
 
+    // Auto-create initial Fee Ledger entries for the newly enrolled student
+    const structures = await tx.feeStructure.findMany({
+      where: { schoolId: inquiry.schoolId, cls: inquiry.classApplied },
+    });
+
+    if (structures.length > 0) {
+      for (const st of structures) {
+        await tx.studentFeeLedger.create({
+          data: {
+            schoolId: inquiry.schoolId,
+            studentId: student.id,
+            session: st.session || DEFAULT_SESSION,
+            term: `Term Fee - Class ${inquiry.classApplied}`,
+            amount: st.amount,
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            paid: 0,
+            status: "UNPAID",
+          },
+        });
+      }
+    } else {
+      // Default 3 terms if no specific structure is yet defined
+      const defaultTerms = ["Term 1", "Term 2", "Term 3"];
+      for (const t of defaultTerms) {
+        await tx.studentFeeLedger.create({
+          data: {
+            schoolId: inquiry.schoolId,
+            studentId: student.id,
+            session: DEFAULT_SESSION,
+            term: t,
+            amount: 15000,
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            paid: 0,
+            status: "UNPAID",
+          },
+        });
+      }
+    }
+
     return { student, parentAccount, inquiry: enrolled };
   });
 

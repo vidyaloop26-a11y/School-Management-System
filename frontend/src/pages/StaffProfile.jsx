@@ -108,6 +108,105 @@ function TeacherTimetable({ staffId }) {
   );
 }
 
+function LeaveRecord({ staff }) {
+  const [requests, setRequests] = useState([]);
+  const [balances, setBalances] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLeave = async () => {
+      try {
+        const [reqRes, balRes] = await Promise.all([
+          api.getLeaveRequests({ applicantType: "STAFF" }).catch(() => ({ records: [] })),
+          api.getLeaveBalance({ staffId: staff.id }).catch(() => []),
+        ]);
+        const all = reqRes?.records || [];
+        const name = staff.name.toLowerCase();
+        const mine = all.filter(
+          (r) =>
+            r.applicantType === "STAFF" &&
+            ((typeof r.applicantName === "string" && r.applicantName.toLowerCase() === name) ||
+              (typeof r.staffName === "string" && r.staffName.toLowerCase() === name))
+        );
+        setRequests(mine);
+        const bl = Array.isArray(balRes) ? balRes : balRes?.balances || [];
+        setBalances(bl);
+      } catch {
+        setRequests([]);
+        setBalances([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLeave();
+  }, [staff]);
+
+  const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—");
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 text-[#29ABE2] animate-spin" /></div>;
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {balances.length === 0 && (
+          <div className="col-span-full glass-soft rounded-xl p-4 text-[13px] text-slate-500 text-center">
+            No leave balance configured for this staff member yet.
+          </div>
+        )}
+        {balances.map((b) => (
+          <div key={b.leaveType} className="glass-soft rounded-xl p-4">
+            <div className="text-[10.5px] tracking-[0.14em] font-semibold text-slate-400 uppercase">{b.leaveType} Leave</div>
+            <div className="font-display text-[24px] font-bold text-slate-900 mt-1 tracking-tight">{b.remaining}<span className="text-[13px] font-semibold text-slate-400 ml-1">left</span></div>
+            <div className="text-[11.5px] text-slate-500 mt-1">{b.used} used of {b.entitled}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="glass-soft rounded-xl overflow-hidden">
+        <div className="px-5 pt-5 pb-2 text-[11px] tracking-[0.16em] font-semibold text-slate-500 uppercase">Leave Requests</div>
+        {requests.length === 0 ? (
+          <div className="py-6">
+            <EmptyState
+              icon={PlaneTakeoff}
+              title="No leave requests yet"
+              hint="Approved and pending leave applications will appear here."
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto thin-scroll">
+            <table className="min-w-full text-[12.5px]">
+              <thead>
+                <tr className="border-b border-slate-100 text-[10.5px] tracking-widest font-semibold text-slate-500 uppercase">
+                  <th className="text-left px-5 py-2.5">Type</th>
+                  <th className="text-left px-5 py-2.5">Dates</th>
+                  <th className="text-left px-5 py-2.5">Reason</th>
+                  <th className="text-left px-5 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {requests.map((r) => (
+                  <tr key={r.id} className="hover:bg-white/60 transition">
+                    <td className="px-5 py-3 font-medium text-slate-800">{r.leaveType} Leave</td>
+                    <td className="px-5 py-3 text-slate-600">{fmt(r.startDate)} → {fmt(r.endDate)}</td>
+                    <td className="px-5 py-3 text-slate-600 max-w-[260px] truncate">{r.reason || "—"}</td>
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${r.status === "APPROVED" ? "bg-emerald-50 text-emerald-700" : r.status === "REJECTED" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>
+                        {r.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function StaffProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -172,13 +271,7 @@ export default function StaffProfile() {
           </TabsContent>
 
           <TabsContent value="leave" className="mt-6">
-            <div className="glass-soft rounded-xl py-6">
-              <EmptyState
-                icon={PlaneTakeoff}
-                title="No pending leave requests"
-                hint="Leave submissions will appear here."
-              />
-            </div>
+            <LeaveRecord staff={p} />
           </TabsContent>
         </Tabs>
       </div>

@@ -16,6 +16,7 @@ router.use(authenticate);
 
 // Applying for leave: any authenticated member of a school (staff or parent).
 router.get("/", validateQuery(listLeavesQuerySchema), controller.listLeaves);
+router.get("/balance", controller.getBalance);
 router.post("/", validate(applyLeaveSchema), controller.applyLeave);
 router.post("/apply", validate(applyLeaveSchema), controller.applyLeave);
 

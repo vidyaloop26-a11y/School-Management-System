@@ -145,6 +145,26 @@ async function returnBook({ id, user, fineAmount = 0 }) {
       data: { availableCopies: { increment: 1 } },
     });
 
+    // Auto-post library fine to the student's central Fee Ledger
+    if (fineAmount > 0 && issue.studentId) {
+      try {
+        await tx.studentFeeLedger.create({
+          data: {
+            schoolId: issue.schoolId,
+            studentId: issue.studentId,
+            session: "2024-2025",
+            term: "Library Overdue Fine",
+            amount: fineAmount,
+            dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            paid: 0,
+            status: "UNPAID",
+          },
+        });
+      } catch (err) {
+        console.warn("Library fine ledger post skipped:", err.message);
+      }
+    }
+
     return returned;
   });
 

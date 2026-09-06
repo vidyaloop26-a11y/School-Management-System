@@ -32,6 +32,7 @@ import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
 import Tasks from "@/pages/Tasks";
 import Syllabus from "@/pages/Syllabus";
+import StemCourses from "@/pages/StemCourses";
 import Gallery from "@/pages/Gallery";
 import Library from "@/pages/Library";
 import Transport from "@/pages/Transport";
@@ -48,6 +49,25 @@ function DashboardRouter() {
   if (user.role === ROLES.PARENT) return <ParentDashboard />;
   if (user.role === ROLES.STAFF) return <TeacherDashboard />;
   return <Dashboard />;
+}
+
+function FeesGuard({ children }) {
+  const { user } = useAuth();
+  if (!user) return null;
+  const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SCHOOL_ADMIN;
+  const isParent = user.role === ROLES.PARENT;
+  const isAccountant = user.role === ROLES.STAFF && Array.isArray(user.duties) && user.duties.includes("accountant");
+  if (!isAdmin && !isParent && !isAccountant) return <Navigate to="/" replace />;
+  return children;
+}
+
+function DutyGuard({ duties, children }) {
+  const { user } = useAuth();
+  if (!user) return null;
+  const isAdmin = user.role === ROLES.SUPER_ADMIN || user.role === ROLES.SCHOOL_ADMIN;
+  const hasDuty = user.role === ROLES.STAFF && Array.isArray(user.duties) && duties.some((d) => user.duties.includes(d));
+  if (!isAdmin && !hasDuty) return <Navigate to="/" replace />;
+  return children;
 }
 
 function AppRoutes() {
@@ -102,9 +122,9 @@ function AppRoutes() {
         <Route
           path="/staff"
           element={
-            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+            <DutyGuard duties={["hrManager"]}>
               <Staff />
-            </ProtectedRoute>
+            </DutyGuard>
           }
         />
         <Route path="/staff/:id" element={<StaffProfile />} />
@@ -113,33 +133,33 @@ function AppRoutes() {
         <Route
           path="/fees"
           element={
-            <ProtectedRoute allowedDuties={["accountant"]}>
+            <FeesGuard>
               <Fees />
-            </ProtectedRoute>
+            </FeesGuard>
           }
         />
         <Route
           path="/payroll"
           element={
-            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+            <DutyGuard duties={["accountant", "hrManager"]}>
               <Payroll />
-            </ProtectedRoute>
+            </DutyGuard>
           }
         />
         <Route
           path="/income"
           element={
-            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+            <DutyGuard duties={["accountant", "hrManager"]}>
               <IncomeExpense />
-            </ProtectedRoute>
+            </DutyGuard>
           }
         />
         <Route
           path="/admissions"
           element={
-            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+            <DutyGuard duties={["frontOffice", "admissionsOfficer"]}>
               <Admissions />
-            </ProtectedRoute>
+            </DutyGuard>
           }
         />
         <Route path="/diary" element={<DigitalDiary />} />
@@ -152,14 +172,22 @@ function AppRoutes() {
         <Route path="/events" element={<Events />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/syllabus" element={<Syllabus />} />
+        <Route path="/stem-courses" element={<StemCourses />} />
         <Route path="/gallery" element={<Gallery />} />
-        <Route path="/library" element={<Library />} />
         <Route
           path="/transport"
           element={
-            <ProtectedRoute allowedRoles={[ROLES.SUPER_ADMIN, ROLES.SCHOOL_ADMIN]}>
+            <DutyGuard duties={["transportIncharge"]}>
               <Transport />
-            </ProtectedRoute>
+            </DutyGuard>
+          }
+        />
+        <Route
+          path="/library"
+          element={
+            <DutyGuard duties={["librarian"]}>
+              <Library />
+            </DutyGuard>
           }
         />
         <Route path="/front-office" element={<FrontOffice />} />

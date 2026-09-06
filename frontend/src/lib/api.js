@@ -549,6 +549,7 @@ api.deleteBook = async (id) => { const res = await api.delete(`/library/${id}`);
 
 // Transport
 api.getTransportRoutes = async () => { const res = await api.get("/transport/routes"); return res.data; };
+api.getTransportRoute = async (id) => { const res = await api.get(`/transport/routes/${id}`); return res.data; };
 api.createTransportRoute = async (data) => { const res = await api.post("/transport/routes", data); return res.data; };
 api.updateTransportRoute = async (id, data) => { const res = await api.put(`/transport/routes/${id}`, data); return res.data; };
 api.deleteTransportRoute = async (id) => { const res = await api.delete(`/transport/routes/${id}`); return res.data; };
@@ -626,5 +627,81 @@ api.createCopyCheckBatch = async (data) => { const res = await api.post("/copych
 api.addCopyCheckEntry = async (batchId, data) => { const res = await api.post(`/copychecking/${batchId}/entries`, data); return res.data; };
 api.updateCopyCheckEntry = async (id, data) => { const res = await api.put(`/copychecking/entries/${id}`, data); return res.data; };
 api.deleteCopyCheckBatch = async (id) => { const res = await api.delete(`/copychecking/${id}`); return res.data; };
+
+// Digital Diary
+api.getDiaryEntries = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.cls) query.append("cls", params.cls);
+  if (params.section) query.append("section", params.section);
+  if (params.subject) query.append("subject", params.subject);
+  const qStr = query.toString();
+  const res = await api.get(`/diary${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createDiaryEntry = async (data) => { const res = await api.post("/diary", data); return res.data; };
+
+// Homework
+api.getHomework = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.cls) query.append("cls", params.cls);
+  if (params.section) query.append("section", params.section);
+  if (params.subject) query.append("subject", params.subject);
+  const qStr = query.toString();
+  const res = await api.get(`/homework${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createHomework = async (data) => { const res = await api.post("/homework", data); return res.data; };
+api.updateHomework = async (id, data) => { const res = await api.put(`/homework/${id}`, data); return res.data; };
+api.deleteHomework = async (id) => { const res = await api.delete(`/homework/${id}`); return res.data; };
+api.submitHomework = async (id, data) => { const res = await api.post(`/homework/${id}/submit`, data); return res.data; };
+api.getHomeworkSubmissions = async (id) => { const res = await api.get(`/homework/${id}/submissions`); return res.data; };
+
+// Fees Management
+api.getFeeComponents = async () => { const res = await api.get("/fees/components"); return res.data; };
+api.createFeeComponent = async (data) => { const res = await api.post("/fees/components", data); return res.data; };
+api.getFeeStructures = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.cls) query.append("cls", params.cls);
+  if (params.session) query.append("session", params.session);
+  const qStr = query.toString();
+  const res = await api.get(`/fees/structures${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createFeeStructure = async (data) => { const res = await api.post("/fees/structures", data); return res.data; };
+api.getFeeLedger = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.cls) query.append("cls", params.cls);
+  if (params.section) query.append("section", params.section);
+  if (params.session) query.append("session", params.session);
+  if (params.term) query.append("term", params.term);
+  if (params.status) query.append("status", params.status);
+  if (params.studentId) query.append("studentId", params.studentId);
+  const qStr = query.toString();
+  const res = await api.get(`/fees/ledger${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createFeeLedgerEntry = async (data) => { const res = await api.post("/fees/ledger", data); return res.data; };
+api.createFeeLedgerBulk = async (data) => { const res = await api.post("/fees/ledger/bulk", data); return res.data; };
+api.recordFeePayment = async (data) => { const res = await api.post("/fees/pay", data); return res.data; };
+api.getFeeReceipt = async (id) => { const res = await api.get(`/fees/receipt/${id}`); return res.data; };
+api.getFeeSummary = async (params = {}) => {
+  const query = new URLSearchParams();
+  const schoolId = params.schoolId || getActiveSchoolId();
+  if (schoolId) query.append("schoolId", schoolId);
+  const qStr = query.toString();
+  const res = await api.get(`/fees/summary${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.getStudentFeeHistory = async (studentId) => { const res = await api.get(`/fees/students/${studentId}`); return res.data; };
+
+// Leave Balance
+api.getLeaveBalance = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.staffId) query.append("staffId", params.staffId);
+  if (params.year) query.append("year", params.year);
+  const qStr = query.toString();
+  const res = await api.get(`/leave/balance${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
 
 export default api;

@@ -18,7 +18,17 @@ async function createRecord(req, res, next) {
   }
 }
 
+async function getSummary(req, res, next) {
+  try {
+    const result = await service.getSummary({ user: req.user, query: req.query });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listRecords,
   createRecord,
+  getSummary,
 };
