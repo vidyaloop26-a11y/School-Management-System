@@ -598,15 +598,69 @@ api.removeStudentTransport = async (id) => { const res = await api.delete(`/tran
 api.getVisitors = async (params = {}) => {
   const query = new URLSearchParams();
   if (params.status) query.append("status", params.status);
+  if (params.approval) query.append("approval", params.approval);
+  if (params.pickup) query.append("pickup", params.pickup);
   if (params.date) query.append("date", params.date);
   const qStr = query.toString();
   const res = await api.get(`/frontoffice/visitors${qStr ? `?${qStr}` : ""}`);
   return res.data;
 };
 api.checkInVisitor = async (data) => { const res = await api.post("/frontoffice/visitors/check-in", data); return res.data; };
+api.approveVisitor = async (id, data) => { const res = await api.post(`/frontoffice/visitors/${id}/approve`, data); return res.data; };
+api.verifyPickup = async (id, data) => { const res = await api.post(`/frontoffice/visitors/${id}/verify-pickup`, data); return res.data; };
 api.checkOutVisitor = async (id) => { const res = await api.post(`/frontoffice/visitors/${id}/check-out`); return res.data; };
-api.getGatePasses = async () => { const res = await api.get("/frontoffice/gate-passes"); return res.data; };
+api.getGatePasses = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.passType) query.append("passType", params.passType);
+  if (params.status) query.append("status", params.status);
+  const qStr = query.toString();
+  const res = await api.get(`/frontoffice/gate-passes${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.getGatePassById = async (id) => { const res = await api.get(`/frontoffice/gate-passes/${id}`); return res.data; };
 api.createGatePass = async (data) => { const res = await api.post("/frontoffice/gate-passes", data); return res.data; };
+api.cancelGatePass = async (id) => { const res = await api.post(`/frontoffice/gate-passes/${id}/cancel`); return res.data; };
+
+// Guardians (authorised pickup list)
+api.getGuardians = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.studentId) query.append("studentId", params.studentId);
+  if (params.onlyAuthorized) query.append("onlyAuthorized", params.onlyAuthorized);
+  const qStr = query.toString();
+  const res = await api.get(`/frontoffice/guardians${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.createGuardian = async (data) => { const res = await api.post("/frontoffice/guardians", data); return res.data; };
+api.updateGuardian = async (id, data) => { const res = await api.put(`/frontoffice/guardians/${id}`, data); return res.data; };
+api.deleteGuardian = async (id) => { const res = await api.delete(`/frontoffice/guardians/${id}`); return res.data; };
+
+// In-app notifications
+api.getNotifications = async (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.limit) query.append("limit", params.limit);
+  const qStr = query.toString();
+  const res = await api.get(`/frontoffice/notifications${qStr ? `?${qStr}` : ""}`);
+  return res.data;
+};
+api.markNotificationRead = async (id) => { const res = await api.post(`/frontoffice/notifications/${id}/read`); return res.data; };
+api.markAllNotificationsRead = async () => { const res = await api.post("/frontoffice/notifications/read-all"); return res.data; };
+
+// Public kiosk / QR endpoints (no auth — the visitor at the gate)
+api.getPublicFrontOfficeConfig = async (schoolId) => {
+  const res = await api.get(`/frontoffice/public/config?schoolId=${encodeURIComponent(schoolId)}`);
+  return res.data;
+};
+api.searchPublicStudents = async (schoolId, q) => {
+  const res = await api.get(`/frontoffice/public/students?schoolId=${encodeURIComponent(schoolId)}&q=${encodeURIComponent(q || "")}`);
+  return res.data;
+};
+api.publicVisitorCheckIn = async (data) => { const res = await api.post("/frontoffice/public/check-in", data); return res.data; };
+api.getPublicVisitorStatus = async (id) => { const res = await api.get(`/frontoffice/public/visitors/${id}/status`); return res.data; };
+api.verifyGatePassPublic = async (token) => {
+  const res = await api.get(`/frontoffice/public/gate-passes/verify?token=${encodeURIComponent(token)}`);
+  return res.data;
+};
+
 api.getHostMappings = async () => { const res = await api.get("/frontoffice/host-mappings"); return res.data; };
 api.createHostMapping = async (data) => { const res = await api.post("/frontoffice/host-mappings", data); return res.data; };
 api.deleteHostMapping = async (id) => { const res = await api.delete(`/frontoffice/host-mappings/${id}`); return res.data; };

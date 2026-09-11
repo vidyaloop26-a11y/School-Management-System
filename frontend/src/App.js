@@ -27,6 +27,8 @@ import Leave from "@/pages/Leave";
 import IDCard from "@/pages/IDCard";
 import Events from "@/pages/Events";
 import Login from "@/pages/Login";
+import VisitorCheckIn from "@/pages/VisitorCheckIn";
+import GatePassVerify from "@/pages/GatePassVerify";
 import Schools from "@/pages/Schools";
 import Support from "@/pages/Support";
 import Settings from "@/pages/Settings";
@@ -81,6 +83,10 @@ function AppRoutes() {
       >
         <Route path="/login" element={<Login />} />
       </Route>
+
+      {/* Public kiosk / gate pages — visitors need no auth */}
+      <Route path="/check-in" element={<VisitorCheckIn />} />
+      <Route path="/pass/verify" element={<GatePassVerify />} />
 
       <Route
         element={
@@ -188,7 +194,14 @@ function AppRoutes() {
             </DutyGuard>
           }
         />
-        <Route path="/front-office" element={<FrontOffice />} />
+        <Route
+          path="/front-office"
+          element={
+            <DutyGuard duties={["frontOffice", "admissionsOfficer"]}>
+              <FrontOffice />
+            </DutyGuard>
+          }
+        />
         <Route
           path="/inventory"
           element={

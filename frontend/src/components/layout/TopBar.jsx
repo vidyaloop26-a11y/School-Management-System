@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Bell, Search, ChevronDown, Menu, LogOut, Building2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import NotificationDropdown from "@/components/layout/NotificationDropdown";
+import NotificationDropdown, { useNotifications } from "@/components/layout/NotificationDropdown";
 import { useRole } from "@/lib/RoleContext";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +11,7 @@ import api from "@/lib/api";
 export default function TopBar({ onOpenPalette, onOpenSidebar }) {
   const { user, role, logout } = useRole();
   const isSuperAdmin = role === "superAdmin" || user?.role === "superAdmin";
+  const { unread } = useNotifications(25, true);
 
   const [schoolsList, setSchoolsList] = useState([]);
   const [activeSchoolId, setActiveSchoolIdState] = useState(() => {
@@ -92,6 +93,11 @@ export default function TopBar({ onOpenPalette, onOpenSidebar }) {
                   className="relative h-10 w-10 grid place-items-center rounded-full border border-slate-200/80 bg-white/70 hover:bg-white transition"
                 >
                   <Bell className="h-4.5 w-4.5 text-slate-600" strokeWidth={1.8} />
+                  {unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none shadow-sm">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
                 </button>
               </PopoverTrigger>
               <PopoverContent align="end" sideOffset={12} className="w-[360px] p-0 rounded-2xl overflow-hidden border-slate-200/70 shadow-xl">

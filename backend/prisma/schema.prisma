@@ -90,9 +90,11 @@ model School {
   bookIssues         BookIssue[]
   transportRoutes    TransportRoute[]
   vehicles           Vehicle[]
-  visitors           Visitor[]
-  gatePasses         GatePass[]
-  inventoryItems     InventoryItem[]
+visitors           Visitor[]
+   gatePasses         GatePass[]
+   guardians          Guardian[]
+   notifications      Notification[]
+   inventoryItems     InventoryItem[]
   purchaseRecords    PurchaseRecord[]
   issueLogs          IssueLog[]
    buildings          Building[]
@@ -314,6 +316,7 @@ model Student {
   payments    Payment[]
   attendance  AttendanceRecord[]
   examMarks   ExamMark[]
+  guardians   Guardian[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -770,41 +773,66 @@ model StudentRoute {
 // ---------------------------------------------------------------------------
 
 model Visitor {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  schoolId      String   @db.ObjectId
-  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  name          String
-  phone         String?
-  photoUrl      String?
-  purpose       String
-  hostStaffId   String?  @db.ObjectId
-  hostStaffName String?
-  studentId     String?  @db.ObjectId
-  studentName   String?
-  checkInTime   DateTime @default(now())
-  checkOutTime  DateTime?
-  gatePassId    String?
-  status        String   @default("CHECKED_IN")
-  createdAt     DateTime @default(now())
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId          String   @db.ObjectId
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name              String
+  phone             String?
+  photoUrl          String?
+  organisation      String?
+  purpose           String
+  hostStaffId       String?
+  hostStaffName     String?
+  studentId         String?
+  studentName       String?
+  checkInTime       DateTime @default(now())
+  checkOutTime      DateTime?
+  gatePassId        String?
+  status            String   @default("CHECKED_IN")
+  approvalStatus    String   @default("PENDING") // PENDING | APPROVED | REJECTED | WAIT
+  approvalNote      String?
+  approvedById      String?
+  approvedByName    String?
+  approvedAt        DateTime?
+  pickupStatus      String?  // VERIFIED | UNAUTHORIZED | MANUAL
+  pickupVerifiedById String?
+  pickupVerifiedByName String?
+  pickupNote        String?
+  admissionInquiryId String?
+  notifiedStaffId   String?
+  notifiedStaffName String?
+  qrToken           String?
+  createdAt         DateTime @default(now())
 
   gatePasses    GatePass[]
 
   @@index([schoolId, checkInTime])
   @@index([schoolId, status])
+  @@index([schoolId, admissionInquiryId])
 }
 
 model GatePass {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  schoolId    String   @db.ObjectId
-  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  visitorId   String   @db.ObjectId
-  visitor     Visitor  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
-  studentId   String?  @db.ObjectId
-  studentName String?
-  issuedBy    String
-  issuedAt    DateTime @default(now())
-  purpose     String?
-  status      String   @default("ACTIVE")
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId       String    @db.ObjectId
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  visitorId      String?   @db.ObjectId
+  visitor        Visitor?  @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  passType       String    @default("VISITOR") // VISITOR | STUDENT | STAFF
+  holderId       String?
+  holderName     String?
+  holderRole     String?   // STUDENT | STAFF
+  studentId      String?   @db.ObjectId
+  studentName    String?
+  issuedBy       String
+  issuedAt       DateTime  @default(now())
+  purpose        String?
+  qrToken        String?   @unique
+  approvalStatus String    @default("APPROVED") // PENDING | APPROVED | REJECTED
+  validUntil     DateTime?
+  status         String    @default("ACTIVE")
+  scannedAt      DateTime?
+  scannedBy      String?
+  createdAt      DateTime  @default(now())
 
   @@index([schoolId, issuedAt])
   @@index([visitorId])
@@ -816,9 +844,52 @@ model HostMapping {
   school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   visitType     String
   notifyStaffId String
+  notifyStaffName String?
   createdAt     DateTime @default(now())
 
   @@index([schoolId, visitType])
+}
+
+// ---------------------------------------------------------------------------
+// Visitor & Gate Management — Guardians & Notifications
+// ---------------------------------------------------------------------------
+
+model Guardian {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId          String   @db.ObjectId
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentId         String   @db.ObjectId
+  student           Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  name              String
+  relationship      String   @default("Parent") // Father | Mother | Guardian | Other
+  phone             String?
+  authorizedForPickup Boolean @default(false)
+  photoUrl          String?
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([schoolId, studentId])
+}
+
+model Notification {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  schoolId  String   @db.ObjectId
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  type      String   @default("VISITOR") // VISITOR | PICKUP | GATE_PASS | ADMISSION
+  title     String
+  body      String?
+  link      String?
+  actorId   String?
+  actorName String?
+  data      Json?
+  read      Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([schoolId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
